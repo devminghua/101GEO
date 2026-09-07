@@ -1,0 +1,1408 @@
+package handlers
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"geo-tool/database"
+	"geo-tool/models"
+)
+
+// ============================================================
+// GEO 智能中心：品牌事实库 / 竞品库 / 引用溯源 / 六项指标 /
+// 缺口分析 / 优化行动清单 / 网站审计 / llms.txt & Schema 生成
+// ============================================================
+
+// ---------- 品牌事实库 ----------
+
+// ListFacts 品牌事实库列表（可按分类筛选）
+func ListFacts(c *gin.Context) {
+	tid := TenantID(c)
+	q := database.DB.Where("tenant_id = ?", tid)
+	if v := c.Query("category"); v != "" {
+		q = q.Where("category = ?", v)
+	}
+	var list []models.FactItem
+	q.Order("id asc").Find(&list)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+}
+
+func CreateFact(c *gin.Context) {
+	var body models.FactItem
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "参数错误"})
+		return
+	}
+	body.TenantID = TenantID(c)
+	body.Category = strings.TrimSpace(body.Category)
+	if body.Category == "" {
+		body.Category = "其他"
+	}
+	if err := database.DB.Create(&body).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "保存失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": body})
+}
+
+func UpdateFact(c *gin.Context) {
+	id := c.Param("id")
+	var body models.FactItem
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "参数错误"})
+		return
+	}
+	var f models.FactItem
+	if err := database.DB.Where("id = ? AND tenant_id = ?", id, TenantID(c)).First(&f).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "记录不存在"})
+		return
+	}
+	body.ID = f.ID
+	body.TenantID = f.TenantID
+	database.DB.Model(&f).Updates(map[string]interface{}{
+		"category": body.Category, "question": body.Question, "fact": body.Fact,
+		"not_fact": body.NotFact, "enabled": body.Enabled,
+	})
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": f})
+}
+
+func DeleteFact(c *gin.Context) {
+	database.DB.Where("id = ? AND tenant_id = ?", c.Param("id"), TenantID(c)).Delete(&models.FactItem{})
+	c.JSON(http.StatusOK, gin.H{"code": 0})
+}
+
+// ---------- 竞品库 ----------
+
+func ListCompetitors(c *gin.Context) {
+	var list []models.Competitor
+	database.DB.Where("tenant_id = ?", TenantID(c)).Order("id asc").Find(&list)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+}
+
+func CreateCompetitor(c *gin.Context) {
+	var body models.Competitor
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "参数错误"})
+		return
+	}
+	body.TenantID = TenantID(c)
+	if strings.TrimSpace(body.Name) == "" {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "竞品名称不能为空"})
+		return
+	}
+	database.DB.Create(&body)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": body})
+}
+
+func UpdateCompetitor(c *gin.Context) {
+	var body models.Competitor
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "参数错误"})
+		return
+	}
+	var f models.Competitor
+	if err := database.DB.Where("id = ? AND tenant_id = ?", c.Param("id"), TenantID(c)).First(&f).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "记录不存在"})
+		return
+	}
+	database.DB.Model(&f).Updates(map[string]interface{}{"name": body.Name, "remark": body.Remark, "enabled": body.Enabled})
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": f})
+}
+
+func DeleteCompetitor(c *gin.Context) {
+	database.DB.Where("id = ? AND tenant_id = ?", c.Param("id"), TenantID(c)).Delete(&models.Competitor{})
+	c.JSON(http.StatusOK, gin.H{"code": 0})
+}
+
+// ---------- 风险词库 ----------
+
+func ListRiskWords(c *gin.Context) {
+	var list []models.RiskWord
+	database.DB.Where("tenant_id = ?", TenantID(c)).Order("id asc").Find(&list)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+}
+
+func CreateRiskWord(c *gin.Context) {
+	var body models.RiskWord
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "参数错误"})
+		return
+	}
+	body.TenantID = TenantID(c)
+	if strings.TrimSpace(body.Word) == "" {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "风险词不能为空"})
+		return
+	}
+	database.DB.Create(&body)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": body})
+}
+
+func DeleteRiskWord(c *gin.Context) {
+	database.DB.Where("id = ? AND tenant_id = ?", c.Param("id"), TenantID(c)).Delete(&models.RiskWord{})
+	c.JSON(http.StatusOK, gin.H{"code": 0})
+}
+
+// ---------- 引用溯源 ----------
+
+// ListCitations 引用溯源列表：可按任务 / 平台 / 关键词 / 域名筛选
+func ListCitations(c *gin.Context) {
+	tid := TenantID(c)
+	q := database.DB.Where("tenant_id = ?", tid)
+	if v := c.Query("task_id"); v != "" {
+		q = q.Where("task_id = ?", v)
+	}
+	if v := c.Query("platform"); v != "" {
+		q = q.Where("platform_name = ?", v)
+	}
+	if v := c.Query("domain"); v != "" {
+		q = q.Where("domain = ?", v)
+	}
+	if v := c.Query("keyword"); v != "" {
+		q = q.Where("question LIKE ?", "%"+v+"%")
+	}
+	page, size := pageArgs(c)
+	var total int64
+	q.Model(&models.Citation{}).Count(&total)
+	var list []models.Citation
+	q.Order("id desc").Offset((page - 1) * size).Limit(size).Find(&list)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"list": list, "total": total, "page": page, "size": size}})
+}
+
+// CitationDomains 引用来源域名排行（近 N 天）
+func CitationDomains(c *gin.Context) {
+	tid := TenantID(c)
+	days := parseDay(c.DefaultQuery("days", "30"))
+	since := time.Now().AddDate(0, 0, -days)
+	rows := []struct {
+		Domain string `json:"domain"`
+		Cnt    int64  `json:"cnt"`
+	}{}
+	database.DB.Model(&models.Citation{}).
+		Select("domain, count(*) as cnt").
+		Where("tenant_id = ? AND created_at >= ? AND domain != ''", tid, since).
+		Group("domain").Order("cnt desc").Limit(20).Scan(&rows)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": rows})
+}
+
+// ---------- 信源图谱：品牌 / 竞品信源对比 + 缺口清单 ----------
+
+type domainCnt struct {
+	Domain string `json:"domain"`
+	Cnt    int64  `json:"cnt"`
+}
+
+type sourceGapResp struct {
+	TopDomains        []domainCnt `json:"top_domains"`         // 高频引用域名
+	BrandDomains      []domainCnt `json:"brand_domains"`       // 品牌被引用时的信源
+	CompetitorDomains []domainCnt `json:"competitor_domains"`  // 竞品被引用时的信源
+	GapDomains        []domainCnt `json:"gap_domains"`         // 信源缺口（竞品有、品牌没有）
+}
+
+// SourceGaps 信源图谱：AI 回答中引用的站点，区分「品牌信源 vs 竞品信源」，
+// 并给出「竞品有、品牌没有」的信源缺口清单（按竞品引用频次排序）。
+func SourceGaps(c *gin.Context) {
+	tid := TenantID(c)
+	days := parseDay(c.DefaultQuery("days", "30"))
+	since := time.Now().AddDate(0, 0, -days)
+
+	var comps []models.Competitor
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&comps)
+	compWords := []string{}
+	for _, cm := range comps {
+		for _, w := range strings.Split(cm.Name, ",") {
+			if w = strings.TrimSpace(w); w != "" {
+				compWords = append(compWords, w)
+			}
+		}
+	}
+
+	var cites []models.Citation
+	database.DB.Where("tenant_id = ? AND created_at >= ? AND domain != ''", tid, since).Find(&cites)
+
+	resultMap := map[uint]models.CheckResult{}
+	if len(cites) > 0 {
+		ids := make([]uint, 0, len(cites))
+		for _, ct := range cites {
+			ids = append(ids, ct.ResultID)
+		}
+		var rs []models.CheckResult
+		database.DB.Where("tenant_id = ? AND id IN ?", tid, ids).Find(&rs)
+		for _, r := range rs {
+			resultMap[r.ID] = r
+		}
+	}
+
+	allCnt := map[string]int64{}
+	brandCnt := map[string]int64{}
+	compCnt := map[string]int64{}
+	for _, ct := range cites {
+		allCnt[ct.Domain]++
+		r, ok := resultMap[ct.ResultID]
+		if !ok {
+			continue
+		}
+		if r.Hit {
+			brandCnt[ct.Domain]++
+		}
+		low := strings.ToLower(r.Response)
+		for _, w := range compWords {
+			if strings.Contains(low, strings.ToLower(w)) {
+				compCnt[ct.Domain]++
+				break
+			}
+		}
+	}
+
+	resp := &sourceGapResp{}
+	resp.TopDomains = sortDomains(allCnt, 20)
+	resp.BrandDomains = sortDomains(brandCnt, 20)
+	resp.CompetitorDomains = sortDomains(compCnt, 20)
+	// 缺口：竞品被引用、品牌未被引用的域名
+	for d, c := range compCnt {
+		if brandCnt[d] == 0 {
+			resp.GapDomains = append(resp.GapDomains, domainCnt{Domain: d, Cnt: c})
+		}
+	}
+	sort.Slice(resp.GapDomains, func(i, j int) bool { return resp.GapDomains[i].Cnt > resp.GapDomains[j].Cnt })
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
+}
+
+func sortDomains(m map[string]int64, limit int) []domainCnt {
+	out := make([]domainCnt, 0, len(m))
+	for d, c := range m {
+		out = append(out, domainCnt{Domain: d, Cnt: c})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Cnt > out[j].Cnt })
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
+
+// ---------- 六项核心指标 ----------
+
+// geoIndicator 六项指标 + 平台/趋势明细
+type geoIndicator struct {
+	Days         int     `json:"days"`
+	Period       string  `json:"period"`
+	BrandRate    float64 `json:"brand_rate"`     // ① 品牌出现率
+	Top3Rate     float64 `json:"top3_rate"`      // ② 推荐率（TOP3 覆盖）
+	CitationRate float64 `json:"citation_rate"`  // ③ 引用率（有引用链接的回答占比）
+	AccuracyRate float64 `json:"accuracy_rate"`  // ④ 事实一致率（与品牌事实库无冲突）
+	BrandSov     float64 `json:"brand_sov"`      // ⑤a 品牌 AI 声量（出现率）
+	CompetitorSov float64 `json:"competitor_sov"` // ⑤b 竞品声量（提及率）
+	RiskRate     float64 `json:"risk_rate"`      // ⑥ 风险回答率（命中风险词）
+	AvgMention   float64 `json:"avg_mention"`
+	AvgCitation  float64 `json:"avg_citation"`
+	Platforms    []geoPlatform `json:"platforms"`
+	Trend        []TrendPoint  `json:"trend"`
+	Deltas       map[string]float64 `json:"deltas"` // 各核心指标「较前期」变化（百分点）
+}
+
+type geoPlatform struct {
+	Name          string  `json:"name"`
+	Queries       int     `json:"queries"`
+	BrandRate     float64 `json:"brand_rate"`
+	CitationRate  float64 `json:"citation_rate"`
+	AccuracyRate  float64 `json:"accuracy_rate"`
+	CompetitorSov float64 `json:"competitor_sov"`
+	RiskRate      float64 `json:"risk_rate"`
+}
+
+// GeoIntel 六项核心指标聚合
+func GeoIntel(c *gin.Context) {
+	results, days, since := queryResultsInRange(c, 7)
+	tid := TenantID(c)
+
+	// 加载事实库 / 风险词 / 竞品（启用态）
+	var facts []models.FactItem
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&facts)
+	var risks []models.RiskWord
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&risks)
+	var comps []models.Competitor
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&comps)
+
+	// 引用：构建 result_id -> 引用数
+	citeCnt := map[uint]int{}
+	if len(results) > 0 {
+		var cites []models.Citation
+		database.DB.Where("tenant_id = ? AND created_at >= ?", tid, since).Find(&cites)
+		for _, ct := range cites {
+			citeCnt[ct.ResultID]++
+		}
+	}
+
+	ind := &geoIndicator{Days: days, Period: fmt.Sprintf("%s ~ %s", since.Format("2006-01-02"), time.Now().Format("2006-01-02"))}
+	pm := map[string]*geoPlatform{}
+	dayMap := map[string]*TrendPoint{}
+
+	success, hit, top3 := 0, 0, 0
+	cited, accurate, riskHit := 0, 0, 0
+	compHit := 0
+	mentionSum, citeSum := 0, 0
+
+	// 竞品关键词（逗号分隔同义名展开）
+	compWords := make([]string, 0)
+	for _, cm := range comps {
+		for _, w := range strings.Split(cm.Name, ",") {
+			if w = strings.TrimSpace(w); w != "" {
+				compWords = append(compWords, w)
+			}
+		}
+	}
+
+	for _, r := range results {
+		if r.ErrorMsg != "" {
+			continue
+		}
+		success++
+		low := strings.ToLower(r.Response)
+		hitThis := r.Hit
+		if hitThis {
+			hit++
+			if r.HitPosition <= 3 {
+				top3++
+			}
+			mentionSum += r.MentionCount
+		}
+		n := citeCnt[r.ID]
+		if n > 0 {
+			cited++
+			citeSum += n
+		}
+		// 事实冲突检测：命中任一 not_fact 表述视为与事实库冲突
+		conflict := false
+		for _, f := range facts {
+			if strings.TrimSpace(f.NotFact) == "" {
+				continue
+			}
+			if strings.Contains(low, strings.ToLower(f.NotFact)) {
+				conflict = true
+				break
+			}
+		}
+		if !conflict {
+			accurate++
+		}
+		// 风险词命中
+		risky := false
+		for _, rw := range risks {
+			if strings.Contains(low, strings.ToLower(rw.Word)) {
+				risky = true
+				break
+			}
+		}
+		if risky {
+			riskHit++
+		}
+		// 竞品提及
+		compPresent := false
+		for _, w := range compWords {
+			if strings.Contains(low, strings.ToLower(w)) {
+				compPresent = true
+				break
+			}
+		}
+		if compPresent {
+			compHit++
+		}
+
+		// 平台聚合
+		p, ok := pm[r.PlatformName]
+		if !ok {
+			p = &geoPlatform{Name: r.PlatformName}
+			pm[r.PlatformName] = p
+		}
+		p.Queries++
+		if hitThis {
+			p.BrandRate += 1
+		}
+		if n > 0 {
+			p.CitationRate += 1
+		}
+		if !conflict {
+			p.AccuracyRate += 1
+		}
+		if compPresent {
+			p.CompetitorSov += 1
+		}
+		if risky {
+			p.RiskRate += 1
+		}
+		// 趋势
+		day := r.CreatedAt.Format("01-02")
+		tp, ok := dayMap[day]
+		if !ok {
+			tp = &TrendPoint{Day: day}
+			dayMap[day] = tp
+		}
+		tp.Queries++
+		if hitThis {
+			tp.Hit++
+		}
+	}
+
+	denom := func(n int) float64 {
+		if success == 0 {
+			return 0
+		}
+		return round1(float64(n) / float64(success) * 100)
+	}
+	ind.BrandRate = denom(hit)
+	ind.Top3Rate = denom(top3)
+	ind.CitationRate = denom(cited)
+	ind.AccuracyRate = denom(accurate)
+	ind.BrandSov = ind.BrandRate
+	ind.CompetitorSov = denom(compHit)
+	ind.RiskRate = denom(riskHit)
+	if hit > 0 {
+		ind.AvgMention = round1(float64(mentionSum) / float64(hit))
+	}
+	if cited > 0 {
+		ind.AvgCitation = round1(float64(citeSum) / float64(cited))
+	}
+
+	// 平台明细换算为百分比
+	for _, p := range pm {
+		if p.Queries > 0 {
+			conv := func(n float64) float64 { return round1(n / float64(p.Queries) * 100) }
+			p.BrandRate = conv(p.BrandRate)
+			p.CitationRate = conv(p.CitationRate)
+			p.AccuracyRate = conv(p.AccuracyRate)
+			p.CompetitorSov = conv(p.CompetitorSov)
+			p.RiskRate = conv(p.RiskRate)
+		}
+		ind.Platforms = append(ind.Platforms, *p)
+	}
+	sort.Slice(ind.Platforms, func(i, j int) bool { return ind.Platforms[i].Queries > ind.Platforms[j].Queries })
+
+	// 趋势升序
+	daysL := make([]string, 0, len(dayMap))
+	for d := range dayMap {
+		daysL = append(daysL, d)
+	}
+	sort.Strings(daysL)
+	for _, d := range daysL {
+		tp := dayMap[d]
+		if tp.Queries > 0 {
+			tp.Rate = round1(float64(tp.Hit) / float64(tp.Queries) * 100)
+		}
+		ind.Trend = append(ind.Trend, *tp)
+	}
+
+	// 前后期对比：把结果按时间升序分成前后两半，算核心指标变化（较前期 ±百分点）
+	calcSeg := func(rs []models.CheckResult) (brand, top3, cite, acc, risk, comp float64) {
+		n := 0
+		for _, r := range rs {
+			if r.ErrorMsg != "" {
+				continue
+			}
+			n++
+			if r.Hit {
+				brand++
+				if r.HitPosition <= 3 {
+					top3++
+				}
+			}
+			if citeCnt[r.ID] > 0 {
+				cite++
+			}
+			conflict := false
+			for _, f := range facts {
+				if strings.TrimSpace(f.NotFact) != "" && strings.Contains(strings.ToLower(r.Response), strings.ToLower(f.NotFact)) {
+					conflict = true
+					break
+				}
+			}
+			if !conflict {
+				acc++
+			}
+			for _, rw := range risks {
+				if strings.Contains(strings.ToLower(r.Response), strings.ToLower(rw.Word)) {
+					risk++
+					break
+				}
+			}
+			for _, w := range compWords {
+				if strings.Contains(strings.ToLower(r.Response), strings.ToLower(w)) {
+					comp++
+					break
+				}
+			}
+		}
+		pct := func(x float64) float64 {
+			if n == 0 {
+				return 0
+			}
+			return round1(x / float64(n) * 100)
+		}
+		return pct(brand), pct(top3), pct(cite), pct(acc), pct(risk), pct(comp)
+	}
+	if len(results) >= 2 {
+		// results 按 created_at desc（最新在前）：[:mid]=后期（较新），[mid:]=前期（较早）
+		mid := len(results) / 2
+		lateB, lateT, lateC, lateA, lateR, lateComp := calcSeg(results[:mid])
+		earlyB, earlyT, earlyC, earlyA, earlyR, earlyComp := calcSeg(results[mid:])
+		ind.Deltas = map[string]float64{
+			"brand_rate":      round1(lateB - earlyB),
+			"top3_rate":       round1(lateT - earlyT),
+			"citation_rate":   round1(lateC - earlyC),
+			"accuracy_rate":   round1(lateA - earlyA),
+			"risk_rate":       round1(lateR - earlyR),
+			"competitor_sov":  round1(lateComp - earlyComp),
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": ind})
+}
+
+// ---------- 缺口分析 ----------
+
+type gapItem struct {
+	Question          string   `json:"question"`
+	Misses            int      `json:"misses"`
+	CompetitorMention int      `json:"competitor_mention"`
+	CompetitorNames   []string `json:"competitor_names"`
+	Level             string   `json:"level"` // high / mid / low
+}
+
+type gapResp struct {
+	Total          int        `json:"total"`
+	HighGap        int        `json:"high_gap"`
+	Gaps           []gapItem  `json:"gaps"`
+	CompetitorSOV  []compSOV  `json:"competitor_sov"`
+	UncoveredKeywords []string `json:"uncovered_keywords"`
+}
+
+type compSOV struct {
+	Name          string   `json:"name"`
+	Mentions      int      `json:"mentions"`
+	FirstMentions int      `json:"first_mentions"` // 首推次数（第一个被提及的品牌即该竞品）
+	Questions     []string `json:"questions"`
+}
+
+// GeoGaps 竞品对比 + 品牌缺口分析
+func GeoGaps(c *gin.Context) {
+	results, _, _ := queryResultsInRange(c, 7)
+	tid := TenantID(c)
+	var comps []models.Competitor
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&comps)
+
+	compWords := []string{}
+	for _, cm := range comps {
+		for _, w := range strings.Split(cm.Name, ",") {
+			if w = strings.TrimSpace(w); w != "" {
+				compWords = append(compWords, w)
+			}
+		}
+	}
+
+	qMiss := map[string]int{}
+	qTotal := map[string]int{}
+	qComp := map[string]int{}
+	qCompNames := map[string][]string{}
+	compStats := map[string]*compSOV{}
+
+	for _, r := range results {
+		if r.ErrorMsg != "" {
+			continue
+		}
+		qTotal[r.Question]++
+		if !r.Hit {
+			qMiss[r.Question]++
+		}
+		low := strings.ToLower(r.Response)
+
+		// 首推检测：回答中「第一个出现的品牌词」是谁（品牌首推则竞品不计首推）
+		firstWord, firstPos := "", len(low)+1
+		scan := func(w string) {
+			if p := strings.Index(low, strings.ToLower(w)); p >= 0 && p < firstPos {
+				firstPos, firstWord = p, w
+			}
+		}
+		for _, bw := range strings.Split(r.BrandKeywords, ",") {
+			if bw = strings.TrimSpace(bw); bw != "" {
+				scan(bw)
+			}
+		}
+		for _, w := range compWords {
+			scan(w)
+		}
+
+		for _, w := range compWords {
+			if strings.Contains(low, strings.ToLower(w)) {
+				qComp[r.Question]++
+				if !containsStr(qCompNames[r.Question], w) {
+					qCompNames[r.Question] = append(qCompNames[r.Question], w)
+				}
+				cs, ok := compStats[w]
+				if !ok {
+					cs = &compSOV{Name: w}
+					compStats[w] = cs
+				}
+				cs.Mentions++
+				if !containsStr(cs.Questions, r.Question) {
+					cs.Questions = append(cs.Questions, r.Question)
+				}
+				// 首推：第一个被提及的品牌即该竞品
+				if firstWord != "" && strings.EqualFold(firstWord, w) {
+					cs.FirstMentions++
+				}
+			}
+		}
+	}
+
+	resp := &gapResp{}
+	seen := map[string]bool{}
+	for q := range qTotal {
+		if qTotal[q] < 1 {
+			continue
+		}
+		miss := qMiss[q]
+		cm := qComp[q]
+		item := gapItem{Question: q, Misses: miss, CompetitorMention: cm, CompetitorNames: qCompNames[q]}
+		item.Level = "low"
+		if miss >= 1 {
+			item.Level = "mid"
+		}
+		if miss >= 1 && cm >= 1 {
+			item.Level = "high" // 品牌缺席且竞品在场 → 最高优先级
+		}
+		if miss >= 2 {
+			item.Level = "high"
+		}
+		resp.Gaps = append(resp.Gaps, item)
+		if item.Level == "high" {
+			resp.HighGap++
+		}
+		if miss >= 1 {
+			seen[q] = true
+		}
+	}
+	sort.Slice(resp.Gaps, func(i, j int) bool {
+		if resp.Gaps[i].Level != resp.Gaps[j].Level {
+			return resp.Gaps[i].Level < resp.Gaps[j].Level
+		}
+		return resp.Gaps[i].Misses > resp.Gaps[j].Misses
+	})
+	resp.Total = len(resp.Gaps)
+	// 品牌完全缺席的关键词
+	for q := range qTotal {
+		if !seen[q] && qMiss[q] == 0 && qTotal[q] > 0 && qComp[q] == 0 {
+			// 有数据但既未命中品牌、也未出现竞品 → 中性
+		}
+	}
+	for q := range qMiss {
+		if qMiss[q] >= 1 {
+			resp.UncoveredKeywords = append(resp.UncoveredKeywords, q)
+		}
+	}
+	sort.Strings(resp.UncoveredKeywords)
+
+	for _, cs := range compStats {
+		resp.CompetitorSOV = append(resp.CompetitorSOV, *cs)
+	}
+	sort.Slice(resp.CompetitorSOV, func(i, j int) bool { return resp.CompetitorSOV[i].Mentions > resp.CompetitorSOV[j].Mentions })
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
+}
+
+// ---------- 效果归因：前后期对比 ----------
+
+type compareQ struct {
+	Question    string  `json:"question"`
+	BeforeRate  float64 `json:"before_rate"`
+	AfterRate   float64 `json:"after_rate"`
+	Delta       float64 `json:"delta"`
+	BeforeHits  int     `json:"before_hits"`
+	BeforeTotal int     `json:"before_total"`
+	AfterHits   int     `json:"after_hits"`
+	AfterTotal  int     `json:"after_total"`
+}
+
+type compareResp struct {
+	BeforeDays int        `json:"before_days"`
+	AfterDays  int        `json:"after_days"`
+	BrandRate  [2]float64 `json:"brand_rate"`   // [前期, 后期] 品牌出现率
+	FirstRate  [2]float64 `json:"first_rate"`   // [前期, 后期] 首推率
+	Questions  []compareQ `json:"questions"`    // 逐题前后期对比
+}
+
+// CompareGeoIntel 效果归因：对比前后两个时间段的提及率变化。
+// 前期 = [now-before_days-after_days, now-after_days]，后期 = [now-after_days, now]。
+func CompareGeoIntel(c *gin.Context) {
+	tid := TenantID(c)
+	beforeDays := parseDay(c.DefaultQuery("before_days", "30"))
+	afterDays := parseDay(c.DefaultQuery("after_days", "7"))
+	if beforeDays <= 0 {
+		beforeDays = 30
+	}
+	if afterDays <= 0 {
+		afterDays = 7
+	}
+	now := time.Now()
+	beforeStart := now.AddDate(0, 0, -(beforeDays + afterDays))
+	afterStart := now.AddDate(0, 0, -afterDays)
+
+	var before []models.CheckResult
+	database.DB.Where("tenant_id = ? AND created_at >= ? AND created_at < ?", tid, beforeStart, afterStart).Find(&before)
+	var after []models.CheckResult
+	database.DB.Where("tenant_id = ? AND created_at >= ?", tid, afterStart).Find(&after)
+
+	resp := &compareResp{BeforeDays: beforeDays, AfterDays: afterDays}
+	resp.BrandRate = [2]float64{hitRate(before), hitRate(after)}
+	resp.FirstRate = [2]float64{firstRate(before), firstRate(after)}
+
+	type qAgg struct{ hits, total int }
+	agg := func(rs []models.CheckResult) map[string]qAgg {
+		m := map[string]qAgg{}
+		for _, r := range rs {
+			if r.ErrorMsg != "" {
+				continue
+			}
+			a := m[r.Question]
+			a.total++
+			if r.Hit {
+				a.hits++
+			}
+			m[r.Question] = a
+		}
+		return m
+	}
+	bq, aq := agg(before), agg(after)
+	allQ := map[string]bool{}
+	for q := range bq {
+		allQ[q] = true
+	}
+	for q := range aq {
+		allQ[q] = true
+	}
+	for q := range allQ {
+		b, a := bq[q], aq[q]
+		br, ar := 0.0, 0.0
+		if b.total > 0 {
+			br = float64(b.hits) / float64(b.total) * 100
+		}
+		if a.total > 0 {
+			ar = float64(a.hits) / float64(a.total) * 100
+		}
+		resp.Questions = append(resp.Questions, compareQ{
+			Question: q, BeforeRate: br, AfterRate: ar, Delta: ar - br,
+			BeforeHits: b.hits, BeforeTotal: b.total, AfterHits: a.hits, AfterTotal: a.total,
+		})
+	}
+	sort.Slice(resp.Questions, func(i, j int) bool { return resp.Questions[i].Delta > resp.Questions[j].Delta })
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
+}
+
+func hitRate(rs []models.CheckResult) float64 {
+	hit, total := 0, 0
+	for _, r := range rs {
+		if r.ErrorMsg != "" {
+			continue
+		}
+		total++
+		if r.Hit {
+			hit++
+		}
+	}
+	if total == 0 {
+		return 0
+	}
+	return float64(hit) / float64(total) * 100
+}
+
+func firstRate(rs []models.CheckResult) float64 {
+	first, total := 0, 0
+	for _, r := range rs {
+		if r.ErrorMsg != "" {
+			continue
+		}
+		total++
+		if r.Hit && r.HitPosition == 1 {
+			first++
+		}
+	}
+	if total == 0 {
+		return 0
+	}
+	return float64(first) / float64(total) * 100
+}
+
+func ListOptTasks(c *gin.Context) {
+	tid := TenantID(c)
+	q := database.DB.Where("tenant_id = ?", tid)
+	if v := c.Query("status"); v != "" {
+		q = q.Where("status = ?", v)
+	}
+	if v := c.Query("type"); v != "" {
+		q = q.Where("type = ?", v)
+	}
+	var list []models.OptTask
+	q.Order("status asc, priority asc, id desc").Find(&list)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+}
+
+func UpdateOptTask(c *gin.Context) {
+	var body struct {
+		Status   string `json:"status"`
+		Priority int    `json:"priority"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "参数错误"})
+		return
+	}
+	var t models.OptTask
+	if err := database.DB.Where("id = ? AND tenant_id = ?", c.Param("id"), TenantID(c)).First(&t).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "记录不存在"})
+		return
+	}
+	updates := map[string]interface{}{}
+	if body.Status != "" {
+		updates["status"] = body.Status
+		if body.Status == "done" {
+			now := time.Now()
+			updates["done_at"] = &now
+		} else {
+			updates["done_at"] = nil
+		}
+	}
+	if body.Priority > 0 {
+		updates["priority"] = body.Priority
+	}
+	if len(updates) > 0 {
+		database.DB.Model(&t).Updates(updates)
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": t})
+}
+
+func DeleteOptTask(c *gin.Context) {
+	database.DB.Where("id = ? AND tenant_id = ?", c.Param("id"), TenantID(c)).Delete(&models.OptTask{})
+	c.JSON(http.StatusOK, gin.H{"code": 0})
+}
+
+// GenerateOptTasks 基于最新巡检数据重新生成优化行动清单（幂等：已存在的 open 任务不重复）
+func GenerateOptTasks(c *gin.Context) {
+	results, _, _ := queryResultsInRange(c, 30)
+	tid := TenantID(c)
+	created := 0
+
+	var risks []models.RiskWord
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&risks)
+	var facts []models.FactItem
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&facts)
+	var comps []models.Competitor
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&comps)
+	compWords := []string{}
+	for _, cm := range comps {
+		for _, w := range strings.Split(cm.Name, ",") {
+			if w = strings.TrimSpace(w); w != "" {
+				compWords = append(compWords, w)
+			}
+		}
+	}
+
+	// 品牌缺口任务
+	qMiss := map[string]int{}
+	qComp := map[string]int{}
+	qTotal := map[string]int{}
+	qRisk := map[string][]string{}
+	qCompNames := map[string][]string{}
+	for _, r := range results {
+		if r.ErrorMsg != "" {
+			continue
+		}
+		qTotal[r.Question]++
+		if !r.Hit {
+			qMiss[r.Question]++
+		}
+		low := strings.ToLower(r.Response)
+		for _, w := range compWords {
+			if strings.Contains(low, strings.ToLower(w)) {
+				qComp[r.Question]++
+				if !containsStr(qCompNames[r.Question], w) {
+					qCompNames[r.Question] = append(qCompNames[r.Question], w)
+				}
+			}
+		}
+		for _, rw := range risks {
+			if strings.Contains(low, strings.ToLower(rw.Word)) {
+				qRisk[r.Question] = append(qRisk[r.Question], rw.Word)
+			}
+		}
+	}
+	for q := range qTotal {
+		if qMiss[q] >= 2 {
+			typ := "gap"
+			title := fmt.Sprintf("补齐内容缺口：%s", q)
+			detail := fmt.Sprintf("近 30 天该问题共查询 %d 次，品牌缺席 %d 次（出现率 %.0f%%）。请围绕该问题铺设含品牌词的自然回答，覆盖用户真实问法。", qTotal[q], qMiss[q], float64(qTotal[q]-qMiss[q])/float64(qTotal[q])*100)
+			pri := 3
+			if qComp[q] >= 1 {
+				typ = "competitor"
+				title = fmt.Sprintf("竞品抢占需反制：%s", q)
+				detail = fmt.Sprintf("该问题品牌缺席 %d 次，且回答中出现了竞品（%s）。建议补齐对比内容，突出 %s 的差异化优势与适用场景。", qMiss[q], strings.Join(qCompNames[q], "、"), BrandOf(c))
+				pri = 1
+			}
+			if createOptTaskIfMissing(tid, typ, title, detail, pri, q) {
+				created++
+			}
+		}
+	}
+
+	// 风险任务（按风险词聚合，最多 5 条）
+	riskWordCnt := map[string]int{}
+	for _, words := range qRisk {
+		for _, w := range words {
+			riskWordCnt[w]++
+		}
+	}
+	for w, cnt := range riskWordCnt {
+		if cnt < 1 {
+			continue
+		}
+		title := fmt.Sprintf("修复回答风险用语：「%s」", w)
+		detail := fmt.Sprintf("有 %d 条 AI 回答命中了风险词「%s」，存在过度承诺/合规风险。请在品牌事实库中补充「不适用/边界」事实，并在内容投放中避免此类表述。", cnt, w)
+		if createOptTaskIfMissing(tid, "risk", title, detail, 1, "risk:"+w) {
+			created++
+		}
+	}
+
+	// 事实库冲突任务
+	for _, f := range facts {
+		if strings.TrimSpace(f.NotFact) == "" {
+			continue
+		}
+		cnt := 0
+		for _, r := range results {
+			if r.ErrorMsg == "" && strings.Contains(strings.ToLower(r.Response), strings.ToLower(f.NotFact)) {
+				cnt++
+			}
+		}
+		if cnt >= 1 {
+			title := fmt.Sprintf("人工校正：%s 表述被 AI 错误引用", f.NotFact)
+			detail := fmt.Sprintf("「%s」作为事实库中的边界/禁区表述，仍有 %d 条回答命中。请核实回答上下文并校正事实库，必要时向平台提交纠错。", f.NotFact, cnt)
+			if createOptTaskIfMissing(tid, "risk", title, detail, 2, "fact:"+f.NotFact, "observe") {
+				created++
+			}
+		}
+	}
+
+	// 引用提升任务：引用率 < 30% 的平台
+	citeByPlatform := map[string]int{}
+	totalByPlatform := map[string]int{}
+	if len(results) > 0 {
+		var cites []models.Citation
+		database.DB.Where("tenant_id = ?", tid).Find(&cites)
+		for _, ct := range cites {
+			citeByPlatform[ct.PlatformName]++
+		}
+	}
+	for _, r := range results {
+		if r.ErrorMsg == "" {
+			totalByPlatform[r.PlatformName]++
+		}
+	}
+	for pname, tot := range totalByPlatform {
+		if tot >= 5 {
+			rate := float64(citeByPlatform[pname]) / float64(tot)
+			if rate < 0.3 {
+				title := fmt.Sprintf("提升「%s」引用率", pname)
+				detail := fmt.Sprintf("「%s」近 30 天 %d 条成功回答中仅 %d 条带引用（%.0f%%）。建议在该平台铺设可被引用的权威内容（官网文章/百科/媒体报道）。", pname, tot, citeByPlatform[pname], rate*100)
+				if createOptTaskIfMissing(tid, "citation", title, detail, 2, "citation:"+pname) {
+					created++
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"created": created}})
+}
+
+// createOptTaskIfMissing 幂等创建行动任务
+func createOptTaskIfMissing(tid uint, typ, title, detail string, pri int, source string, riskLevel ...string) bool {
+	var cnt int64
+	database.DB.Model(&models.OptTask{}).Where("tenant_id = ? AND type = ? AND source = ? AND status = ?", tid, typ, source, "open").Count(&cnt)
+	if cnt > 0 {
+		return false
+	}
+	rl := "low"
+	if len(riskLevel) > 0 && riskLevel[0] != "" {
+		rl = riskLevel[0]
+	} else {
+		switch typ {
+		case "risk":
+			rl = "high"
+		case "audit":
+			rl = "observe"
+		}
+	}
+	t := models.OptTask{TenantID: tid, Type: typ, Title: title, Detail: detail, Priority: pri, RiskLevel: rl, Status: "open", Source: source}
+	if err := database.DB.Create(&t).Error; err == nil {
+		return true
+	}
+	return false
+}
+
+// ---------- 阵地地图 ----------
+
+type geoChannel struct {
+	Name     string `json:"name"`     // 阵地名
+	Market   string `json:"market"`   // cn / global
+	Weight   string `json:"weight"`   // AI 引用权重：high / mid / low
+	Priority string `json:"priority"` // 建设优先级：high / mid / low
+	What     string `json:"what"`     // 建什么
+	Pace     string `json:"pace"`     // 节奏
+}
+
+// ListChannels 阵地地图：预置 19 个 GEO 建设阵地（按 AI 真实引用语料标定的中文/海外阵地）。
+func ListChannels(c *gin.Context) {
+	channels := []geoChannel{
+		{Name: "百度百科", Market: "cn", Weight: "high", Priority: "high", What: "品牌词条 + 产品词条，含可验证事实与时间", Pace: "1-2 周建词条，持续更新"},
+		{Name: "知乎", Market: "cn", Weight: "high", Priority: "high", What: "品牌相关问题专业回答 + 行业洞察文章", Pace: "每周 1-2 条高质量回答"},
+		{Name: "微信公众号", Market: "cn", Weight: "high", Priority: "high", What: "品牌深度文章 + 案例，便于被引用", Pace: "每周 1 篇深度文"},
+		{Name: "行业垂直评测站", Market: "cn", Weight: "high", Priority: "high", What: "产品评测条目 + 对比榜单", Pace: "1 次建条目，季度更新"},
+		{Name: "权威媒体报道", Market: "cn", Weight: "high", Priority: "mid", What: "以真实新闻事件为前提的媒体稿件", Pace: "按事件节奏，不可购买"},
+		{Name: "今日头条", Market: "cn", Weight: "mid", Priority: "mid", What: "品牌资讯 + 行业解读", Pace: "每周 2-3 条"},
+		{Name: "百家号", Market: "cn", Weight: "mid", Priority: "mid", What: "品牌文章 + 百度生态内容", Pace: "每周 1-2 篇"},
+		{Name: "36氪 / 虎嗅", Market: "cn", Weight: "mid", Priority: "mid", What: "行业报道 + 深度分析", Pace: "季度 1 次行业投稿"},
+		{Name: "小红书", Market: "cn", Weight: "mid", Priority: "mid", What: "种草笔记 + 真实使用体验", Pace: "每周 2-3 篇"},
+		{Name: "抖音", Market: "cn", Weight: "mid", Priority: "low", What: "品牌短视频 + 口播", Pace: "每周 1-2 条"},
+		{Name: "B站", Market: "cn", Weight: "low", Priority: "low", What: "评测视频 + 教程", Pace: "月度 1 条"},
+		{Name: "搜狐号 / 网易号", Market: "cn", Weight: "low", Priority: "low", What: "新闻稿分发", Pace: "月度 1-2 篇"},
+		{Name: "腾讯新闻", Market: "cn", Weight: "low", Priority: "low", What: "媒体报道转载", Pace: "按需"},
+		{Name: "百度知道 / 问答", Market: "cn", Weight: "low", Priority: "low", What: "问答口碑内容", Pace: "持续维护"},
+		{Name: "Wikipedia", Market: "global", Weight: "high", Priority: "mid", What: "品牌词条（需第三方可靠来源）", Pace: "按可验证来源建立"},
+		{Name: "G2 / Capterra", Market: "global", Weight: "mid", Priority: "mid", What: "产品评价页 + 用户评价", Pace: "1 次建页，持续积累评价"},
+		{Name: "Reddit", Market: "global", Weight: "mid", Priority: "low", What: "社区真实讨论 + AMA", Pace: "按需参与"},
+		{Name: "YouTube", Market: "global", Weight: "low", Priority: "low", What: "品牌视频 + 教程", Pace: "月度 1 条"},
+		{Name: "Product Hunt", Market: "global", Weight: "low", Priority: "low", What: "产品发布页", Pace: "发布节点 1 次"},
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": channels})
+}
+
+// ---------- 网站 GEO 审计 ----------
+
+type auditDims struct {
+	Label string `json:"label"`
+	Score int    `json:"score"`
+	Pass  bool   `json:"pass"`
+	Note  string `json:"note"`
+}
+
+func RunAudit(c *gin.Context) {
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.URL) == "" {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "请提供要审计的站点 URL"})
+		return
+	}
+	target := strings.TrimSpace(body.URL)
+	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+		target = "https://" + target
+	}
+	u, err := url.Parse(target)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "URL 格式错误"})
+		return
+	}
+	host := u.Hostname()
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(target)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "无法访问站点: " + err.Error()})
+		return
+	}
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 3*1024*1024))
+	resp.Body.Close()
+	html := string(raw)
+	statusOK := resp.StatusCode == 200
+	contentType := resp.Header.Get("Content-Type")
+	isHTML := strings.Contains(contentType, "text/html") || strings.Contains(html, "<html")
+
+	dims := []auditDims{}
+	score := 0
+
+	// 1 可访问性
+	if statusOK {
+		score += 10
+		dims = append(dims, auditDims{Label: "站点可访问性", Score: 10, Pass: true, Note: "HTTP 200"})
+	} else {
+		dims = append(dims, auditDims{Label: "站点可访问性", Score: 0, Pass: false, Note: fmt.Sprintf("HTTP %d", resp.StatusCode)})
+	}
+
+	// 2 标题与品牌词
+	brand := BrandOf(c)
+	title := firstMatch(html, `<title[^>]*>([^<]{1,200})</title>`)
+	if title != "" && (brand == "" || strings.Contains(title, brand)) {
+		score += 10
+		dims = append(dims, auditDims{Label: "标题与品牌词", Score: 10, Pass: true, Note: title})
+	} else {
+		score += 3
+		dims = append(dims, auditDims{Label: "标题与品牌词", Score: 3, Pass: false, Note: "标题缺失或未含品牌词: " + title})
+	}
+
+	// 3 meta description
+	desc := firstMatch(html, `<meta[^>]+name=["']description["'][^>]+content=["']([^"]{1,300})["']`)
+	if desc == "" {
+		desc = firstMatch(html, `<meta[^>]+content=["']([^"]{1,300})["'][^>]+name=["']description["']`)
+	}
+	if desc != "" {
+		score += 10
+		dims = append(dims, auditDims{Label: "Meta 描述", Score: 10, Pass: true, Note: truncateCN(desc, 60)})
+	} else {
+		dims = append(dims, auditDims{Label: "Meta 描述", Score: 0, Pass: false, Note: "缺少 meta description"})
+	}
+
+	// 4 H1 结构
+	h1s := regexp.MustCompile(`<h1[^>]*>`).FindAllString(html, -1)
+	if len(h1s) >= 1 && len(h1s) <= 3 {
+		score += 10
+		dims = append(dims, auditDims{Label: "H1 标题结构", Score: 10, Pass: true, Note: fmt.Sprintf("%d 个 H1", len(h1s))})
+	} else if len(h1s) == 0 {
+		dims = append(dims, auditDims{Label: "H1 标题结构", Score: 0, Pass: false, Note: "未检测到 H1"})
+	} else {
+		score += 5
+		dims = append(dims, auditDims{Label: "H1 标题结构", Score: 5, Pass: false, Note: fmt.Sprintf("%d 个 H1（建议 1 个）", len(h1s))})
+	}
+
+	// 5 结构化数据
+	hasJSONLD := strings.Contains(html, "application/ld+json") || strings.Contains(html, "application/ld+json")
+	hasMicro := strings.Contains(html, "itemscope") || strings.Contains(html, "itemtype=")
+	if hasJSONLD || hasMicro {
+		score += 10
+		dims = append(dims, auditDims{Label: "结构化数据", Score: 10, Pass: true, Note: "检测到 JSON-LD / Microdata"})
+	} else {
+		dims = append(dims, auditDims{Label: "结构化数据", Score: 0, Pass: false, Note: "缺少 Schema 结构化数据，AI 难以理解实体关系"})
+	}
+
+	// 6 llms.txt
+	if fetchHeadOK(client, strings.TrimRight(target, "/")+"/llms.txt") {
+		score += 10
+		dims = append(dims, auditDims{Label: "llms.txt", Score: 10, Pass: true, Note: "存在 /llms.txt，可直接喂给大模型"})
+	} else {
+		dims = append(dims, auditDims{Label: "llms.txt", Score: 0, Pass: false, Note: "缺少 llms.txt，建议生成供大模型友好读取"})
+	}
+
+	// 7 robots.txt
+	if fetchHeadOK(client, strings.TrimRight(target, "/")+"/robots.txt") {
+		score += 10
+		dims = append(dims, auditDims{Label: "robots.txt", Score: 10, Pass: true, Note: "存在 robots.txt"})
+	} else {
+		score += 5
+		dims = append(dims, auditDims{Label: "robots.txt", Score: 5, Pass: false, Note: "未检测到 robots.txt（建议补充）"})
+	}
+
+	// 8 页面体积
+	if len(raw) < 2*1024*1024 {
+		score += 10
+		dims = append(dims, auditDims{Label: "页面体积", Score: 10, Pass: true, Note: fmt.Sprintf("%.1f KB", float64(len(raw))/1024)})
+	} else {
+		score += 4
+		dims = append(dims, auditDims{Label: "页面体积", Score: 4, Pass: false, Note: fmt.Sprintf("%.1f MB，建议压缩", float64(len(raw))/1024/1024)})
+	}
+
+	// 9 图片 alt
+	imgN := len(regexp.MustCompile(`<img[^>]*>`).FindAllString(html, -1))
+	altN := len(regexp.MustCompile(`<img[^>]*alt=["'][^"']+["']`).FindAllString(html, -1))
+	if imgN == 0 || altN == imgN {
+		score += 10
+		dims = append(dims, auditDims{Label: "图片 Alt", Score: 10, Pass: true, Note: fmt.Sprintf("%d 张图全部带 alt", imgN)})
+	} else {
+		score += 5
+		dims = append(dims, auditDims{Label: "图片 Alt", Score: 5, Pass: false, Note: fmt.Sprintf("%d 张图中 %d 张缺 alt", imgN, imgN-altN)})
+	}
+
+	// 10 正文可读性
+	textLen := len(stripTags(html))
+	hasBody := textLen > 500
+	if hasBody && isHTML {
+		score += 10
+		dims = append(dims, auditDims{Label: "正文可读性", Score: 10, Pass: true, Note: fmt.Sprintf("提取正文约 %d 字", textLen)})
+	} else {
+		dims = append(dims, auditDims{Label: "正文可读性", Score: 0, Pass: false, Note: "正文内容过少或非 HTML"})
+	}
+
+	level := "poor"
+	if score >= 90 {
+		level = "excellent"
+	} else if score >= 70 {
+		level = "good"
+	} else if score >= 50 {
+		level = "medium"
+	}
+
+	// findings：未满分项
+	findings := []string{}
+	for _, d := range dims {
+		if d.Pass == false {
+			findings = append(findings, d.Label+": "+d.Note)
+		}
+	}
+	if level != "excellent" {
+		for _, d := range dims {
+			if d.Pass && d.Score < 10 {
+				findings = append(findings, d.Label+": 部分通过，可进一步优化")
+			}
+		}
+	}
+
+	dimJSON, _ := json.Marshal(dims)
+	findJSON, _ := json.Marshal(findings)
+	rec := models.AuditResult{
+		TenantID: TenantID(c), URL: target, Score: score, Level: level,
+		Dimensions: string(dimJSON), Findings: string(findJSON),
+	}
+	database.DB.Create(&rec)
+
+	// 审计低分自动生成行动任务
+	if score < 70 {
+		for _, f := range findings {
+			createOptTaskIfMissing(TenantID(c), "audit", "网站优化: "+f, "站点 "+target+" 审计得分 "+strconv.Itoa(score)+"。"+f, 2, "audit:"+target+":"+f)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{
+		"id": rec.ID, "url": target, "score": score, "level": level,
+		"dimensions": dims, "findings": findings, "host": host,
+	}})
+}
+
+func ListAudits(c *gin.Context) {
+	var list []models.AuditResult
+	database.DB.Where("tenant_id = ?", TenantID(c)).Order("id desc").Limit(50).Find(&list)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+}
+
+// fetchHeadOK 请求目标 URL 并判断是否 200
+func fetchHeadOK(client *http.Client, u string) bool {
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; GeoAudit/1.0)")
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	resp.Body.Close()
+	return resp.StatusCode == 200
+}
+
+// ---------- llms.txt / Schema 生成 ----------
+
+// GenerateLLMS 基于品牌事实库生成 llms.txt 内容
+func GenerateLLMS(c *gin.Context) {
+	tid := TenantID(c)
+	brand := BrandOf(c)
+	var facts []models.FactItem
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Order("id asc").Find(&facts)
+	var b strings.Builder
+	b.WriteString("# " + brand + "\n\n")
+	b.WriteString("> 本文件为供大语言模型（LLM）阅读的品牌介绍与事实说明，便于 AI 在回答中准确引用。\n\n")
+	for _, f := range facts {
+		b.WriteString("## " + f.Category + "\n")
+		if f.Question != "" {
+			b.WriteString("- 适用问题：" + f.Question + "\n")
+		}
+		b.WriteString("- " + f.Fact + "\n")
+		if f.NotFact != "" {
+			b.WriteString("- 边界/禁区：" + f.NotFact + "\n")
+		}
+		b.WriteString("\n")
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"content": b.String(), "filename": "llms.txt"}})
+}
+
+// GenerateSchema 基于品牌事实库生成 schema.org JSON-LD
+func GenerateSchema(c *gin.Context) {
+	tid := TenantID(c)
+	brand := BrandOf(c)
+	var facts []models.FactItem
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&facts)
+	description := ""
+	for _, f := range facts {
+		if f.Category == "品类" && description == "" {
+			description = f.Fact
+		}
+	}
+	type Fact struct {
+		Type string `json:"@type"`
+		Text string `json:"text"`
+	}
+	org := map[string]interface{}{
+		"@context": "https://schema.org",
+		"@type":    "Organization",
+		"name":     brand,
+		"description": description,
+	}
+	if len(facts) > 0 {
+		factsList := make([]Fact, 0, len(facts))
+		for _, f := range facts {
+			factsList = append(factsList, Fact{Type: f.Category, Text: f.Fact})
+		}
+		org["hasCredential"] = factsList
+	}
+	out, _ := json.MarshalIndent(org, "", "  ")
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"content": string(out), "filename": "schema.jsonld"}})
+}
+
+// ---------- 工具函数 ----------
+
+func pageArgs(c *gin.Context) (int, int) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 || size > 100 {
+		size = 20
+	}
+	return page, size
+}
+
+func containsStr(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func firstMatch(s, pattern string) string {
+	re := regexp.MustCompile(pattern)
+	m := re.FindStringSubmatch(s)
+	if len(m) > 1 {
+		return strings.TrimSpace(m[1])
+	}
+	return ""
+}
+
+func truncateCN(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "…"
+}
+
+var tagRe = regexp.MustCompile(`<[^>]+>`)
+
+func stripTags(s string) string {
+	s = tagRe.ReplaceAllString(s, " ")
+	s = strings.Join(strings.Fields(s), " ")
+	return s
+}

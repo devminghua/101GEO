@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="iCc8q3CJRCqwoPPnz2V053">
+<head data-page-node-id="0dM6fwPPZ1hD3qkh8rqKPQ">
+<meta charset="UTF-8" data-page-node-id="MwwZg1yZTrlJDCwCHr3FFC">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="7YxfK8fxLksQkBt0cpD0le">
+<title>GEO 系统运作完整度报告 · 2026-09-02</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f6f8; color: #1d2129; padding: 32px 20px; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .header { background: linear-gradient(135deg, #165DFF 0%, #14C9C9 100%); border-radius: 16px; padding: 28px 32px; color: #fff; margin-bottom: 20px; }
+  .header h1 { font-size: 24px; margin-bottom: 8px; }
+  .header p { opacity: .92; font-size: 13px; }
+  .header .meta { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .header .meta div { font-size: 12px; opacity: .9; }
+  .header .meta b { display: block; font-size: 22px; opacity: 1; }
+  .score-card { background: #fff; border-radius: 14px; padding: 24px 28px; margin-bottom: 20px; border: 1px solid #e5e6eb; display: flex; align-items: center; gap: 28px; }
+  .score-ring { width: 110px; height: 110px; border-radius: 50%; background: conic-gradient(#00b42a 0deg 297deg, #e5e6eb 297deg 360deg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .score-ring .inner { width: 86px; height: 86px; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .score-ring .num { font-size: 26px; font-weight: 800; color: #00b42a; }
+  .score-ring .label { font-size: 11px; color: #86909c; }
+  .score-desc h2 { font-size: 17px; margin-bottom: 8px; }
+  .score-desc p { font-size: 13px; color: #4e5969; line-height: 1.7; }
+  h3.sec { font-size: 16px; margin: 26px 0 12px; padding-left: 10px; border-left: 4px solid #165dff; }
+  .card { background: #fff; border-radius: 14px; padding: 20px 24px; margin-bottom: 14px; border: 1px solid #e5e6eb; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 9px 10px; background: #f7f8fa; color: #4e5969; font-weight: 600; border-bottom: 1px solid #e5e6eb; }
+  td { padding: 9px 10px; border-bottom: 1px solid #f2f3f5; }
+  tr:last-child td { border-bottom: none; }
+  .tag { display: inline-block; padding: 1px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .ok { background: #e8ffea; color: #00b42a; }
+  .warn { background: #fff7e8; color: #ff7d00; }
+  .bad { background: #ffece8; color: #f53f3f; }
+  .info { background: #e8f3ff; color: #165dff; }
+  .gray { background: #f2f3f5; color: #86909c; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat { background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #e5e6eb; }
+  .stat .v { font-size: 22px; font-weight: 800; color: #165dff; }
+  .stat .k { font-size: 12px; color: #86909c; margin-top: 4px; }
+  .stat.g .v { color: #00b42a; } .stat.o .v { color: #ff7d00; } .stat.p .v { color: #722ed1; }
+  .risk { display: flex; gap: 12px; padding: 14px; border-radius: 10px; margin-bottom: 10px; align-items: flex-start; }
+  .risk.high { background: #fff1f0; border: 1px solid #ffccc7; }
+  .risk.mid { background: #fff7e8; border: 1px solid #ffd591; }
+  .risk .lvl { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
+  .risk.high .lvl { background: #f53f3f; color: #fff; }
+  .risk.mid .lvl { background: #ff7d00; color: #fff; }
+  .risk .body { font-size: 13px; line-height: 1.65; color: #4e5969; }
+  .risk .body b { color: #1d2129; }
+  .foot { text-align: center; color: #86909c; font-size: 12px; margin-top: 28px; }
+  .bar-wrap { background: #f2f3f5; border-radius: 6px; height: 8px; width: 110px; overflow: hidden; }
+  .bar { height: 100%; border-radius: 6px; }
+</style>
+</head>
+<body data-page-node-id="NP1NEdi0wVTioPFo9z4moW">
+<div class="wrap" data-page-node-id="jWBq0El6xlpiJGVxRyaine">
+
+  <div class="header" data-page-node-id="ih1HtAE7hyCPm264mQlgoG">
+    <h1 data-page-node-id="48msc0gMcOoHK3wyxHyFOv">LinkGeo 系统 · 运作完整度体检报告</h1>
+    <p data-page-node-id="tXoIAPKT2QIB8nnhObjWqP">多租户 GEO（生成式引擎优化）监测 SaaS · 全面功能/数据/安全/稳定性巡检</p>
+    <div class="meta" data-page-node-id="7sBG4aOIIrHN4yc7d8VsDM">
+      <div data-page-node-id="7cwASYStnLRSc7IGKXBxaU"><b data-page-node-id="DTrSO307WcMvU5ZJGHho7g">2026-09-02 08:35</b>体检时间</div>
+      <div data-page-node-id="CTHC9MDCFdqqrOe4UCRYVg"><b data-page-node-id="d7h1b0K2fCGsZ7faVYtCCI">Go + React + SQLite</b>技术栈</div>
+      <div data-page-node-id="DhLhKGbHwjIBMLARvqGSkC"><b data-page-node-id="6cQPwdLiTithKLWodGKLh8">13 项检查</b>覆盖维度</div>
+      <div data-page-node-id="wqAVK7w8ftWk3AYKHzsvMh"><b data-page-node-id="II28i1O25GSl7He3vhQQ8E">189 个 API</b>后端路由</div>
+    </div>
+  </div>
+
+  <div class="score-card" data-page-node-id="eBBYMlsDkAUSFtbIHLVTRP">
+    <div class="score-ring" data-page-node-id="IRI9vwEt7JCmAY4Mej9ld6"><div class="inner" data-page-node-id="0rj2oNo4OIOFZaPDUEW2rP"><div class="num" data-page-node-id="GyW8Y3FtwIGNPugLpAWAsG">82.5</div><div class="label" data-page-node-id="GyMgfvGasBbrHwQrPfCuuv">完整度评分</div></div></div>
+    <div class="score-desc" data-page-node-id="heTxydrxwjDEfasy6s5vPs">
+      <h2 data-page-node-id="p4W5J6dNdk6Is6FjGGB0Rj">结论：核心链路完整可用，3 个风险项需处理</h2>
+      <p data-page-node-id="qEnF6fLCIGiSfe6Hy1PPis">巡检引擎、点卡计费、多租户隔离、SaaS 运营后台、续费对账五大核心链路全部实测通过。主要扣分项：3 个 AI 平台配置了无效 Key 仍处于启用状态（自动巡检每小时白烧点数）、Kimi 免费限流成功率低、告警推送未激活。</p>
+    </div>
+  </div>
+
+  <h3 class="sec" data-page-node-id="nSvIUPHzJnCxlDYfCAlTig">一、系统健康（全部正常）</h3>
+  <div class="card" data-page-node-id="JwO2kANqYr1BbRirYk46Om">
+    <table data-page-node-id="R5KKVowvWe2d2nYB9xTBec">
+      <tr data-page-node-id="rk0BFS6VcHOmMWsVmEsv5R"><th data-page-node-id="lvASZ9ORrqV9PQVcQtDA7I">检查项</th><th data-page-node-id="sd39lIVeSKjK2MtiyuKRq0">结果</th><th data-page-node-id="9nPEQJgHw4COUvW9xIvR8c">说明</th></tr>
+      <tr data-page-node-id="4eU9754kxpSS4aUigsKPws"><td data-page-node-id="pfTTjfzHCZcHEb3N4L7Pvs">后端服务（:8090）</td><td data-page-node-id="FNe4jztgZ8GA7vCpqDV4ai"><span class="tag ok" data-page-node-id="g6LKTrIIXwjXi7FcdDP1wG">运行中</span></td><td data-page-node-id="vSFZFCTFvG7uyRLihRX1Zw">启动无报错，日志正常，僵尸任务自动回收机制已挂载</td></tr>
+      <tr data-page-node-id="Ebva2JvogFnMDWvaq1Htk3"><td data-page-node-id="bFx8w6rsuUMq49viSmkYG9">前端服务（:3000）</td><td data-page-node-id="Vs8GwMDVKjU3X5ISTqVEBo"><span class="tag ok" data-page-node-id="zArSDsYVAoCXyaM76FYCJi">运行中</span></td><td data-page-node-id="TnBqKD5UHGGG0oSX7ZQsOS">Vite dev server 正常响应</td></tr>
+      <tr data-page-node-id="sa7OCgrefoDq4huMULFgtL"><td data-page-node-id="bWb9q6D3h7G9OAsPT0HTyn">数据库</td><td data-page-node-id="oDwFZAo89HAkRxANFeXUIT"><span class="tag ok" data-page-node-id="J1b37d7JKPgVcPEyFZfLBF">43 张表</span></td><td data-page-node-id="YVYZAmLDr7Z5AbkeFzBAJs">结构完整，AutoMigrate 迁移无缺列</td></tr>
+      <tr data-page-node-id="eoBjG3J2oC48gbfbUlxEye"><td data-page-node-id="34gXWqVdu6yAnZI2kY5LPV">定时巡检 Cron</td><td data-page-node-id="4eiWl12Qvs1AF1qEGqYHYT"><span class="tag ok" data-page-node-id="5qmnz04pYJj3lMEx8cpDS1">已启用</span></td><td data-page-node-id="3KtP4IeuHet5jq6VWqMmY3">60 分钟间隔，8:00-22:00 时段，超时订单自动关闭</td></tr>
+      <tr data-page-node-id="rBD50rYEJUAeIrenY9Vyd3"><td data-page-node-id="6VoGe1Rt5i4hH0PYrqRrIn">每日告警推送</td><td data-page-node-id="z5Et7ZMLw43I2gLBXu8don"><span class="tag warn" data-page-node-id="juhVRqhb9kxlpgWMQAigQw">机制就绪</span></td><td data-page-node-id="nXSr79HP64ooPjfECjxD6E">到期预警+点数不足汇总逻辑已验证，<b data-page-node-id="Q2wQlM7rmtuR2RATXQHhxa">webhook 未配置</b></td></tr>
+    </table>
+  </div>
+
+  <h3 class="sec" data-page-node-id="4dhOFRYCLL3uEWlwaV0t6M">二、AI 平台连通与数据质量</h3>
+  <div class="card" data-page-node-id="6pIrAxoraxExG08fBwpWka">
+    <table data-page-node-id="QKCfEJLV0F0WWvxzwJRsnU">
+      <tr data-page-node-id="Uu0u2XccBzNLbUSDu5xGzL"><th data-page-node-id="h1KVYxmHjcH6X6d6SPBTfB">平台</th><th data-page-node-id="zQLyxJsP8Ea063NzwCRUSj">状态</th><th data-page-node-id="1ABhgFRVCSkpEbBk7oZH3F">巡检记录</th><th data-page-node-id="SeVtiPfDS4Nj5VSlBX7ZAw">成功数</th><th data-page-node-id="viW0gTV3cscb4G17lrt8Ly">命中</th><th data-page-node-id="1pCPxMXGtmzaHENWaHxOED">质量</th></tr>
+      <tr data-page-node-id="AkG6jCkxpVyQU7iEjj1qx2"><td data-page-node-id="NYtOhO8iBm1ErmXQGhZvlz">DeepSeek</td><td data-page-node-id="RjL2mQB8w9c2KrUWdivVRk"><span class="tag ok" data-page-node-id="QyB6TW5lHpeLB6Dk7CqvHQ">正常</span></td><td data-page-node-id="GYDrlp2FZRfLc9SHO4DaG6">72</td><td data-page-node-id="ouBDY5Hn2AUkfE5Gr7KYFJ">46</td><td data-page-node-id="tbVydy3FFTUVxRPGROWET3">16</td><td data-page-node-id="qCvUFzrtzWShXZhHfUMLgu">64%</td></tr>
+      <tr data-page-node-id="ig1lrBnUHuzzwTNh4nH11S"><td data-page-node-id="AGMycrFaRBtB6QmEv8H9b9">豆包</td><td data-page-node-id="WopLWO6lGoSm95ia5SGYGz"><span class="tag ok" data-page-node-id="f343RD0YkjTwssrxB7ishq">正常</span></td><td data-page-node-id="kgvb2IWeitwzbEopFg4uPx">69</td><td data-page-node-id="I7GfKPG3oVCUff3WLho2CB">54</td><td data-page-node-id="FL25aIpUt9idaxildS2NCh">14</td><td data-page-node-id="OqxWanf3kaO1Fyk6dHEs8z">78%</td></tr>
+      <tr data-page-node-id="fN33O3vatgchTObcQLU3mw"><td data-page-node-id="I3vZOlz8gs6f7W4w6LtdO6">通义千问</td><td data-page-node-id="gMbR4ehqibOG81DYUBBGIM"><span class="tag ok" data-page-node-id="SsszgJOgwrbDvaWXmFA026">正常</span></td><td data-page-node-id="4GxzB0HHSYKcPP558Elged">66</td><td data-page-node-id="v6OQjJZClqQ8FcGDFFHoVm">27</td><td data-page-node-id="9QTmNXexQ1JkHZkxLUEKts">8</td><td data-page-node-id="oWPF90CLBLPvZHGKpR5tpU">41%</td></tr>
+      <tr data-page-node-id="CGgrKdEixPLCKcnWW9y18b"><td data-page-node-id="EM24FRFdTsoIu7ENkkZ4qH">智谱 GLM</td><td data-page-node-id="VdWek4re4KtAX0LnLlgtwB"><span class="tag ok" data-page-node-id="uhnIAMvWF9vn6C4RKw8CsU">正常</span></td><td data-page-node-id="3hsbUGOCQhpJKz2K8WFbQC">66</td><td data-page-node-id="Tc9lEEpA64fQIFeGa10ule">27</td><td data-page-node-id="r3I1sAWkEyZtU5AHIxICVi">9</td><td data-page-node-id="g9taA6lm1qsvIMnoIuJP7i">41%</td></tr>
+      <tr data-page-node-id="AyoBstuG0VYFU6jP78IWjf"><td data-page-node-id="66302c1LyyDRrgjfsJRAAf">Kimi（月之暗面）</td><td data-page-node-id="ODxVxhpsFIXb7mvtoGOT3B"><span class="tag warn" data-page-node-id="hfiFAWcGreJ9i1MfXwjqST">限流严重</span></td><td data-page-node-id="nroIQMtytfHSKrZTpV8lT9">66</td><td data-page-node-id="kXiDVPN5aXxgOO4LURacco">6</td><td data-page-node-id="SWRIAhy9vbIJkbeBLQVN8P">2</td><td data-page-node-id="99cSknnVpeWbHJu59BKEU7">9% 免费档 RPM 限额</td></tr>
+      <tr data-page-node-id="EfZIbivOtOj5nv0iGfI1W6"><td data-page-node-id="myYDBngtcB1xkka7oi81vF">腾讯混元</td><td data-page-node-id="NFedBrCgcByqQDkMfUY9ri"><span class="tag bad" data-page-node-id="0qBxKzDF38wLNXWH8qIQdt">Key 错误</span></td><td data-page-node-id="JOxCVjMDe5IOtJrMLdRqX3">39</td><td data-page-node-id="4SJRT8jkHKoDeDHEEYtUpr">0</td><td data-page-node-id="yxDDnuMpfILci9Ae6WtTjj">0</td><td data-page-node-id="HFy4CBfyNvkg1lWmY4R4hZ">填了 OpenAI 格式 Key</td></tr>
+      <tr data-page-node-id="baDKZxuHPZPxaV1z3VRF4y"><td data-page-node-id="1FBDWZe7RjI5hoQdQN158A">OpenAI</td><td data-page-node-id="zMTxdWyAtl1TjrfBlNeteD"><span class="tag bad" data-page-node-id="8d7lOBtt4RSo8g1JeJ1CDu">本机不可达</span></td><td data-page-node-id="XoGGuVVIuqANJqni3M8vDC">39</td><td data-page-node-id="mIZ08fBBwDs3CxnGTEQLDQ">0</td><td data-page-node-id="qpsydkxab3bgb6NEysU7ra">0</td><td data-page-node-id="h6ZvzIwExBlcbrXJaW1tXF">DNS 污染，需生产环境验证</td></tr>
+      <tr data-page-node-id="vlttpImWDeAOEnmdKHuCj1"><td data-page-node-id="ilaiGXwcL1RGEvBSUkLbEL">Ollama（本地）</td><td data-page-node-id="VdhcBUuYfPEy3EB3dev4tm"><span class="tag gray" data-page-node-id="8TpiAQQDPskfrfNarDRcKB">无本地服务</span></td><td data-page-node-id="RutwHSbxPt4aHNKvHw7KN9">39</td><td data-page-node-id="dnLjkBZUoyrAyZZybb4i4T">0</td><td data-page-node-id="VX9HAhKQ157DZthJFHUive">0</td><td data-page-node-id="mMRRjZav6ON9wRGduP1qjn">按需启用</td></tr>
+    </table>
+    <p style="font-size:12px;color:#86909c;margin-top:12px" data-page-node-id="LSnnCs1Xi73sKAgdJ13XhX">注：通义/智谱成功数偏低含 Kimi 测试轮次限流连带影响及历史失败记录；429 已加退避重试（5s/15s 两次）。</p>
+  </div>
+
+  <h3 class="sec" data-page-node-id="WBTaHgZKkFrbv0O1FsmR91">三、核心业务链路（全部实测通过）</h3>
+  <div class="card" data-page-node-id="1R0xIurclyUNS4wHkNt4QS">
+    <table data-page-node-id="dzV0kM4nnLE78T5gUkQ8h0">
+      <tr data-page-node-id="R4ncCVLjMHTGp8UHieA1dL"><th data-page-node-id="6YQNeH5TN5Rmy2YithEZpc">链路</th><th data-page-node-id="516ZBaq6PqAJZeKLEOnkzu">覆盖范围</th><th data-page-node-id="eJbbMBDIVkSU66v6wYIpW3">实测结论</th></tr>
+      <tr data-page-node-id="B1qeG7anlTQQoJiBZE1ovw"><td data-page-node-id="uZdlX9ysJ9jfdnG8HywGVK">GEO 巡检引擎</td><td data-page-node-id="z6WTwfJsJjPMeyOI7at3D0">平台×关键词组合并发查询、品牌命中检测（1起始位次）、引用入库</td><td data-page-node-id="qMSoTw12EXtT69bUvcP6P7"><span class="tag ok" data-page-node-id="L5IHVcVhujcnXXbGZteSpV">通过</span> 5 平台 130 次真实调用验证</td></tr>
+      <tr data-page-node-id="MTQV1n2mrDG42lRB3IsGkS"><td data-page-node-id="GnKROogmHs8IXMAKrDcEfo">点卡计费</td><td data-page-node-id="hGDDXZhp5jkwByA7ibdAJR">调用前扣 1 点、余额不足拦截、充值/消费流水、余额快照</td><td data-page-node-id="4NU3y8TGQPtsnHK7tuhKS3"><span class="tag ok" data-page-node-id="GsyAt0xaNUFe0dujbVsFMf">通过</span> 346 条流水核算一致</td></tr>
+      <tr data-page-node-id="1y4phEPtEE9HsyrDq40jIu"><td data-page-node-id="UUxO8Okdow6vYyFWrvphua">多租户隔离</td><td data-page-node-id="6jK3RtC8iGq7gCNOhTchlH">tenant_id 维度数据隔离 + super/admin 角色权限</td><td data-page-node-id="pWszoxqYLGjiUQwJwwjzj8"><span class="tag ok" data-page-node-id="ApEz4XAGc15UNoieh43iyV">通过</span> 租户 token 访问 super 接口返回 403</td></tr>
+      <tr data-page-node-id="Gbb6EohbJGEMwapdgxVVO8"><td data-page-node-id="hhe4cK0HJ53NZuZe3BzrQG">续费对账闭环</td><td data-page-node-id="dMjgJI4iHmKRKYPOVWCCT7">到期预警 → 一键续费 → 流水（金额=月单价×月数、收款方式、前后到期快照）→ CSV 导出</td><td data-page-node-id="ePLUXworLoTD3UYWFQoMHe"><span class="tag ok" data-page-node-id="K6r8kDcBa0TFqUiiPytq01">通过</span> 五种收款方式场景实测</td></tr>
+      <tr data-page-node-id="A9IXWJf5xqRSxpipAJ8GpK"><td data-page-node-id="Yus6kH8b9beb5ojSpaVAvI">扫码支付</td><td data-page-node-id="jkxIhHVLtWKvGCB0Jhxs6A">微信 Native / 支付宝当面付、回调幂等入账</td><td data-page-node-id="RLor5ZtCHwksACDPSQWS6V"><span class="tag info" data-page-node-id="Hc1lGWAeTUmxa8sANIuyCV">代码完整</span> 需商户资质配置后实测</td></tr>
+      <tr data-page-node-id="awLYAw4VGZ5BoZwVe3FHnf"><td data-page-node-id="utspbxJwMcsmnbR39C4gNz">告警推送</td><td data-page-node-id="CuSlxzyrjk16UiEgRmH8OK">企微/钉钉 webhook、每日定时、测试/预览接口</td><td data-page-node-id="5QOPYjsY6R9x0IzdnkiHmk"><span class="tag info" data-page-node-id="HKmdybIOxKM0inr5yxseqH">机制就绪</span> 等 webhook 地址</td></tr>
+    </table>
+  </div>
+
+  <h3 class="sec" data-page-node-id="Z5yZOgdqONQUlV1A7ZuEPn">四、数据资产现状</h3>
+  <div class="card" data-page-node-id="dPeTyjVSTMJv0bLmw4bRMa">
+    <div class="grid" data-page-node-id="jsbekJG2tTiv87Ggsq7bpX">
+      <div class="stat" data-page-node-id="DRChVWoLGBhzPYQzskck5j"><div class="v" data-page-node-id="LtyEMEBUwv5r0obtxw3Gty">4</div><div class="k" data-page-node-id="HLEpFpKpqI2nPXsfruKOFM">租户（客户）</div></div>
+      <div class="stat" data-page-node-id="lCMSOM0RTE6aCtoXFAVS9s"><div class="v" data-page-node-id="dSCvtBsdkLOu6pwRrdyXuA">6</div><div class="k" data-page-node-id="QxRgOjK8euHnKQTJn3TkH2">账号</div></div>
+      <div class="stat o" data-page-node-id="GGgoZKfmHDLvTrRQmWXkNF"><div class="v" data-page-node-id="t0qPuDZnDk9MJudmDBKAwV">162</div><div class="k" data-page-node-id="peSvgxnOvN6kvKrkq3laBa">LINKCRM 剩余点数</div></div>
+      <div class="stat g" data-page-node-id="Uf5MXBukwGI43zAIiYqrE3"><div class="v" data-page-node-id="293y8HuCUyfIvQz53ytBtg">99995</div><div class="k" data-page-node-id="F71YjyCXoLZmpi5fMC56Mp">bate 测试点数</div></div>
+      <div class="stat p" data-page-node-id="uV1WFUFDkjst4ogkCBAmlp"><div class="v" data-page-node-id="m2hxaapMnfTT6rX3hNRUlo">456</div><div class="k" data-page-node-id="Vu6xhUI4IbJ2wdqYjsdtFn">巡检结果</div></div>
+      <div class="stat p" data-page-node-id="ny0gK90ZBStKDww0tcwbTM"><div class="v" data-page-node-id="2Lg1epHWnsrMEKVAvdmQWj">14</div><div class="k" data-page-node-id="LmlRD0kR5polXdgU12klcp">巡检任务</div></div>
+      <div class="stat" data-page-node-id="Am3IdcTKjPyXdAhHZKcjWc"><div class="v" data-page-node-id="aOsi9sKoIi9moXTdMC2YA7">13</div><div class="k" data-page-node-id="c7EYwFXkQCa6nUnMTeXOG3">监测关键词</div></div>
+      <div class="stat g" data-page-node-id="CC06CrN4R7WBRPCxV7d9Fp"><div class="v" data-page-node-id="kjZaJTwOheFgIERmGjWODe">49</div><div class="k" data-page-node-id="qQ5a3NkE8YERoM4vhHhmqA">品牌命中总次数</div></div>
+    </div>
+    <p style="font-size:12px;color:#86909c;margin-top:12px" data-page-node-id="BuHEs9CsU9IOgYGA7HvSNy">前端 21 个页面（客户端 15 + 总后台 6）路由全部可达，189 个后端 API 已注册。</p>
+  </div>
+
+  <h3 class="sec" data-page-node-id="P1lyJHShCknzrMHOIHwr5z">五、风险项与建议（按优先级）</h3>
+  <div class="card" data-page-node-id="Uf6E0ARAR52tj789N8yJMD">
+    <div class="risk high" data-page-node-id="G68D6ZI0fZLNFmcaPAykth">
+      <span class="lvl" data-page-node-id="DLEEFlu4q16I5OmScAEhzK">高</span>
+      <div class="body" data-page-node-id="afz2qlBnmGGMWGGOYsOjUE"><b data-page-node-id="Om4e3jPeohC1l7dNXnih4I">3 个不可达平台处于启用状态</b> — 混元（Key 错误）/ OpenAI（本机网络不通）/ Ollama（无服务）当前均为启用。自动巡检每小时跑一轮，每轮 3 平台 × 13 关键词 = <b data-page-node-id="rRgqpxjg6RKwUcO8cja36Y">39 次调用全部失败但照常扣点</b>，一天浪费 500+ 点。<br data-page-node-id="xCaTOMG2RLgsnZdyWgiML6">建议：换正确的混元 Key，或暂时在平台管理中停用这 3 个，可用时再启用（一小时 39 点）。</div>
+    </div>
+    <div class="risk mid" data-page-node-id="gQSfc94QjH4AOSWbEXM7ij">
+      <span class="lvl" data-page-node-id="a7YD2d4TcXHUQ4KImJxMex">中</span>
+      <div class="body" data-page-node-id="CDSrvnhVORTUAftBUvvkOF"><b data-page-node-id="YWYExSDKTur6XAw1sXCrLd">Kimi 免费档限流严重（成功率 9%）</b> — 429 退避重试已上线，但免费 RPM 限额仍挡掉大部分请求。建议：升级 Kimi 付费档，或巡检组合中降低 Kimi 权重/轮次。</div>
+    </div>
+    <div class="risk mid" data-page-node-id="CcesBMQDj2HnE7DoB44Zgx">
+      <span class="lvl" data-page-node-id="OSh5zFEFhLS5nqWaRjTAve">中</span>
+      <div class="body" data-page-node-id="c4XoUDPxf1Ebx3JnVDBwIF"><b data-page-node-id="l9sUTMiazh3lNAK3xBFs26">告警推送未激活</b> — 机制已就绪且验证通过，但企微/钉钉 webhook 未配置，到期预警和点数不足无法主动触达。建议：支付设置 → 告警通知组，粘贴群机器人 webhook 并点「保存并发送测试消息」。</div>
+    </div>
+    <div class="risk mid" data-page-node-id="wmryHo2tpcxbjReqiZrlVm">
+      <span class="lvl" data-page-node-id="2ZGGU4bGIV7fOavjkOIGpL">中</span>
+      <div class="body" data-page-node-id="STaUl6ojHjrNCJ15pDWJww"><b data-page-node-id="HsBX0TwdivnObO5zgXlJbM">LINKCRM 点数余额 162 点</b> — 按当前 5 平台 × 13 关键词的巡检规模，每轮消耗 65 点，<b data-page-node-id="1Vejesuw2UFPhuJql4pZLe">仅够再跑 2 轮</b>（自动巡检每小时一轮）。建议：尽快充值或调整巡检频率/平台范围。</div>
+    </div>
+    <div class="risk mid" data-page-node-id="b5bGdfMV2207AGetyDutfn">
+      <span class="lvl" data-page-node-id="5upO86QHZWKfWFAlYOv8Qq">低</span>
+      <div class="body" data-page-node-id="sGi17SMkRrTbn0b6YpsmdY"><b data-page-node-id="VTP8WVabgJGMoYtjsfLj3B">轻媒婚恋、佳缘婚恋两个租户点数为 0</b> — 无法发起巡检。属正常业务状态（未充值），建议纳入点数不足告警关注名单（配置 webhook 后自动推送）。</div>
+    </div>
+  </div>
+
+  <h3 class="sec" data-page-node-id="aNVJytpjtD7XCxgRcCLKAI">六、今日开发交付清单</h3>
+  <div class="card" data-page-node-id="jHLuq5iXePTDcwuAoWSInv">
+    <table data-page-node-id="f08B180ikBZyFneG2Ayr2B">
+      <tr data-page-node-id="uR70whEsBE9Vg2NAk2bt7f"><th data-page-node-id="Zj7MikZDLOTHBoDYovepoJ">#</th><th data-page-node-id="VW8VOIyR1Qfr4YyLdm9nbU">交付项</th><th data-page-node-id="Gf3sxQeL8eARlBGpdAFk99">状态</th></tr>
+      <tr data-page-node-id="tfNLjz2Je7aHJXjNEjoE9V"><td data-page-node-id="Rpcnil3PMw3uelDCDtGM1p">1</td><td data-page-node-id="0Uz71M7MQ4A9kLrnThtjv2">续费流水金额字段（月单价 × 月数自动计算，改价不影响历史快照）</td><td data-page-node-id="fagO0ZDiyQ1WquoAa2ulfC"><span class="tag ok" data-page-node-id="c0YvBCRqrvIEfMKY64cLCE">已交付</span></td></tr>
+      <tr data-page-node-id="4HIgK9MU6U6AO8vNUSflBq"><td data-page-node-id="KZkzv6EAzO0GlUWHagoK2U">2</td><td data-page-node-id="pr9s7qVbVrFbncp2IB81Ze">流水收款方式字段（微信/支付宝/银行转账/现金/赠送，赠送记 ¥0）</td><td data-page-node-id="hVpWeNXVCbDGFGXfLRWCf9"><span class="tag ok" data-page-node-id="CtxTFYo5yy3PZDPlFxHTyf">已交付</span></td></tr>
+      <tr data-page-node-id="zEyMz10d7y196Led8xmPCc"><td data-page-node-id="RDb8j7CnDbxg4OEgVgWxxv">3</td><td data-page-node-id="COHFfZATZHFRxsiayrQUHI">企微/钉钉告警机器人（每日定时：到期预警 + 点数不足）</td><td data-page-node-id="4iV5ejBlwdBREO7yoMsu7Q"><span class="tag ok" data-page-node-id="X9AqzolzEofBpBiKzCC46w">已交付</span></td></tr>
+      <tr data-page-node-id="P7cG8eOL4EnPEw397UXQTe"><td data-page-node-id="PhXQ3rohdwcEbWKhjx8sYM">4</td><td data-page-node-id="3Ml2JI8S3lGylgHG9WJjz5">平台 Key 验证与修复（通义 URL、Kimi 模型 + temperature、智谱验证）</td><td data-page-node-id="ekFXSdtH6CeXWJlQeZzh3e"><span class="tag ok" data-page-node-id="FFmVQANMUpSqC0tJdEVu6A">已交付</span></td></tr>
+      <tr data-page-node-id="CdFiyIWZJPAxFlbYpHvqM5"><td data-page-node-id="kEgm4Tj5IHUJlFIPnzqodK">5</td><td data-page-node-id="YxwmpegfWm0XpaacWAgexK">仪表盘覆盖三态显示（已覆盖/未覆盖/已停用）</td><td data-page-node-id="UjxEWKUESZhB4bzK9UNIlP"><span class="tag ok" data-page-node-id="nqFbdSHsxjy3W0gVssH3zK">已交付</span></td></tr>
+      <tr data-page-node-id="JVNcCZsmFUHhH5KXUEwaF7"><td data-page-node-id="d5S8QkRbNIAd6QcpMMUJTW">6</td><td data-page-node-id="MtpG2hRNqDikL6o7uy8pmD">巡检 429 限流退避重试（不重复扣点）</td><td data-page-node-id="DTFNETiPgL8iFf4EMy6kp0"><span class="tag ok" data-page-node-id="WkHUd1EEGDtF7Rv1Ltmn1W">已交付</span></td></tr>
+      <tr data-page-node-id="eLU82hpTgZGxxkyxLSmxLz"><td data-page-node-id="Yx2hrO7HOtmm5PDdh58SJb">7</td><td data-page-node-id="Rz87XstZzoKQMnPH6LWt21">Bug 修复 × 5（expire_before 快照 / open_months 翻倍 / 流水汇总 / 仪表盘错误计数 / 僵尸任务回收）</td><td data-page-node-id="XTgitQMnfuwBwNCCpFH9cq"><span class="tag ok" data-page-node-id="ISvQuG1gHYKbR5LGzpU3z0">已交付</span></td></tr>
+    </table>
+  </div>
+
+  <div class="foot" data-page-node-id="vhxrltHxrwDJIeJCJpQoQ6">LinkGeo SaaS · 太湖一号 生成于 2026-09-02 08:35 · 数据来源：API 实测 + SQLite 直查 + 服务日志</div>
+</div>
+</body>
+</html>

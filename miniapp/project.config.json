@@ -1,0 +1,15 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "linkgeo-miniapp",
+  "description": "LinkGeo 客户效果监控小程序",
+  "appid": "touristappid",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "enhance": false,
+    "postcss": false,
+    "minified": false,
+    "compileHotReLoad": false
+  },
+  "compileType": "miniprogram"
+}

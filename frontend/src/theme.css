@@ -1,0 +1,257 @@
+/* ============================================================
+ * LinkGeo 主题层 —— 浅色 / 深色双向切换
+ * ------------------------------------------------------------
+ * 机制：
+ *   浅色  = <body>                       （默认，Arco 原样）
+ *   深色  = <body arco-theme="dark">     （Arco 自带变量块 + 本文件补齐）
+ *
+ * Arco 的 arco.css 里已有 body[arco-theme='dark'] 变量块，覆盖了
+ * --color-bg-1..5 / --color-text-1..4 / --color-fill-1..4，
+ * 但 **没有** 覆盖 --color-border-1..4（它们由 --gray-* 派生，
+ * 在深色下仍是浅灰），本文件负责补齐。
+ *
+ * 业务代码统一使用本文件定义的 --geo-* 语义变量，
+ * 不要在组件里再写死 #fff / #1d2129，否则深色下会翻车。
+ * ============================================================ */
+
+/* ---------- 1. 语义变量：浅色（默认） ---------- */
+body {
+  --geo-surface: #ffffff;        /* 卡片 / 弹层 / 侧栏 / 顶栏底色 */
+  --geo-surface-2: #f7f8fa;      /* 次级信息块底色 */
+  --geo-page: #f2f3f5;           /* 页面大底色 */
+  --geo-text: #1d2129;           /* 主文字 */
+  --geo-text-sub: #4e5969;       /* 次级文字 */
+
+  --geo-track: #f2f3f5;          /* 进度条轨道 */
+  --geo-track-strong: #e5e6eb;   /* 进度条轨道（强） */
+
+  /* 淡色告警块（深色下自动换成对应的深色版） */
+  --geo-tint-red: #fff7f7;
+  --geo-tint-orange: #fffbf4;
+  --geo-tint-amber: #fff7e8;
+  --geo-tint-blue: #f0f5ff;
+  --geo-tint-green: #e8ffea;
+
+  /* 登录 / 注册页全屏渐变（深色下换成带一点冷调的深色，保留层次） */
+  --geo-login-a: #f2f7ff;
+  --geo-login-b: #ffffff;
+  --geo-login-c: #eef4ff;
+
+  /* KPI 卡片渐变：起点是淡色调，终点是卡片底色。
+     业务代码不要再拼 linear-gradient，直接用这些变量，深色下才有对应的深色版。 */
+  --geo-grad-blue: linear-gradient(135deg, #eaf2ff, #ffffff);
+  --geo-grad-purple: linear-gradient(135deg, #f5edff, #ffffff);
+  --geo-grad-green: linear-gradient(135deg, #e8ffea, #ffffff);
+  --geo-grad-orange: linear-gradient(135deg, #fff4e5, #ffffff);
+  --geo-grad-red: linear-gradient(135deg, #ffecec, #ffffff);
+  --geo-grad-cyan: linear-gradient(135deg, #e6fffb, #ffffff);
+  --geo-grad-teal: linear-gradient(135deg, #f0f9f9, #ffffff);
+  --geo-grad-amber: linear-gradient(135deg, #fff9e6, #ffffff);
+}
+
+/* ---------- 2. 语义变量 + Arco 补齐：深色 ---------- */
+body[arco-theme='dark'] {
+  /* --- 业务语义变量 --- */
+  --geo-surface: #232324;
+  --geo-surface-2: #2a2a2b;
+  --geo-page: #17171a;
+  --geo-text: rgba(255, 255, 255, 0.9);
+  --geo-text-sub: rgba(255, 255, 255, 0.7);
+
+  --geo-track: #373739;
+  --geo-track-strong: #48484b;
+
+  --geo-tint-red: #3d2124;
+  --geo-tint-orange: #3d2f1c;
+  --geo-tint-amber: #3a2e18;
+  --geo-tint-blue: #1e2a45;
+  --geo-tint-green: #16321d;
+
+  --geo-login-a: #1a1e26;
+  --geo-login-b: #17171a;
+  --geo-login-c: #1b2029;
+
+  --geo-grad-blue: linear-gradient(135deg, #1e2a45, #232324);
+  --geo-grad-purple: linear-gradient(135deg, #262036, #232324);
+  --geo-grad-green: linear-gradient(135deg, #17301c, #232324);
+  --geo-grad-orange: linear-gradient(135deg, #33261a, #232324);
+  --geo-grad-red: linear-gradient(135deg, #341d1f, #232324);
+  --geo-grad-cyan: linear-gradient(135deg, #16302f, #232324);
+  --geo-grad-teal: linear-gradient(135deg, #182e2e, #232324);
+  --geo-grad-amber: linear-gradient(135deg, #332d19, #232324);
+
+  /* --- 补齐 Arco 未覆盖的 border 系列（原本由 --gray-* 派生，深色下仍是浅灰） --- */
+  --color-border-1: #373739;
+  --color-border-2: #434345;
+  --color-border-3: #4e4e51;
+  --color-border-4: #6b6b70;
+  --color-border: #434345;
+
+  --color-neutral-1: #2a2a2b;
+  --color-neutral-2: #373739;
+  --color-neutral-3: #48484b;
+  --color-neutral-4: #5a5a5e;
+
+  /* --- 页面底色与文字 --- */
+  background: var(--color-bg-1);
+  color: var(--color-text-1);
+}
+
+/* ---------- 3. 全局兜底：让没改造到的角落也不至于刺眼 ---------- */
+
+/* html 同步 color-scheme，浏览器原生控件（滚动条 / 日期选择器 / 表单）跟着变 */
+html[arco-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* 深色下的滚动条 */
+body[arco-theme='dark'] ::-webkit-scrollbar-track {
+  background: var(--color-bg-1);
+}
+body[arco-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #4a4a4e;
+  border-radius: 4px;
+}
+body[arco-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: #5c5c61;
+}
+
+/* 深色下等宽代码块 / pre（多处业务页用浅灰底） */
+body[arco-theme='dark'] pre,
+body[arco-theme='dark'] code {
+  background: var(--geo-surface-2) !important;
+  color: var(--color-text-1);
+}
+
+/* 深色下 Arco 表格头与单元格（部分场景写死） */
+body[arco-theme='dark'] .arco-table-th {
+  background: var(--color-bg-2);
+  color: var(--color-text-1);
+}
+body[arco-theme='dark'] .arco-table-td,
+body[arco-theme='dark'] .arco-table-th {
+  border-color: var(--color-border-1);
+}
+
+/* 深色下 Arco 卡片 / 抽屉 / 弹窗底色统一走 --geo-surface 家族 */
+body[arco-theme='dark'] .arco-card {
+  background: var(--geo-surface);
+  border-color: var(--color-border-1);
+  color: var(--color-text-1);
+}
+body[arco-theme='dark'] .arco-modal-container,
+body[arco-theme='dark'] .arco-drawer {
+  background: var(--geo-surface);
+  color: var(--color-text-1);
+}
+
+/* 深色下 Arco 输入框 / 选择器 */
+body[arco-theme='dark'] .arco-input,
+body[arco-theme='dark'] .arco-textarea,
+body[arco-theme='dark'] .arco-select-view,
+body[arco-theme='dark'] .arco-picker {
+  background: var(--color-bg-3);
+  border-color: var(--color-border-2);
+  color: var(--color-text-1);
+}
+
+/* 深色下 Arco 菜单（侧栏 Menu 走 light 主题时） */
+body[arco-theme='dark'] .arco-menu-light,
+body[arco-theme='dark'] .arco-menu-light .arco-menu-inner {
+  background: transparent;
+}
+
+/* 深色下 Arco 分页器按钮 */
+body[arco-theme='dark'] .arco-pagination-item {
+  background: var(--color-bg-3);
+  border-color: var(--color-border-2);
+  color: var(--color-text-2);
+}
+body[arco-theme='dark'] .arco-pagination-item-active {
+  background: var(--color-primary-light-1);
+  color: rgb(var(--primary-6));
+}
+
+/* 深色下顶部进度条 / 加载遮罩 */
+body[arco-theme='dark'] .arco-spin-mask {
+  background: rgba(23, 23, 26, 0.6);
+}
+
+/* ---------- 4. 过渡：切换时颜色平滑过渡，避免闪白 ---------- */
+body,
+.arco-card,
+.arco-table,
+.arco-modal-container,
+.arco-drawer {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* ---------- 5. 工作状态绿点（顶栏，脉冲 + 外圈旋转，代表「工作中」） ---------- */
+.geo-working-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  position: relative;
+  flex-shrink: 0;
+  animation: geo-pulse 1.6s ease-in-out infinite;
+}
+.geo-working-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(16, 185, 129, 0.4);
+  border-top-color: transparent;
+  animation: geo-spin 1s linear infinite;
+}
+/* 空闲态：静止绿点（无脉冲、无旋转） */
+.geo-working-idle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  position: relative;
+  flex-shrink: 0;
+}
+.geo-working-idle::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(16, 185, 129, 0.4);
+}
+@keyframes geo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+@keyframes geo-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- 6. 站内信铃铛：有未读时抖动（蓝图标） ---------- */
+.geo-bell-shake {
+  animation: geo-shake 0.6s ease-in-out infinite;
+}
+@keyframes geo-shake {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-14deg); }
+  40% { transform: rotate(11deg); }
+  60% { transform: rotate(-8deg); }
+  80% { transform: rotate(6deg); }
+}
+
+/* ---------- 7. 帮助文档（使用指南）富文本渲染 ---------- */
+.help-doc-content { line-height: 1.8; color: var(--color-text-1); font-size: 15px; }
+.help-doc-content h1, .help-doc-content h2, .help-doc-content h3 { font-weight: 700; margin: 20px 0 12px; line-height: 1.4; }
+.help-doc-content h1 { font-size: 24px; }
+.help-doc-content h2 { font-size: 20px; border-bottom: 1px solid var(--color-border-2); padding-bottom: 8px; }
+.help-doc-content h3 { font-size: 17px; }
+.help-doc-content p { margin: 10px 0; }
+.help-doc-content img { max-width: 100%; border-radius: 8px; }
+.help-doc-content ul, .help-doc-content ol { padding-left: 24px; margin: 10px 0; }
+.help-doc-content blockquote { border-left: 3px solid var(--color-primary-light-3, #6AA1FF); padding: 8px 16px; margin: 12px 0; background: var(--color-fill-2); color: var(--color-text-2); }
+.help-doc-content code { background: var(--color-fill-2); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+.help-doc-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+.help-doc-content table th, .help-doc-content table td { border: 1px solid var(--color-border-2); padding: 8px 12px; }
+.help-doc-content .bili-video iframe { background: #000; }

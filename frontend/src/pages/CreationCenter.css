@@ -1,0 +1,239 @@
+/* =========================================================================
+ * 智能创作中心 · AI 助手对话（Codex 风格：大圆角 / 柔和配色 / 状态反馈 /
+ * 生成中转圈 loading / 打字心跳光标 / 深浅主题自适应 / 移动端适配）
+ * ========================================================================= */
+
+/* ---------- 左侧会话面板 ---------- */
+.chatp-side {
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border-2);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 640px;
+}
+.chatp-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+.chatp-side-create {
+  padding: 2px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chatp-side-create .arco-input-inner-wrapper,
+.chatp-side-create .arco-select-view {
+  border-radius: 10px;
+}
+.chatp-side-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 8px 10px;
+}
+.chatp-session {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.chatp-session:hover { background: var(--color-fill-2); }
+.chatp-session.active { background: var(--color-primary-light-1); }
+.chatp-session-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text-1);
+}
+.chatp-session-sub {
+  font-size: 12px;
+  color: var(--color-text-3);
+  margin-top: 2px;
+}
+
+/* ---------- 右侧对话窗口 ---------- */
+.chatp-win {
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border-2);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 640px;
+}
+.chatp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 13px 18px;
+  background: linear-gradient(135deg, var(--color-primary-light-1), var(--color-fill-2));
+  border-bottom: 1px solid var(--color-border-2);
+}
+.chatp-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chatp-header-sub {
+  font-size: 12px;
+  color: var(--color-text-3);
+  margin-top: 2px;
+}
+
+.chatp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 18px 8px;
+  background: var(--color-fill-1);
+  scroll-behavior: smooth;
+}
+.chatp-empty {
+  text-align: center;
+  color: var(--color-text-3);
+  padding: 74px 0;
+  font-size: 13px;
+}
+
+/* ---------- 消息气泡 ---------- */
+.msg-row {
+  display: flex;
+  margin-bottom: 16px;
+  align-items: flex-end;
+  gap: 8px;
+}
+.msg-row.user { justify-content: flex-end; }
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.avatar.ai { background: linear-gradient(135deg, #165dff, #6aa1ff); color: #fff; }
+.avatar.user { background: linear-gradient(135deg, #14c9c9, #23c686); color: #fff; }
+
+.bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.65;
+  word-break: break-word;
+  white-space: pre-wrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.msg-row.user .bubble {
+  background: linear-gradient(135deg, #165dff, #4e8bff);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.msg-row.ai .bubble {
+  background: var(--color-bg-2);
+  color: var(--color-text-1);
+  border: 1px solid var(--color-border-2);
+  border-bottom-left-radius: 4px;
+}
+.bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.75;
+  color: inherit;
+}
+.copy-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  color: inherit;
+  opacity: 0.85;
+  text-decoration: underline;
+}
+.copy-btn:hover { opacity: 1; }
+
+/* ---------- 打字心跳光标 + 正在思考 ---------- */
+.bubble-typing .bubble-text {
+  display: flex;
+  align-items: baseline;
+  min-height: 22px;
+}
+.thinking { color: var(--color-text-3); }
+.chatp-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: #165dff;
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  animation: chatp-beat 0.9s ease-in-out infinite;
+}
+@keyframes chatp-beat {
+  0%, 100% { opacity: 0.2; transform: scaleY(0.55); }
+  50% { opacity: 1; transform: scaleY(1); }
+}
+
+/* ---------- 输入区 + 发送按钮 ---------- */
+.chatp-input {
+  padding: 12px 14px 14px;
+  background: var(--color-bg-2);
+  border-top: 1px solid var(--color-border-2);
+}
+.chatp-ta .arco-textarea { border-radius: 14px; }
+.chatp-input-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.chatp-hint { font-size: 12px; color: var(--color-text-3); }
+.chatp-send {
+  border-radius: 999px !important;
+  height: 36px;
+  padding: 0 20px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(22, 93, 255, 0.28);
+}
+.chatp-send:hover:not(.arco-btn-disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(22, 93, 255, 0.38);
+}
+.chatp-send:active:not(.arco-btn-disabled) { transform: scale(0.96); }
+.chatp-send .chatp-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  display: inline-block;
+  animation: chatp-rotate 0.8s linear infinite;
+}
+@keyframes chatp-rotate { to { transform: rotate(360deg); } }
+
+/* ---------- 移动端适配 ---------- */
+@media (max-width: 768px) {
+  .bubble { max-width: 86%; }
+  .chatp-win { height: 540px; }
+  .chatp-side { max-height: 320px; }
+}

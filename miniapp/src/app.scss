@@ -1,0 +1,41 @@
+/* LinkGeo 小程序全局样式：温暖轻奢浅色系 */
+page {
+  background: #f5f6fa;
+  color: #1d2129;
+  font-size: 28rpx;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(29, 33, 41, 0.04);
+}
+
+.brand-text {
+  font-weight: 800;
+  color: #1d2129;
+}
+
+.accent {
+  color: #4f46e5;
+}
+
+.kpi-value {
+  font-size: 52rpx;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-label {
+  font-size: 24rpx;
+  color: #86909c;
+}
+
+.btn-primary {
+  background: #4f46e5;
+  color: #ffffff;
+  border-radius: 16rpx;
+  font-weight: 600;
+}

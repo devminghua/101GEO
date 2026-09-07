@@ -1,0 +1,48 @@
+# ===== 敏感配置与密钥（绝不可提交）=====
+.env
+*.env
+.env.*
+!.env.example
+release/LinkGeo/.env
+
+# ===== 数据库与数据（含客户数据/API Key）=====
+*.db
+*.db-wal
+*.db-shm
+backend/geotool.db
+data/
+backups/
+pgdata/
+uploads/
+
+# ===== 卡密私钥与卡密（绝不可提交）=====
+release/
+*.zip
+*.dmg
+*私钥*
+卡密-*.txt
+
+# ===== 构建产物 =====
+node_modules/
+.npm-cache/
+dist/
+frontend/dist/
+miniapp/dist/
+backend/webdist/
+.build/
+*.exe
+*.syso
+bin/
+
+# ===== backend 本地编译二进制 =====
+backend/geotool*
+backend/geo-tool*
+
+# ===== 发布与临时 =====
+preview/
+.workbuddy/
+*.log
+run.log
+.DS_Store
+*.bak
+.DEPLOY.md.*

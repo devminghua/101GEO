@@ -1,0 +1,42 @@
+services:
+  geotool:
+    build: .
+    image: geotool:latest
+    container_name: geotool
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      GEO_PORT: "8080"
+      # 数据库：PostgreSQL（服务器/SaaS 模式）
+      GEO_DB_DRIVER: "postgres"
+      GEO_DB_DSN: "host=postgres port=5432 user=postgres password=a7216759faa124715f53da3f1cc88b547e1d03a2d28fffd2 dbname=geotool sslmode=disable"
+      GEO_CRON_ENABLED: "true"
+      GEO_CRON_MINUTES: "60"
+      # 百度 SERP 抓取走宿主机转发出口（避免容器出口 IP 被百度风控）
+      GEO_BAIDU_PROXY: "http://host.docker.internal:18888"
+      # 强随机密钥（2026-08-29 安全加固生成，禁止泄露/提交到公开仓库）
+      # 如需更换 GEO_SECRET_KEY，必须先按同样流程重加密存量 enc:v1 数据
+      GEO_JWT_SECRET: "f576bc1106dd00fa95909deafe599ada9dcfeef51fc9663bf8ef8f792540091e"
+      GEO_SECRET_KEY: "dfb747ea472e22c831b1c65c38af0fd752d8df8e05a97bad1ddb910602ba8263"
+      # 第三方数据 API（Just One API）token：抖音+小红书稳定数据抓取
+      # 留空则回退无头浏览器/估算。注册拿 token：https://docs.justoneapi.com
+      GEO_DATA_API_TOKEN: ""
+    volumes:
+      - ./uploads:/app/backend/uploads
+    depends_on:
+      - postgres
+
+  # PostgreSQL（可选）：切到 PG 时取消 geotool 里的 GEO_DB_DRIVER/GEO_DB_DSN 注释并启用本服务
+  postgres:
+    image: postgres:16-alpine
+    container_name: geotool-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: "a7216759faa124715f53da3f1cc88b547e1d03a2d28fffd2"
+      POSTGRES_DB: "geotool"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    # 仅映射到本机回环（供本地直跑 geotool 二进制连接调试），不对公网暴露
+    ports:
+      - "127.0.0.1:15432:5432"
