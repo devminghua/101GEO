@@ -237,7 +237,7 @@ func genInsights(a *Analysis) []string {
 	case rate >= 50:
 		s = append(s, fmt.Sprintf("品牌出现率 %.1f%%，处于良好水平，仍有提升空间。", rate))
 	default:
-		s = append(s, fmt.Sprintf("品牌出现率 %.1f%%，整体偏低，建议优先补齐薄弱关键词的内容铺设。", rate))
+		s = append(s, fmt.Sprintf("品牌出现率 %.1f%%，整体偏低。建议从三个渠道加快铺设：① 官网 FAQ 预埋问题答案（AI 最信任的权威源）；② 知乎发布同名专业问答；③ 公众号/百家号发布深度内容。每篇内容在标题和首段自然植入品牌词。", rate))
 	}
 	if len(a.Platforms) > 0 && a.Platforms[0].Queries >= 3 && a.Platforms[0].Rate > 0 {
 		s = append(s, fmt.Sprintf("表现最好的平台是「%s」（出现率 %.1f%%），建议作为重点投放阵地。", a.Platforms[0].Name, a.Platforms[0].Rate))
@@ -256,7 +256,8 @@ func genInsights(a *Analysis) []string {
 		for _, w := range a.WeakWords {
 			names = append(names, w.Question)
 		}
-		s = append(s, fmt.Sprintf("以下问题多次未命中品牌词，建议优先铺设含品牌词的自然回答：%s。", strings.Join(names, "；")))
+		s = append(s, fmt.Sprintf("以下问题多次未命中品牌词：%s。", strings.Join(names, "；")))
+		s = append(s, "建议行动：① 官网 FAQ 为这些问题逐一预埋答案（自然植入品牌词）；② 知乎搜索同名问题发布回答；③ 用「内容投放」模块批量发布，AI 检索到品牌内容的概率随铺设量上升。")
 	}
 	if a.Totals.Errors > 0 {
 		s = append(s, fmt.Sprintf("有 %d 条请求失败，请检查对应平台的 API Key 与计费状态。", a.Totals.Errors))

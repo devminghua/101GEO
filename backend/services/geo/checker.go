@@ -245,11 +245,20 @@ func execute(tenantID uint, task *models.CheckTask) {
 			}(p, k)
 		}
 	}
-	wg.Wait()
+	// 整体超时保护：55 分钟强制结束，防止个别请求卡死导致任务无限等待（下一轮 cron 到来前收尾）
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	timedOut := false
+	select {
+	case <-done:
+	case <-time.After(55 * time.Minute):
+		timedOut = true
+		log.Printf("[geo] 租户#%d 任务#%d 执行超过 55 分钟被强制结束（已完成部分照常入库）", tenantID, task.ID)
+	}
 
 	fin := time.Now()
 	status := "success"
-	if errCount > 0 {
+	if errCount > 0 || timedOut {
 		status = "partial"
 	}
 	if errCount == total {

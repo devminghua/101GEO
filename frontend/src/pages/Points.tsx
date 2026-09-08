@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Card, Table, Statistic, Space, Tag, TableColumnProps,
-  Button, Modal, Form, Select, Input, Message, Typography, Empty,
+  Button, Modal, Form, Select, Input, Message, Typography, Empty, Slider,
 } from '@arco-design/web-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api';
@@ -28,6 +28,42 @@ interface RechargeOrder {
 const POLL_INTERVAL = 3000; // 支付状态轮询间隔（毫秒）
 const ORDER_EXPIRE_MS = 30 * 60 * 1000; // 订单过期 30 分钟
 
+// 套餐版本图标：从猿人到星辰大海（进化主题，对应三档套餐）
+const PLAN_ICONS = ['🦍', '🚀', '🌌'];
+const THUMB_W = 48; // 滑块手柄宽（与登录页滑动解锁一致）
+
+// 支付渠道图标卡片（微信 / 支付宝）
+function PayChannel({
+  active, color, glyph, label, onClick,
+}: {
+  active: boolean; color: string; glyph: string; label: string; onClick: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+        borderRadius: 14, cursor: 'pointer', userSelect: 'none',
+        border: `2px solid ${active ? color : 'var(--color-border-2)'}`,
+        background: active ? `${color}14` : 'var(--color-fill-1)',
+        transition: 'all .15s',
+      }}
+    >
+      <span
+        style={{
+          width: 30, height: 30, borderRadius: '50%', background: color, color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 14, fontWeight: 700, flexShrink: 0,
+        }}
+      >
+        {glyph}
+      </span>
+      <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--geo-text)' }}>{label}</span>
+      {active && <span style={{ marginLeft: 'auto', color, fontSize: 16, fontWeight: 700 }}>✓</span>}
+    </div>
+  );
+}
+
 export default function Points() {
   const [balance, setBalance] = useState(0);
   const [records, setRecords] = useState<PointRecord[]>([]);
@@ -38,6 +74,72 @@ export default function Points() {
   const [channel, setChannel] = useState<'wechat' | 'alipay'>('wechat');
   const [plans, setPlans] = useState<any[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  // 套餐滑块索引（三个版本：猿人 → 火箭 → 星辰大海）
+  const [slideIdx, setSlideIdx] = useState(0);
+  const [dragging, setDragging] = useState(false); // 滑块拖动中
+  const [thumbX, setThumbX] = useState(0); // 手柄位置（相对轨道）
+  const dragRef = useRef({ startX: 0, startThumb: 0 });
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  // 档位手柄位置：usable 宽按档位数均分
+  const stopPos = (i: number) => {
+    const usable = (trackRef.current?.offsetWidth || 480) - THUMB_W;
+    return plans.length <= 1 ? 0 : usable * (i / (plans.length - 1));
+  };
+
+  // 手柄位置 → 最近档位索引
+  const nearestIdx = (x: number) => {
+    const usable = (trackRef.current?.offsetWidth || 480) - THUMB_W;
+    if (plans.length <= 1) return 0;
+    const r = Math.round(x / (usable / (plans.length - 1)));
+    return Math.max(0, Math.min(plans.length - 1, r));
+  };
+
+  // 滑动手柄：按住拖动实时跟随，松手吸附到最近档位（登录页滑动解锁同款手感）
+  useEffect(() => {
+    if (!dragging) return;
+    const move = (e: MouseEvent) => {
+      const usable = (trackRef.current?.offsetWidth || 480) - THUMB_W;
+      const nx = Math.max(0, Math.min(usable, dragRef.current.startThumb + (e.clientX - dragRef.current.startX)));
+      setThumbX(nx);
+      const idx = nearestIdx(nx);
+      setSlideIdx(idx);
+      if (plans[idx]) setSelectedPlan(plans[idx]);
+    };
+    const up = () => {
+      setDragging(false);
+      const idx = nearestIdx(thumbX);
+      pickSlide(idx);
+      setThumbX(stopPos(idx));
+    };
+    const touchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      const usable = (trackRef.current?.offsetWidth || 480) - THUMB_W;
+      const nx = Math.max(0, Math.min(usable, dragRef.current.startThumb + (t.clientX - dragRef.current.startX)));
+      setThumbX(nx);
+      const idx = nearestIdx(nx);
+      setSlideIdx(idx);
+      if (plans[idx]) setSelectedPlan(plans[idx]);
+    };
+    const touchEnd = () => {
+      setDragging(false);
+      const idx = nearestIdx(thumbX);
+      pickSlide(idx);
+      setThumbX(stopPos(idx));
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+    document.addEventListener('touchmove', touchMove);
+    document.addEventListener('touchend', touchEnd);
+    return () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.removeEventListener('touchmove', touchMove);
+      document.removeEventListener('touchend', touchEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging, plans.length]);
   const [creating, setCreating] = useState(false);
   const [order, setOrder] = useState<RechargeOrder | null>(null);
   const [polling, setPolling] = useState(false);
@@ -83,16 +185,27 @@ export default function Points() {
     setRechargeVisible(false);
   };
 
-  // 打开充值弹窗：加载套餐列表
+  // 打开充值弹窗：加载套餐列表，默认选中第一档
   const openRecharge = async () => {
     setRechargeVisible(true);
-    setSelectedPlan(null);
     setOrder(null);
+    setSlideIdx(0);
+    setThumbX(0);
     try {
-      setPlans((await api.listRechargePlans()) || []);
+      const list = (await api.listRechargePlans()) || [];
+      setPlans(list);
+      setSelectedPlan(list[0] || null);
     } catch {
       setPlans([]);
+      setSelectedPlan(null);
     }
+  };
+
+  // 滑块切档：同步选中套餐
+  const pickSlide = (i: number) => {
+    const idx = Math.max(0, Math.min(plans.length - 1, i));
+    setSlideIdx(idx);
+    setSelectedPlan(plans[idx] || null);
   };
 
   // 选套餐下单
@@ -218,58 +331,93 @@ export default function Points() {
       >
         {!order ? (
           <div>
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ marginBottom: 6 }}><Typography.Text bold>支付渠道</Typography.Text></div>
-              <Select
-                value={channel}
-                onChange={(v) => setChannel(v as 'wechat' | 'alipay')}
-                style={{ width: '100%' }}
-                options={[
-                  { label: '微信支付（扫码）', value: 'wechat' },
-                  { label: '支付宝（扫码）', value: 'alipay' },
-                ]}
-              />
+            {/* 支付渠道：微信 / 支付宝图标选择 */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 8 }}><Typography.Text bold>支付渠道</Typography.Text></div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <PayChannel
+                  active={channel === 'wechat'}
+                  color="#07C160"
+                  glyph="微"
+                  label="微信支付"
+                  onClick={() => setChannel('wechat')}
+                />
+                <PayChannel
+                  active={channel === 'alipay'}
+                  color="#1677FF"
+                  glyph="支"
+                  label="支付宝"
+                  onClick={() => setChannel('alipay')}
+                />
+              </div>
             </div>
-            <div style={{ marginBottom: 10 }}><Typography.Text bold>选择套餐</Typography.Text></div>
+
             {plans.length === 0 ? (
               <Empty description="暂无可用套餐，请联系总后台设置" />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                {plans.map((p) => {
-                  const active = selectedPlan?.id === p.id;
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => setSelectedPlan(p)}
-                      style={{
-                        position: 'relative',
-                        padding: '16px',
-                        borderRadius: 14,
-                        cursor: 'pointer',
-                        border: `2px solid ${active ? '#4F46E5' : 'var(--color-border-2)'}`,
-                        background: active ? 'rgba(79,70,229,0.06)' : 'var(--color-fill-1)',
-                        transition: 'all .15s',
-                        userSelect: 'none',
-                      }}
-                    >
-                      {p.tag && (
-                        <span style={{
-                          position: 'absolute', top: -10, right: 12,
-                          background: 'linear-gradient(135deg,#4F46E5,#7B61FF)', color: '#fff',
-                          fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 10,
-                        }}>{p.tag}</span>
-                      )}
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--geo-text)' }}>{p.name}</div>
-                      <div style={{ marginTop: 4, fontSize: 12, color: '#86909C' }}>{p.points.toLocaleString('en-US')} token</div>
-                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                        <span style={{ fontSize: 22, fontWeight: 800, color: '#4F46E5' }}>¥{(p.price_fen / 100).toFixed(2)}</span>
-                        {p.orig_fen > 0 && (
-                          <span style={{ fontSize: 13, color: '#86909C', textDecoration: 'line-through' }}>¥{(p.orig_fen / 100).toFixed(2)}</span>
+              <div>
+                {/* 套餐卡片横排：金额 + token + 折扣 + 选择按钮（推荐档高亮） */}
+                <div style={{ marginBottom: 8 }}><Typography.Text bold>选择充值套餐</Typography.Text></div>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${plans.length}, 1fr)`, gap: 10 }}>
+                  {plans.map((p, i) => {
+                    const active = selectedPlan?.id === p.id;
+                    const discount = p.orig_fen > 0 && p.orig_fen > p.price_fen
+                      ? Math.round((p.price_fen / p.orig_fen) * 10) : 0;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => pickSlide(i)}
+                        style={{
+                          position: 'relative',
+                          borderRadius: 12,
+                          padding: '16px 8px 10px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          border: `1.5px solid ${active ? '#4860D8' : 'var(--color-border-2)'}`,
+                          background: active ? 'rgba(72,96,216,0.06)' : 'var(--color-fill-1)',
+                          boxShadow: active ? '0 4px 14px rgba(72,96,216,.18)' : 'none',
+                          transition: 'all .15s',
+                        }}
+                      >
+                        {i === 1 && plans.length > 2 && (
+                          <span style={{
+                            position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)',
+                            background: '#4860D8', color: '#fff', fontSize: 10, fontWeight: 600,
+                            padding: '2px 10px', borderRadius: 9, whiteSpace: 'nowrap',
+                          }}>推荐</span>
                         )}
+                        <div style={{ fontSize: 22, lineHeight: 1 }}>
+                          {PLAN_ICONS[i % PLAN_ICONS.length]}
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 600, marginTop: 6, color: 'var(--geo-text)' }}>
+                          {p.name}
+                        </div>
+                        <div style={{ fontSize: 17, fontWeight: 800, marginTop: 6, color: 'var(--geo-text)' }}>
+                          ¥{(p.price_fen / 100).toFixed(0)}元
+                        </div>
+                        <div style={{ fontSize: 11, color: '#86909C', marginTop: 2 }}>
+                          {p.points.toLocaleString('en-US')} token
+                        </div>
+                        {discount > 0 && discount < 10 ? (
+                          <div style={{ fontSize: 11, color: '#F53F3F', marginTop: 3 }}>
+                            {discount} 折优惠
+                          </div>
+                        ) : p.tag ? (
+                          <div style={{ fontSize: 11, color: '#F53F3F', marginTop: 3 }}>{p.tag}</div>
+                        ) : null}
+                        <div style={{
+                          marginTop: 9, padding: '7px 0', borderRadius: 8,
+                          background: active ? '#4860D8' : 'var(--color-fill-2)',
+                          color: active ? '#fff' : 'var(--color-text-2)',
+                          fontSize: 12, fontWeight: 600,
+                        }}>
+                          {active ? '立即充值' : '选择'}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )}
             <Button
@@ -278,7 +426,7 @@ export default function Points() {
               loading={creating}
               disabled={!selectedPlan}
               onClick={createOrder}
-              style={{ marginTop: 16, height: 42, fontSize: 15 }}
+              style={{ marginTop: 18, height: 42, fontSize: 15 }}
             >
               {selectedPlan ? `立即支付 ¥${(selectedPlan.price_fen / 100).toFixed(2)}` : '请选择套餐'}
             </Button>

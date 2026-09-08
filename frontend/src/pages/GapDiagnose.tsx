@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, Button, Spin, Space, Tag, Empty, Typography, Grid } from '@arco-design/web-react';
 import { IconRefresh } from '@arco-design/web-react/icon';
 import { api } from '../api';
@@ -10,6 +11,7 @@ const { Row: GridRow, Col: GridCol } = Grid;
 export default function GapDiagnose() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  const location = useLocation();
 
   const load = async () => {
     setLoading(true);
@@ -21,7 +23,8 @@ export default function GapDiagnose() {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); }, []);
+  // 每次进入本页面（路由切换到差距诊断）自动拉取最新数据
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [location.pathname]);
 
   const gap = (step: string, title: string, num: number, unit: string, desc: string, effect: string, color: string, list: string[], listLabel: string) => (
     <Card style={{ borderRadius: 12, height: '100%' }}>
@@ -35,7 +38,7 @@ export default function GapDiagnose() {
         <Tag color={color === '#F53F3F' ? 'red' : color === '#FF7D00' ? 'orange' : 'arcoblue'} size="small">{effect}</Tag>
       </div>
       {list && list.length > 0 ? (
-        <div style={{ marginTop: 12, maxHeight: 200, overflow: 'auto' }}>
+        <div style={{ marginTop: 12 }}>
           <div style={{ fontSize: 12, color: '#86909C', marginBottom: 6 }}>{listLabel}</div>
           {list.map((x: string) => (
             <div key={x} style={{ padding: '5px 0', fontSize: 13, borderBottom: '1px solid var(--color-border-1)' }}>{x}</div>

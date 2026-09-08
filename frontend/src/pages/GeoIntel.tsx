@@ -7,7 +7,7 @@ import {
 } from '@arco-design/web-react';
 import {
   IconPlus, IconRefresh, IconThunderbolt, IconSafe, IconFile, IconCopy, IconDownload,
-  IconCheckCircle, IconClockCircle, IconExclamationCircle, IconDelete, IconEdit, IconArrowRight,
+  IconCheckCircle, IconClockCircle, IconExclamationCircle, IconDelete, IconEdit, IconArrowRight, IconSave,
 } from '@arco-design/web-react/icon';
 
 const { Title, Text, Paragraph } = Typography;
@@ -53,6 +53,26 @@ function IntelTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [days, setDays] = useState(7);
   const dataRef = useRef<any>(null);
+  // 默认品牌词（关键词未单独填写品牌词时的兜底，用于 AI 回答命中检测）
+  const [brand, setBrand] = useState('');
+  const [brandSaving, setBrandSaving] = useState(false);
+
+  const loadBrand = () => {
+    api.getSettings().then((s: any) => setBrand(s?.default_brand || '')).catch(() => {});
+  };
+  const saveBrand = async () => {
+    const v = brand.trim();
+    if (!v) { Message.warning('请输入默认品牌词'); return; }
+    setBrandSaving(true);
+    try {
+      await api.saveSettings({ default_brand: v });
+      Message.success('默认品牌词已保存');
+    } catch (e: any) {
+      Message.error(e.message || '保存失败');
+    } finally {
+      setBrandSaving(false);
+    }
+  };
 
   const load = async (d = days) => {
     const isFirst = !dataRef.current;
@@ -68,7 +88,7 @@ function IntelTab() {
       setRefreshing(false);
     }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); loadBrand(); /* eslint-disable-next-line */ }, []);
 
   const maxTrend = Math.max(1, ...(data?.trend || []).map((t: any) => t.rate || 0));
   const skeleton = loading || !data;
@@ -86,6 +106,26 @@ function IntelTab() {
         .geo-fade-in { animation: geoFadeIn .35s ease; }
         @keyframes geoFadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
+
+      {/* 默认品牌词设置（关键词未单独填写品牌词时的兜底） */}
+      <Card style={{ borderRadius: 16, marginBottom: 16 }} bordered={false} size="small">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Text style={{ fontWeight: 600, flexShrink: 0 }}>默认品牌词</Text>
+          <Input
+            value={brand}
+            onChange={(v) => setBrand(v)}
+            placeholder="如：轻媒,QINGMEI"
+            style={{ width: 340, maxWidth: '100%' }}
+            onPressEnter={saveBrand}
+          />
+          <Button type="primary" size="small" icon={<IconSave />} loading={brandSaving} onClick={saveBrand}>
+            保存
+          </Button>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            逗号分隔多个品牌词；关键词未单独填写品牌词时，巡检将用它做 AI 回答命中检测
+          </Text>
+        </div>
+      </Card>
 
       {/* 顶部操作栏 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

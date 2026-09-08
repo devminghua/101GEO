@@ -385,6 +385,13 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
         </div>
       </Card>
 
+      {/* 版本号（每次更新记一次版本号） */}
+      {sysInfo?.version && (
+        <div style={{ textAlign: 'center', marginTop: 14, fontSize: 12, color: '#86909c' }}>
+          v{sysInfo.version}
+        </div>
+      )}
+
       {/* 锁定倒计时弹窗 */}
       <Modal
         visible={!!lock}

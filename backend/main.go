@@ -64,12 +64,14 @@ func main() {
 	}
 	r.StaticFS("/assets", http.FS(assetsFS))
 	r.GET("/", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-cache")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML())
 	})
 
 	// SPA 路由兜底：非 /api 且非 /uploads 的未匹配 GET 均回退到 index.html，保证前端路由刷新不 404
 	r.NoRoute(func(c *gin.Context) {
 		if c.Request.Method == http.MethodGet && !strings.HasPrefix(c.Request.URL.Path, "/api/") && !strings.HasPrefix(c.Request.URL.Path, "/uploads") {
+			c.Header("Cache-Control", "no-cache")
 			c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML())
 			return
 		}

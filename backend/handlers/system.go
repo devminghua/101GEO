@@ -56,6 +56,7 @@ func readSystemInfo(tenantID uint) gin.H {
 		"copyright":        readSetting(tenantID, KeyCopyright),
 		"service_phone":    readSetting(0, KeyServicePhone),
 		"service_wechat_qr": readSetting(0, KeyServiceWechat),
+		"version":          config.Version,
 	}
 }
 

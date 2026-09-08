@@ -248,7 +248,6 @@ export default function Settings() {
     tabList.push({ key: 'aliyun-sms', title: '短信设置' });
     tabList.push({ key: 'aliyun-oss', title: 'OSS 设置' });
   }
-  if (isTenantAdmin) tabList.push({ key: 'tenant', title: '系统设置' });
   if (isAdmin) tabList.push({ key: 'login-logs', title: '登录日志' });
 
   const [activeTab, setActiveTab] = useState<string>(tabList[0]?.key || 'system');
@@ -323,26 +322,6 @@ export default function Settings() {
           保存系统信息
         </Button>
       </Form>
-    </Card>
-  );
-
-  const renderTenantTab = () => (
-    <Card title="系统设置" style={cardStyle} bordered={false}>
-      <Spin loading={loadingSettings} tip="加载中..." style={{ display: "block", width: "100%" }}>
-        <Form form={form} layout="vertical" style={{ width: "100%", maxWidth: 900 }}>
-          <Form.Item
-            label="默认品牌词"
-            field="default_brand"
-            rules={[{ required: true, message: '请输入默认品牌词' }]}
-            extra="逗号分隔多个品牌词，用于关键词未单独填写品牌词时的兜底"
-          >
-            <Input placeholder="如：轻媒,QINGMEI" />
-          </Form.Item>
-          <Button type="primary" icon={<IconSave />} onClick={save} style={{ marginTop: 20 }}>
-            保存设置
-          </Button>
-        </Form>
-      </Spin>
     </Card>
   );
 
@@ -628,7 +607,6 @@ export default function Settings() {
             {t.key === 'aliyun-sms' && renderSmsTab()}
             {t.key === 'aliyun-oss' && renderOssTab()}
             {t.key === 'doubao-image' && renderDoubaoImageTab()}
-            {t.key === 'tenant' && renderTenantTab()}
             {t.key === 'login-logs' && renderLoginLogsTab()}
           </TabPane>
         ))}

@@ -23,6 +23,7 @@ import {
   IconTool,
   IconCustomerService,
   IconPhone,
+  IconSettings,
 } from '@arco-design/web-react/icon';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
@@ -222,10 +223,14 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.role, location.pathname]);
 
-  // 帮助文档目录树（客户端「使用指南」下拉子菜单）
+  // 帮助文档目录树（客户端「使用指南」下拉子菜单）：登录时加载 + 每 60 秒轮询刷新，
+  // 保证 SaaS 后台修改帮助文档后，已登录的客户端 1 分钟内自动同步
   useEffect(() => {
     if (!user || user.role === 'super') { setHelpTree([]); return; }
-    api.helpTree().then((t) => setHelpTree(t || [])).catch(() => {});
+    const load = () => api.helpTree().then((t) => setHelpTree(t || [])).catch(() => {});
+    load();
+    const timer = setInterval(load, 60 * 1000);
+    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.role]);
 
@@ -291,6 +296,8 @@ export default function App() {
   const sysName = (sysInfo && sysInfo.system_name) || '';
   const sysLogo = (sysInfo && sysInfo.system_logo) || '';
   const copyright = (sysInfo && sysInfo.copyright) || '';
+  // 产品版本号（后端 /api/system/info 下发，每次更新记一次版本号）
+  const version = (sysInfo && sysInfo.version) || '';
   // 客户端顶栏品牌名：分站自定义（brand_name）优先，空则默认 LinkGeo
   const brandName = (user && user.brand_name) || 'LinkGeo';
 
@@ -315,6 +322,8 @@ export default function App() {
         { key: '/super/help-doc', label: '帮助文档', icon: <IconBook /> },
         // 价格套餐：充值中心「选择套餐」的套餐配置
         { key: '/super/plans', label: '套餐设置', icon: <IconGift /> },
+        // 系统设置：品牌名称/Logo/版权 + 账号与安全 + 登录日志
+        { key: '/settings', label: '系统设置', icon: <IconSettings /> },
       ]
     : [
         { key: '/dashboard', label: '仪表盘', icon: <IconDashboard />, feature: 'dashboard' },
@@ -338,6 +347,8 @@ export default function App() {
           key: `/help?cat=${c.id}`, label: c.name,
           children: (c.docs && c.docs.length > 0) ? c.docs.map((d: any) => ({ key: `/help?doc=${d.id}`, label: d.title })) : undefined,
         })) : undefined },
+        // 系统设置：品牌/账号/登录日志（从右上角用户菜单剥离为独立菜单项）
+        { key: '/settings', label: '系统设置', icon: <IconSettings />, feature: 'settings' },
         // 获客工具：暂时隐藏（待第三方解析 API 接入后恢复）
         // { key: '/tools', label: '获客工具', icon: <IconTool />, feature: 'tools', children: [
         //   { key: '/tools/watermark', label: '短视频去水印' },
@@ -613,7 +624,18 @@ export default function App() {
             </MenuItem>
           ))}
         </Menu>
-        {!isSuper && <UserMenu user={user} onLogout={logout} collapsed={collapsed} />}
+        {version && (
+          <div
+            style={{
+              padding: '6px 16px 10px',
+              fontSize: 11,
+              color: 'var(--color-text-4)',
+              borderTop: '1px solid var(--color-border-2)',
+            }}
+          >
+            v{version}
+          </div>
+        )}
       </Sider>
       <Layout>
         <Header
@@ -666,6 +688,8 @@ export default function App() {
                 >
                   <IconNotification style={{ fontSize: 18 }} />
                 </span>
+                {/* 右上角用户菜单：纯文字 + 点击下拉 */}
+                <UserMenu user={user} onLogout={logout} />
               </span>
             )}
             <Modal
@@ -739,6 +763,8 @@ export default function App() {
                 <Route path="/super/data-api" element={<DataApiConfig />} />
                 <Route path="/super/help-doc" element={<HelpDocConfig />} />
                 <Route path="/super/plans" element={<Plans />} />
+                {/* 系统设置：品牌/版权/客服 + 短信 + OSS + 登录日志（super 复用 Settings 页） */}
+                <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/super/overview" replace />} />
               </>
             ) : (

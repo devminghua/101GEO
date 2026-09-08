@@ -12,6 +12,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Version 产品版本号：每次更新记录一次版本号（老板规则，2026-09-07 起）。
+// 当前 1.0.1。发版时改这里，客户端与 SaaS 端登录页/侧栏会自动显示。
+const Version = "1.0.9"
+
 type Config struct {
 	Port         string // 后端监听端口
 	DBPath       string // （已弃用，保留字段兼容）数据库文件路径
