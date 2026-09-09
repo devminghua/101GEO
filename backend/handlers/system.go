@@ -14,6 +14,7 @@ import (
 	"geo-tool/config"
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/auth"
 )
 
 // logoUploadDir 返回系统 Logo 上传目录（由 main.go 静态托管 /uploads，随数据根目录解耦）。
@@ -47,23 +48,51 @@ func AdminOnly() gin.HandlerFunc {
 	}
 }
 
-// readSystemInfo 读取品牌配置：分站级优先，回退全局（tenant_id=0）。
+// tenantBrandValue 品牌字段三层回退：分站自设 settings → 归属渠道 channel → 全局 settings。
+// 注意第一层必须直查本租户设置（不走 readSetting 的内部全局回退），否则渠道层永远不生效。
+func tenantBrandValue(tenantID uint, key string, chField func(models.Channel) string) string {
+	if tenantID > 0 {
+		var s models.Setting
+		if database.DB.Where("tenant_id = ? AND key = ?", tenantID, key).First(&s).Error == nil && strings.TrimSpace(s.Value) != "" {
+			return s.Value
+		}
+		var t models.Tenant
+		if err := database.DB.First(&t, tenantID).Error; err == nil && t.ChannelID > 0 {
+			var ch models.Channel
+			if err := database.DB.First(&ch, t.ChannelID).Error; err == nil {
+				if v := strings.TrimSpace(chField(ch)); v != "" {
+					return v
+				}
+			}
+		}
+	}
+	return readSetting(0, key)
+}
+
+// readSystemInfo 读取品牌配置：分站级 → 渠道级 → 全局三层回退。
 // tenantID=0 时只读全局（供登录页/公开接口使用）。
 func readSystemInfo(tenantID uint) gin.H {
 	return gin.H{
-		"system_name":      readSetting(tenantID, KeySystemName),
-		"system_logo":      readSetting(tenantID, KeySystemLogo),
-		"copyright":        readSetting(tenantID, KeyCopyright),
-		"service_phone":    readSetting(0, KeyServicePhone),
-		"service_wechat_qr": readSetting(0, KeyServiceWechat),
-		"version":          config.Version,
+		"system_name":       tenantBrandValue(tenantID, KeySystemName, func(ch models.Channel) string { return ch.BrandName }),
+		"system_logo":       tenantBrandValue(tenantID, KeySystemLogo, func(ch models.Channel) string { return ch.Logo }),
+		"copyright":         tenantBrandValue(tenantID, KeyCopyright, func(ch models.Channel) string { return ch.Copyright }),
+		"service_phone":     tenantBrandValue(tenantID, KeyServicePhone, func(ch models.Channel) string { return ch.ServicePhone }),
+		"service_wechat_qr": tenantBrandValue(tenantID, KeyServiceWechat, func(ch models.Channel) string { return ch.ServiceWechat }),
+		"version":           config.Version,
 	}
 }
 
 // GetSystemInfo 读取系统名称 / Logo / 版权（公开只读，供登录页、侧边栏、页脚展示）
-// 未登录场景只读全局品牌（tenant_id=0）。
+// 未登录场景只读全局品牌（tenant_id=0）；带登录凭证时按分站三层回退（分站→渠道→全局）。
 func GetSystemInfo(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": readSystemInfo(0)})
+	tid := uint(0)
+	token := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+	if token != "" && token != c.GetHeader("Authorization") {
+		if claims, err := auth.Parse(token); err == nil && claims.TenantID > 0 {
+			tid = claims.TenantID
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": readSystemInfo(tid)})
 }
 
 // MyBrandInfo 登录后读取当前分站的品牌配置（分站级优先，回退全局）：GET /api/system/my-brand

@@ -7,7 +7,7 @@ export interface LoginResult {
     id: number;
     username: string;
     nickname: string;
-    role: 'super' | 'admin' | 'operator';
+    role: 'super' | 'channel' | 'admin' | 'operator';
     tenant_id: number;
     tenant_name?: string;
     tenant_code?: string;
@@ -416,6 +416,34 @@ export const api = {
   // ===== 总后台（super）=====
   superOverview: () => request('/super/overview'),
   superOnlineCount: () => request('/super/online-count'),
+  // ===== 渠道管理（super 端 + channel 端共用）=====
+  listChannels: () => request('/super/channels'),
+  createChannel: (body: any) => request('/super/channels', { method: 'POST', body: JSON.stringify(body) }),
+  updateChannel: (id: number, body: any) => request(`/super/channels/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  updateChannelStatus: (id: number, status: number) => request(`/super/channels/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  channelRecharge: (id: number, body: { amount: number; remark?: string }) =>
+    request(`/super/channels/${id}/recharge`, { method: 'POST', body: JSON.stringify(body) }),
+  superChannelSimulateLogin: (id: number) =>
+    request<LoginResult>(`/super/channels/${id}/simulate-login`, { method: 'POST', body: '{}' }),
+  // 渠道后台：品牌/客服 + 客户管理（范围限定自己渠道）
+  channelProfile: () => request('/channel/profile'),
+  channelSaveProfile: (body: any) => request('/channel/profile', { method: 'PUT', body: JSON.stringify(body) }),
+  channelListCustomers: () => request('/channel/customers'),
+  channelCreateCustomer: (body: any) => request('/channel/customers', { method: 'POST', body: JSON.stringify(body) }),
+  channelUpdateTenant: (id: number, body: any) => request(`/channel/customers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  channelDeleteTenant: (id: number) => request(`/channel/customers/${id}`, { method: 'DELETE' }),
+  channelSimulateLogin: (tenantId: number) =>
+    request<LoginResult>(`/channel/customers/${tenantId}/simulate-login`, { method: 'POST', body: '{}' }),
+  channelRechargeTenant: (id: number, body: { amount: number; remark?: string }) =>
+    request(`/channel/customers/${id}/recharge`, { method: 'POST', body: JSON.stringify(body) }),
+  channelResetPassword: (id: number, pwd: string) =>
+    request(`/channel/users/${id}/password`, { method: 'PUT', body: JSON.stringify({ password: pwd }) }),
+  channelExtendUser: (id: number, months: number, remark?: string, payMethod?: string) =>
+    request(`/channel/users/${id}/extend`, { method: 'POST', body: JSON.stringify({ months, remark, pay_method: payMethod }) }),
+  channelUpdateUserStatus: (id: number, status: number) =>
+    request(`/channel/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  channelUserPlaintext: (id: number) => request(`/channel/users/${id}/plaintext`),
+  channelDeleteUser: (id: number) => request(`/channel/users/${id}`, { method: 'DELETE' }),
   // 融合客户管理：一个客户=一个分站+一个登录账号
   listCustomers: () => request('/super/customers'),
   createCustomer: (body: any) => request('/super/customers', { method: 'POST', body: JSON.stringify(body) }),

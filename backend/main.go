@@ -401,6 +401,13 @@ func main() {
 		super.Use(handlers.SuperRequired)
 		{
 		super.GET("/overview", handlers.Overview)
+		// 渠道管理：创建渠道（含登录账号）/ 编辑品牌客服 / 启停
+		super.GET("/channels", handlers.ChannelList)
+		super.POST("/channels", handlers.CreateChannel)
+		super.PUT("/channels/:id", handlers.UpdateChannel)
+		super.PUT("/channels/:id/status", handlers.UpdateChannelStatus)
+		super.POST("/channels/:id/recharge", handlers.ChannelRecharge)
+		super.POST("/channels/:id/simulate-login", handlers.SimulateChannelLogin)
 		// 融合客户管理：一个客户=一个分站+一个登录账号，一键开通/列表/查询
 		super.GET("/customers", handlers.ListCustomers)
 		super.GET("/online-count", handlers.SuperOnlineCount)
@@ -456,6 +463,25 @@ func main() {
 			super.POST("/plans", handlers.CreatePlan)
 			super.PUT("/plans/:id", handlers.UpdatePlan)
 			super.DELETE("/plans/:id", handlers.DeletePlan)
+		}
+
+		// 渠道后台（channel 角色）：管理自己渠道下的分站（客户管理全能力）+ 品牌/客服设置
+		ch := api.Group("/channel")
+		ch.Use(handlers.ChannelRequired)
+		{
+			ch.GET("/profile", handlers.ChannelProfile)
+			ch.PUT("/profile", handlers.ChannelProfile)
+			ch.GET("/customers", handlers.ListCustomers)
+			ch.POST("/customers", handlers.CreateCustomer)
+			ch.PUT("/customers/:id", handlers.UpdateTenant)
+			ch.DELETE("/customers/:id", handlers.DeleteTenant)
+			ch.POST("/customers/:id/simulate-login", handlers.SimulateTenantLogin)
+			ch.POST("/customers/:id/recharge", handlers.RechargeTenant)
+			ch.PUT("/users/:id/password", handlers.ResetUserPassword)
+			ch.GET("/users/:id/plaintext", handlers.UserPlaintextPassword)
+			ch.POST("/users/:id/extend", handlers.ExtendUserService)
+			ch.PUT("/users/:id/status", handlers.UpdateUserStatus)
+			ch.DELETE("/users/:id", handlers.DeleteUser)
 		}
 	}
 

@@ -283,7 +283,7 @@ export default function Users({ embedded = false }: { embedded?: boolean }) {
             <Input.Password placeholder="至少 8 位，含字母和数字" />
           </Form.Item>
           <Form.Item label="昵称" field="nickname">
-            <Input placeholder="选填，如 红娘小兰" />
+            <Input />
           </Form.Item>
           <Form.Item
             label="开通时长"

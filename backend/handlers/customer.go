@@ -24,6 +24,7 @@ type customerRow struct {
 	Features  []string   `json:"features"`
 	Points    int64      `json:"points"`
 	DailyQueryLimit int `json:"daily_query_limit"`
+	ChannelID uint       `json:"channel_id"`
 	CreatedAt time.Time  `json:"created_at"`
 	// 主账号（该分站最早的 admin 账号）
 	UserID     uint       `json:"user_id"`
@@ -35,16 +36,21 @@ type customerRow struct {
 	RemainDays int        `json:"remain_days"`
 }
 
-// ListCustomers 融合客户列表：GET /api/super/customers
+// ListCustomers 融合客户列表：GET /api/super/customers（channel 角色复用：仅返回自己渠道的分站）
 func ListCustomers(c *gin.Context) {
 	var tenants []models.Tenant
-	database.DB.Order("id asc").Find(&tenants)
+	q := database.DB.Order("id asc")
+	if CurrentRole(c) == "channel" {
+		q = q.Where("channel_id = ?", ChannelID(c))
+	}
+	q.Find(&tenants)
 
 	rows := make([]customerRow, 0, len(tenants))
 	for _, t := range tenants {
 		row := customerRow{
 			ID: t.ID, Name: t.Name, Remark: t.Remark, Status: t.Status,
 			Features: parseFeatures(t.Features), Points: t.Points, DailyQueryLimit: t.DailyQueryLimit, CreatedAt: t.CreatedAt,
+			ChannelID: t.ChannelID,
 		}
 		// 主账号：该分站最早的 admin 账号（一个客户一个登录账号）
 		var owner models.User
@@ -72,6 +78,7 @@ type customerReq struct {
 	Trial      bool     `json:"trial"`       // true=7 天试用（优先于 open_months）
 	Features   []string `json:"features"`    // 空=全部开放
 	Remark     string   `json:"remark"`
+	ChannelID  uint     `json:"channel_id"` // 归属渠道（仅 super 可选；channel 角色忽略，固定为自己）
 }
 
 // CreateCustomer 一键开通客户：分站 + 主账号 + 密码 + 功能授权，事务内原子完成。
@@ -130,8 +137,13 @@ func CreateCustomer(c *gin.Context) {
 	}
 
 	tx := database.DB.Begin()
+	// 归属渠道：channel 角色固定为自己；super 可选（0=平台直营）
+	channelID := req.ChannelID
+	if CurrentRole(c) == "channel" {
+		channelID = ChannelID(c)
+	}
 	t := models.Tenant{
-		Name: req.Name, Code: code, Status: 1,
+		Name: req.Name, Code: code, Status: 1, ChannelID: channelID,
 		Features: marshalFeatures(req.Features), Remark: req.Remark,
 	}
 	if err := tx.Create(&t).Error; err != nil {

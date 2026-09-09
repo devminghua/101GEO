@@ -4,20 +4,16 @@ import {
   Switch, Typography, Checkbox, Divider, InputNumber, Select, Tooltip, Radio,
 } from '@arco-design/web-react';
 import { IconPlus, IconEye, IconExperiment, IconQrcode } from '@arco-design/web-react/icon';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { FEATURES, ALL_FEATURE_KEYS, featureLabel } from '../../features';
-import ExtendRecords from './ExtendRecords';
 
-// 客户管理（融合版）：一个客户 = 一个分站 + 一个登录账号。
+// 渠道端客户管理（拷贝总后台客户管理全部能力，范围限定自己渠道的分站）。
+// 一个客户 = 一个分站 + 一个登录账号；开通/续费/充值/密码/停用/模拟登录/删除全在此页。
 // 开通客户：填客户名称 + 登录账号 + 登录密码 + 勾选功能 + 开通时长，一键开通、立即可用。
 // 后续管理（查看/重置密码、充值、续费、改功能、停用、模拟登录、删除）全部在同一张表内完成。
-export default function Customers() {
+export default function ChannelCustomers() {
   const [list, setList] = useState<any[]>([]);
-  const [tenants, setTenants] = useState<any[]>([]);
-  const [channels, setChannels] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   // 开通/编辑
   const [createVisible, setCreateVisible] = useState(false);
@@ -39,6 +35,8 @@ export default function Customers() {
   // 充值
   const [rechargeTenant, setRechargeTenant] = useState<any>(null);
   const [rechargeForm] = Form.useForm();
+  // 渠道自己的点数余额（给客户充值从该余额扣除）
+  const [channelPoints, setChannelPoints] = useState(0);
 
   // 续费
   const [extendUser, setExtendUser] = useState<any>(null);
@@ -48,10 +46,10 @@ export default function Customers() {
   const load = async () => {
     setLoading(true);
     try {
-      const [cs, ts] = await Promise.all([api.listCustomers(), api.listTenants()]);
+      const cs = await api.channelListCustomers();
       setList(cs || []);
-      setTenants(ts || []);
-      api.listChannels().then((chs: any) => setChannels((chs || []).filter((c: any) => c.status === 1))).catch(() => {});
+      // 顺带刷新渠道余额（给客户充值从该余额扣除）
+      api.channelProfile().then((p: any) => setChannelPoints(p?.points || 0)).catch(() => {});
     } catch (e: any) {
       Message.error(e.message);
     } finally {
@@ -84,7 +82,7 @@ export default function Customers() {
     setSaving(true);
     try {
       if (editing) {
-        await api.updateTenant(editing.id, {
+        await api.channelUpdateTenant(editing.id, {
           name: values.name,
           remark: values.remark,
           status: values.status ? 1 : 0,
@@ -93,7 +91,7 @@ export default function Customers() {
         });
         Message.success('客户信息已更新');
       } else {
-        const r = await api.createCustomer({
+        const r = await api.channelCreateCustomer({
           name: values.name,
           username: values.username,
           password: values.password,
@@ -102,7 +100,6 @@ export default function Customers() {
           trial: !!values.trial,
           features: selectedFeatures,
           remark: values.remark,
-          channel_id: Number(values.channel_id) || 0,
         });
         Message.success(r?.msg || '客户已开通，可立即登录使用');
       }
@@ -122,7 +119,7 @@ export default function Customers() {
     setPlainPwd('');
     setPlainLoading(true);
     try {
-      const d: any = await api.userPlaintext(row.user_id);
+      const d: any = await api.channelUserPlaintext(row.user_id);
       setPlainPwd(d.plaintext);
     } catch (e: any) {
       Message.error(e.message);
@@ -136,7 +133,7 @@ export default function Customers() {
     const values = await pwdForm.validate();
     setPwdSaving(true);
     try {
-      await api.resetUserPassword(pwdResetUser.user_id, values.password);
+      await api.channelResetPassword(pwdResetUser.user_id, values.password);
       Message.success(`已重置「${pwdResetUser.username}」的密码`);
       setPwdResetUser(null);
       pwdForm.resetFields();
@@ -157,7 +154,7 @@ export default function Customers() {
     const values = await rechargeForm.validate();
     setSaving(true);
     try {
-      await api.rechargeTenant(rechargeTenant.id, {
+      await api.channelRechargeTenant(rechargeTenant.id, {
         amount: Number(values.amount),
         remark: (values.remark || '').trim(),
       });
@@ -182,7 +179,7 @@ export default function Customers() {
     const values = await extendForm.validate();
     setSaving(true);
     try {
-      await api.extendUser(extendUser.user_id, Number(values.months), '', values.pay_method);
+      await api.channelExtendUser(extendUser.user_id, Number(values.months), '', values.pay_method);
       Message.success(`已为「${extendUser.name}」续费 ${values.months} 个月`);
       setExtendUser(null);
       load();
@@ -196,7 +193,7 @@ export default function Customers() {
   // ===== 停用 / 模拟登录 / 删除 =====
   const toggleStatus = async (row: any, checked: boolean) => {
     try {
-      await api.updateTenant(row.id, { status: checked ? 1 : 0 });
+      await api.channelUpdateTenant(row.id, { status: checked ? 1 : 0 });
       Message.success(checked ? '已启用该客户' : '已停用该客户');
       load();
     } catch (e: any) {
@@ -207,7 +204,7 @@ export default function Customers() {
   const simulate = async (row: any) => {
     if (row.status !== 1) return Message.warning('该客户已停用，请先启用');
     try {
-      const res = await api.simulateLogin(row.id);
+      const res = await api.channelSimulateLogin(row.id);
       if (!res || !res.token || !res.user) return Message.error('模拟登录失败：未返回有效登录信息');
       localStorage.setItem('geo_super_backup', JSON.stringify({
         token: localStorage.getItem('geo_token') || '',
@@ -224,7 +221,7 @@ export default function Customers() {
 
   const remove = async (row: any) => {
     try {
-      await api.deleteTenant(row.id);
+      await api.channelDeleteTenant(row.id);
       Message.success('客户及其账号、业务数据已删除');
       load();
     } catch (e: any) {
@@ -332,7 +329,6 @@ export default function Customers() {
           一个客户 = 一个分站 + 一个登录账号。开通即填「账号 + 密码 + 勾选功能」，无需单独建站、单独建号。
         </Typography.Paragraph>
         <Space>
-          <Button size="small" icon={<IconQrcode />} onClick={() => navigate('/super/pay')}>支付设置</Button>
           <Button size="small" type="primary" icon={<IconPlus />} onClick={openCreate}>开通客户</Button>
         </Space>
       </div>
@@ -341,7 +337,6 @@ export default function Customers() {
         <Table rowKey="id" columns={columns} data={list} loading={loading} pagination={false} scroll={{ x: 1100 }} />
       </Card>
 
-      <ExtendRecords tenants={tenants} />
 
       {/* 开通 / 编辑客户 */}
       <Modal
@@ -421,16 +416,6 @@ export default function Customers() {
                 </div>
               )}
             </>
-          )}
-          {!editing && channels.length > 0 && (
-            <Form.Item label="归属渠道（可选）" field="channel_id" initialValue={0} extra="归属渠道后，该客户由渠道商在渠道后台自行管理">
-              <Select placeholder="不选=平台直营" allowClear>
-                <Select.Option value={0}>平台直营</Select.Option>
-                {channels.map((c: any) => (
-                  <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
           )}
           <Form.Item label="备注" field="remark">
             <Input placeholder="选填" />
@@ -516,7 +501,11 @@ export default function Customers() {
         maskClosable={false}
       >
         <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
-          当前余额：<b>{rechargeTenant?.points ?? 0}</b> 点。充值后 AI 调用按次扣点（每次 1 点）。
+          客户当前余额：<b>{rechargeTenant?.points ?? 0}</b> 点。充值后 AI 调用按次扣点（每次 1 点）。
+        </Typography.Paragraph>
+        <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
+          你的渠道余额：<b style={{ color: channelPoints > 0 ? '#00B42A' : '#F53F3F' }}>{channelPoints}</b> 点。
+          本次充值将<b>从渠道余额扣除</b>，余额不足请联系平台充值。
         </Typography.Paragraph>
         <Form form={rechargeForm} layout="vertical">
           <Form.Item label="充值点数" field="amount" rules={[{ required: true, message: '请输入充值点数' }]}>

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -82,11 +83,11 @@ func guardClear(key string) {
 }
 
 type loginReq struct {
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	CaptchaID string `json:"captcha_id"`
-	SlideX    int    `json:"slide_x"`
-	Track     []int  `json:"track"` // 拖动轨迹采样（x 坐标序列），用于人机行为校验
+	Username  string    `json:"username"`
+	Password  string    `json:"password"`
+	CaptchaID string    `json:"captcha_id"`
+	SlideX    float64   `json:"slide_x"` // 手机端可能提交浮点坐标，取整容错
+	Track     []float64 `json:"track"`   // 拖动轨迹采样（x 坐标序列），手机端为浮点数
 }
 
 // GetCaptcha 下发一次性滑动解锁凭证（无图像，纯滑块）
@@ -145,7 +146,13 @@ func Login(c *gin.Context) {
 	guard := guardKey(req.Username, ip)
 
 	// 1) 滑块验证：先过人机校验再进入账号逻辑，拦截自动化爆破/账号探测
-	if req.CaptchaID == "" || !captcha.Verify(req.CaptchaID, req.SlideX, req.Track) {
+	// 手机端轨迹为浮点数（触摸坐标带小数），四舍五入取整后再校验
+	slideX := int(math.Round(req.SlideX))
+	track := make([]int, len(req.Track))
+	for i, v := range req.Track {
+		track[i] = int(math.Round(v))
+	}
+	if req.CaptchaID == "" || !captcha.Verify(req.CaptchaID, slideX, track) {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "滑块验证未通过，请重新滑动"})
 		return
 	}

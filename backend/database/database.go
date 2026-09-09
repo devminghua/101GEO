@@ -132,6 +132,7 @@ func migrate() {
 	err := DB.AutoMigrate(
 		&models.Tenant{},
 		&models.User{},
+		&models.Channel{},
 		&models.QueryQuota{},
 		&models.AiPlatform{},
 		// 分站对全局平台的自定义覆盖层（Key / 启用状态）

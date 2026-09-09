@@ -24,6 +24,7 @@ import {
   IconCustomerService,
   IconPhone,
   IconSettings,
+  IconSafe,
 } from '@arco-design/web-react/icon';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
@@ -53,6 +54,9 @@ import Settings from './pages/Settings';
 import LicenseActivate from './pages/LicenseActivate';
 import SuperOverview from './pages/super/Overview';
 import SuperCustomers from './pages/super/Customers';
+import SuperChannels from './pages/super/Channels';
+import ChannelCustomers from './pages/super/ChannelCustomers';
+import ChannelProfile from './pages/super/ChannelProfile';
 import Cards from './pages/super/Cards';
 import SmsConfig from './pages/super/SmsConfig';
 import DataApiConfig from './pages/super/DataApiConfig';
@@ -292,6 +296,7 @@ export default function App() {
   }
 
   const isSuper = user.role === 'super';
+  const isChannel = user.role === 'channel';
   const isOperator = user.role === 'operator';
   const sysName = (sysInfo && sysInfo.system_name) || '';
   const sysLogo = (sysInfo && sysInfo.system_logo) || '';
@@ -301,11 +306,20 @@ export default function App() {
   // 客户端顶栏品牌名：分站自定义（brand_name）优先，空则默认 LinkGeo
   const brandName = (user && user.brand_name) || 'LinkGeo';
 
-  const menus = isSuper
+  const menus = isChannel
+    ? [
+        // 渠道后台：管理自己渠道下的分站（客户管理全能力）+ 品牌/客服设置
+        { key: '/channel/customers', label: '客户管理', icon: <IconApps /> },
+        { key: '/channel/profile', label: '品牌设置', icon: <IconSettings /> },
+        { key: '/settings', label: '账号安全', icon: <IconSafe /> },
+      ]
+    : isSuper
     ? [
         { key: '/super/overview', label: '总览', icon: <IconStorage /> },
         // 分站（客户）与账号管理融合为一个入口
         { key: '/super/customers', label: '客户管理', icon: <IconApps /> },
+        // 渠道管理：渠道商自建分站 + 品牌/客服
+        { key: '/super/channels', label: '渠道管理', icon: <IconUserGroup /> },
         // AI 平台已收归总后台统一管理（tenant_id=0 全局平台），仅 super 可配置
         { key: '/super/platforms', label: 'AI 平台', icon: <IconCommon /> },
         // 扫码支付：微信 / 支付宝商户配置与点卡定价
@@ -342,6 +356,8 @@ export default function App() {
         { key: '/douyin', label: '抖音获客', icon: <IconPlayArrow />, feature: 'douyin' },
         { key: '/xhs', label: '小红书获客', icon: <IconBook />, feature: 'xhs' },
         { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
+        // 充值中心：独立菜单入口（窄屏/侧栏折叠时 Token 卡片隐藏，这里保证充值入口始终可见）
+        { key: '/points', label: '充值中心', icon: <IconQrcode /> },
         // 使用指南：SaaS 后台编辑的帮助文档（图文 + B 站视频），下拉「分类 → 文档」
         { key: '/help', label: '使用指南', icon: <IconBook />, children: helpTree.length > 0 ? helpTree.map((c: any) => ({
           key: `/help?cat=${c.id}`, label: c.name,
@@ -358,14 +374,16 @@ export default function App() {
 
   // 保留前两段路径，兼容 /tools/watermark、/tools/video2text 这类二级菜单
   const _parts = location.pathname.split('/').filter(Boolean);
-  const selectedRaw = '/' + (_parts.length ? _parts.slice(0, 2).join('/') : (isSuper ? 'super' : 'dashboard'));
-  let selectedKey = isSuper
-    ? menus.find((m) => m.key === location.pathname)?.key || '/super/overview'
+  const isBackend = isSuper || isChannel;
+  const selectedRaw = '/' + (_parts.length ? _parts.slice(0, 2).join('/') : (isBackend ? 'super' : 'dashboard'));
+  let selectedKey = isBackend
+    ? menus.find((m) => m.key === location.pathname)?.key || (isChannel ? '/channel/customers' : '/super/overview')
     : selectedRaw;
 
   const handleMenu = (key: string) => {
     if (key === '/settings') return navigate(key);
     if (isSuper && key === '/dashboard') return navigate('/super/overview');
+    if (isChannel && key === '/dashboard') return navigate('/channel/customers');
     navigate(key);
   };
 
@@ -429,11 +447,16 @@ export default function App() {
         if (key === 'pwd') {
           pwdForm.resetFields();
           setPwdVisible(true);
+        } else if (key === 'back-super') {
+          backToSuper();
         } else if (key === 'logout') {
           confirmLogout();
         }
       }}
     >
+      {!!localStorage.getItem('geo_super_backup') && (
+        <MenuItem key="back-super">↩ 切回总后台</MenuItem>
+      )}
       {!isOperator && (
         <MenuItem key="pwd">
           <IconLock style={{ marginRight: 8 }} />
@@ -539,8 +562,8 @@ export default function App() {
             </>
           )}
         </div>
-        {/* 侧栏 Token 余额卡片：仅展开态 + 非 super 展示，充值跳 /points */}
-        {!collapsed && user && user.role !== 'super' && (
+        {/* 侧栏 Token 余额卡片：仅展开态 + 客户端展示（渠道后台不显示，渠道余额在品牌设置页展示） */}
+        {!collapsed && user && user.role !== 'super' && user.role !== 'channel' && (
           <div
             onClick={() => navigate('/points')}
             style={{
@@ -606,6 +629,11 @@ export default function App() {
               总管理后台
             </MenuItem>
           )}
+          {isChannel && (
+            <MenuItem key="channel-group" disabled style={{ color: 'var(--color-text-3)', fontSize: 12, padding: '10px 16px 4px' }}>
+              渠道管理后台
+            </MenuItem>
+          )}
           {menus.map((m: any) => m.children ? (
             <SubMenu key={m.key} title={<span>{m.icon} {m.label}</span>}>
               {m.children.map((c: any) => c.children ? (
@@ -652,10 +680,12 @@ export default function App() {
           <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--geo-text)' }}>
             {isSuper
               ? '总管理后台 · ' + (menuTitle(selectedKey) === 'LinkGeo' ? '总览' : menuTitle(selectedKey))
+              : isChannel
+              ? '渠道管理后台 · ' + (menuTitle(selectedKey) === 'LinkGeo' ? '客户管理' : menuTitle(selectedKey))
               : menuTitle(selectedKey)}
           </div>
           <Space>
-            {!isSuper && !!user && (user.remain_days ?? -1) >= 0 && (
+            {!isSuper && !isChannel && !!user && (user.remain_days ?? -1) >= 0 && (
               <Tag
                 size="small"
                 color={(user.remain_days ?? -1) <= 0 ? 'red' : (user.remain_days ?? 999) <= 7 ? 'orangered' : (user.remain_days ?? 999) <= 30 ? 'orange' : 'green'}
@@ -663,9 +693,10 @@ export default function App() {
                 {(user.remain_days ?? -1) <= 0 ? '服务已到期' : `剩 ${user.remain_days} 天${(user.remain_days ?? 0) <= 7 ? ' · 即将到期' : ''}`}
               </Tag>
             )}
-            {isSuper ? (
+            {isSuper || isChannel ? (
               <>
-                <Tag color="gold" size="small">总后台管理员</Tag>
+                {isSuper && <Tag color="gold" size="small">总后台管理员</Tag>}
+                {isChannel && <Tag color="purple" size="small">渠道商</Tag>}
                 <Dropdown droplist={userDroplist} trigger="click" position="br">
                   <Button size="small" icon={<IconExport />}>
                     退出登录 <IconDown />
@@ -753,6 +784,8 @@ export default function App() {
                 {/* 兼容旧入口：分站管理 / 账号管理 重定向到融合页 */}
                 <Route path="/super/tenants" element={<Navigate to="/super/customers" replace />} />
                 <Route path="/super/users" element={<Navigate to="/super/customers" replace />} />
+                {/* 渠道管理：渠道商自建分站 + 品牌/客服 */}
+                <Route path="/super/channels" element={<SuperChannels />} />
                 {/* AI 平台统一由总后台管理（tenant_id=0 全局平台） */}
                 <Route path="/super/platforms" element={<Platforms />} />
                 {/* 扫码支付配置：微信 / 支付宝商户参数与点卡定价 */}
@@ -766,6 +799,14 @@ export default function App() {
                 {/* 系统设置：品牌/版权/客服 + 短信 + OSS + 登录日志（super 复用 Settings 页） */}
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/super/overview" replace />} />
+              </>
+            ) : isChannel ? (
+              <>
+                {/* 渠道后台：客户管理（限定自己渠道）+ 品牌/客服设置 + 账号安全 */}
+                <Route path="/channel/customers" element={<ChannelCustomers />} />
+                <Route path="/channel/profile" element={<ChannelProfile />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/channel/customers" replace />} />
               </>
             ) : (
               <>
@@ -876,7 +917,7 @@ export default function App() {
         onClose={() => setNotifOpen(false)}
         onUnreadChange={(n) => setUnread(n)}
       />
-      {!isSuper && <FloatingService phone={sysInfo?.service_phone} qr={sysInfo?.service_wechat_qr} />}
+      {!isSuper && !isChannel && <FloatingService phone={sysInfo?.service_phone} qr={sysInfo?.service_wechat_qr} />}
     </Layout>
   );
 }
@@ -897,6 +938,7 @@ function NoAccess({ feature }: { feature: string }) {
 function menuTitle(key: string): string {
   const map: Record<string, string> = {
     '/dashboard': '仪表盘',
+    '/points': '充值中心',
     '/keywords': '关键词监控',
     '/platforms': 'AI 平台',
     '/super/platforms': 'AI 平台',
@@ -904,6 +946,9 @@ function menuTitle(key: string): string {
     '/super/notifications': '站内信推送',
     '/super/cards': '卡密管理',
     '/super/sms': '短信设置',
+    '/super/channels': '渠道管理',
+    '/channel/customers': '客户管理',
+    '/channel/profile': '品牌设置',
     '/super/data-api': '数据 API',
     '/super/help-doc': '帮助文档',
     '/help': '使用指南',
@@ -911,7 +956,6 @@ function menuTitle(key: string): string {
     '/super/customers': '客户管理',
     '/super/tenants': '分站管理',
     '/super/users': '账号管理',
-    '/points': '你要加油，',
     '/tasks': '巡检任务',
     '/content': '内容投放',
     '/report': '生成报告',

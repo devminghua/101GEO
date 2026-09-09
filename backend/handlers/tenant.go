@@ -88,6 +88,10 @@ func UpdateTenant(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"code": 1, "msg": "分站不存在"})
 		return
 	}
+	if !tenantOwnedByChannel(c, t.ID) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "无权操作该客户"})
+		return
+	}
 	var req struct {
 		Name            *string  `json:"name"`
 		Logo            *string  `json:"logo"`
@@ -135,6 +139,10 @@ func DeleteTenant(c *gin.Context) {
 	var t models.Tenant
 	if err := database.DB.First(&t, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 1, "msg": "分站不存在"})
+		return
+	}
+	if !tenantOwnedByChannel(c, t.ID) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "无权操作该客户"})
 		return
 	}
 	tx := database.DB.Begin()
@@ -262,6 +270,10 @@ func ExtendUserService(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "总后台账号无需续费"})
 		return
 	}
+	if !userOwnedByChannel(c, u.ID) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "无权操作该账号"})
+		return
+	}
 	var req struct {
 		Months    int    `json:"months"`
 		Remark    string `json:"remark"`
@@ -387,6 +399,10 @@ func ResetUserPassword(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"code": 1, "msg": "账号不存在"})
 		return
 	}
+	if !userOwnedByChannel(c, u.ID) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "无权操作该账号"})
+		return
+	}
 	var req struct {
 		Password string `json:"password"`
 	}
@@ -419,6 +435,10 @@ func UserPlaintextPassword(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "不允许查看总后台账号"})
 		return
 	}
+	if !userOwnedByChannel(c, u.ID) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "无权操作该账号"})
+		return
+	}
 	if !crypto.IsEncrypted(u.Password) {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "该账号为历史加密密码，无法直接查看；重置一次密码后即可查看明文"})
 		return
@@ -442,6 +462,10 @@ func UpdateUserStatus(c *gin.Context) {
 	if !jsonBody(c, &req) {
 		return
 	}
+	if !userOwnedByChannel(c, uint(id)) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "无权操作该账号"})
+		return
+	}
 	database.DB.Model(&models.User{}).Where("id = ?", id).Update("status", req.Status)
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已更新"})
 }
@@ -458,6 +482,10 @@ func DeleteUser(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "不允许删除总后台账号"})
 		return
 	}
+	if !userOwnedByChannel(c, u.ID) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "无权操作该账号"})
+		return
+	}
 	database.DB.Delete(&u)
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "账号已删除"})
 }
@@ -469,6 +497,10 @@ func SimulateTenantLogin(c *gin.Context) {
 	var t models.Tenant
 	if err := database.DB.First(&t, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 1, "msg": "分站不存在"})
+		return
+	}
+	if !tenantOwnedByChannel(c, t.ID) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 1, "msg": "无权操作该客户"})
 		return
 	}
 	if t.Status != 1 {

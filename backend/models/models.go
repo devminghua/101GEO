@@ -8,6 +8,7 @@ type Tenant struct {
 	Name      string    `gorm:"size:128;not null" json:"name"`            // 分站名称
 	Code      string    `gorm:"size:64;uniqueIndex;not null" json:"code"` // 分站标识（登录/调用时区分）
 	Logo      string    `gorm:"size:255" json:"logo"`                     // 分站 Logo（SaaS 端上传，客户端调用）
+	ChannelID uint      `gorm:"index;default:0" json:"channel_id"`        // 归属渠道（0=平台直营）
 	Status    int       `gorm:"default:1" json:"status"`                  // 1 启用 / 0 停用
 	Features  string    `gorm:"type:text" json:"features"`                // 该分站授权的功能模块 key 列表（JSON 数组字符串，如 ["dashboard","keywords"]；空=全部开放）
 	Points    int64     `gorm:"default:0" json:"points"`                  // 点卡余额（每次 AI 调用固定扣 1 点；由总后台充值）
@@ -63,11 +64,12 @@ type PointRecord struct {
 type User struct {
 	ID         uint       `gorm:"primaryKey" json:"id"`
 	TenantID   uint       `gorm:"index" json:"tenant_id"`
+	ChannelID  uint       `gorm:"index;default:0" json:"channel_id"` // 渠道账号（role=channel）所属渠道；其他角色为 0
 	Username   string     `gorm:"size:64;uniqueIndex" json:"username"`
 	Password   string     `gorm:"size:255;not null" json:"-"`
 	Nickname   string     `gorm:"size:64" json:"nickname"`
 	Avatar     string     `gorm:"size:255" json:"avatar"` // NFT 数字头像 URL（identicon，注册时自动生成）
-	Role       string     `gorm:"size:16;default:admin" json:"role"` // super=总后台 / admin=分站 / operator=AI优化员（受限，仅日常业务，无配置API/查看密钥/改密权限）
+	Role       string     `gorm:"size:16;default:admin" json:"role"` // super=总后台 / channel=渠道商 / admin=分站 / operator=AI优化员（受限，仅日常业务，无配置API/查看密钥/改密权限）
 	Status     int        `gorm:"default:1" json:"status"`
 	OpenMonths int        `json:"open_months"` // 开通月数（1-36）；0 表示未设置/不限
 	ExpireAt   *time.Time `json:"expire_at"`   // 服务到期时间（nil 表示不限）
