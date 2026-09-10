@@ -96,7 +96,7 @@ export const api = {
     request<{ phone: string; debug_code?: string }>('/auth/sms-code', { method: 'POST', body: JSON.stringify({ phone }) }),
   emailCode: (email: string) =>
     request<{ email: string; debug_code?: string }>('/auth/email-code', { method: 'POST', body: JSON.stringify({ email }) }),
-  register: (body: { phone: string; email?: string; code: string; password: string; company_name: string; ref?: string }) =>
+  register: (body: { username: string; phone: string; email?: string; code: string; password: string; company_name: string; ref?: string }) =>
     request<LoginResult>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   // 注册配置（公开）：自助注册开关 + 验证方式（sms/email/off，前端注册页据此动态渲染）
   registerConfig: () =>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Form, Input, Button, Typography, Message } from '@arco-design/web-react';
-import { IconUser, IconLock, IconMobile, IconEmail } from '@arco-design/web-react/icon';
+import { IconUser, IconLock, IconMobile, IconEmail, IconIdcard } from '@arco-design/web-react/icon';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setAuth } from '../api';
 
@@ -8,6 +8,8 @@ import { api, setAuth } from '../api';
 const PHONE_RE = /^1[3-9]\d{9}$/;
 // 邮箱校验
 const EMAIL_RE = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/;
+// 登录账号：字母/数字/下划线/连字符，3-32 位
+const USERNAME_RE = /^[a-zA-Z0-9_-]{3,32}$/;
 
 export default function Register({ onSuccess }: { onSuccess: () => void }) {
   const navigate = useNavigate();
@@ -97,6 +99,10 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
 
   const submit = async () => {
     const values = await form.validate();
+    if (!USERNAME_RE.test((values.username || '').trim())) {
+      Message.error('登录账号仅限 3-32 位字母/数字/下划线/连字符');
+      return;
+    }
     if (verifyMode === 'email') {
       if (!EMAIL_RE.test((values.email || '').trim())) {
         Message.error('邮箱格式不正确');
@@ -116,6 +122,7 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
     setLoading(true);
     try {
       const data = await api.register({
+        username: (values.username || '').trim(),
         phone: (values.phone || '').trim(),
         email: (values.email || '').trim(),
         code: (values.code || '').trim(),
@@ -180,6 +187,18 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
         </div>
 
         <Form form={form} layout="vertical" autoComplete="off">
+          <Form.Item
+            label="登录账号"
+            field="username"
+            extra="用于登录系统，全局唯一；手机号/邮箱仅用于接收验证码"
+            rules={[
+              { required: true, message: '请输入登录账号' },
+              { match: USERNAME_RE, message: '3-32 位字母/数字/下划线/连字符' },
+            ]}
+          >
+            <Input prefix={<IconIdcard />} placeholder="如：hongniang01" size="large" maxLength={32} autoComplete="off" />
+          </Form.Item>
+
           {verifyMode === 'email' ? (
             <Form.Item
               label="邮箱"

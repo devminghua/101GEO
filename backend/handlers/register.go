@@ -96,13 +96,17 @@ func setupSender() {
 }
 
 type registerReq struct {
+	Username    string `json:"username"` // 登录账号（客户自填；手机号/邮箱仅用于收验证码）
 	Phone       string `json:"phone"`
-	Email       string `json:"email"` // 邮箱验证模式下：注册账号=邮箱
+	Email       string `json:"email"` // 邮箱验证模式下接收验证码
 	Code        string `json:"code"`
 	Password    string `json:"password"`
 	CompanyName string `json:"company_name"`
 	Ref         string `json:"ref"` // 邀请码（被邀请注册时带上，注册成功给邀请人发奖励）
 }
+
+// usernameRe 登录账号：字母/数字/下划线/连字符，3-32 位。
+var usernameRe = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,32}$`)
 
 // Register 自助注册：短信验证 → 创建分站 + 管理员账号 → 自动开通试用 → 直接登录。
 // 一个客户 = 一个分站（tenant）+ 一个登录账号（admin）；登录账号即手机号。
@@ -121,16 +125,23 @@ func Register(c *gin.Context) {
 		return
 	}
 	mode := verifyMode()
+	req.Username = strings.TrimSpace(req.Username)
 	req.Phone = strings.TrimSpace(req.Phone)
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	req.Code = strings.TrimSpace(req.Code)
 	req.CompanyName = strings.TrimSpace(req.CompanyName)
 
-	// 账号标识：邮箱验证模式用邮箱；短信模式用手机号
-	account := req.Phone
+	// 登录账号：客户自填（字母/数字/下划线/连字符），全局唯一
+	if !usernameRe.MatchString(req.Username) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "登录账号仅限 3-32 位字母/数字/下划线/连字符"})
+		return
+	}
+
+	// 验证码接收载体：邮箱验证模式用邮箱；短信模式用手机号
+	verifyTarget := req.Phone
 	if mode == "email" {
-		account = req.Email
-		if !emailRe.MatchString(account) {
+		verifyTarget = req.Email
+		if !emailRe.MatchString(verifyTarget) {
 			c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "邮箱格式不正确"})
 			return
 		}
@@ -168,17 +179,13 @@ func Register(c *gin.Context) {
 	}
 	// 2) 登录账号全局唯一
 	var uc int64
-	database.DB.Model(&models.User{}).Where("username = ?", account).Count(&uc)
+	database.DB.Model(&models.User{}).Where("username = ?", req.Username).Count(&uc)
 	if uc > 0 {
-		msg := "该手机号已注册，请直接登录"
-		if mode == "email" {
-			msg = "该邮箱已注册，请直接登录"
-		}
-		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": msg})
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "该登录账号已被占用，请更换"})
 		return
 	}
-	// 3) 分站标识自动派生（账号清洗为 code，冲突追加数字后缀）
-	code := sanitizeCode(account)
+	// 3) 分站标识自动派生（登录账号清洗为 code，冲突追加数字后缀）
+	code := sanitizeCode(req.Username)
 	if code == "" {
 		code = "c"
 	}
@@ -210,7 +217,7 @@ func Register(c *gin.Context) {
 		return
 	}
 	u := models.User{
-		TenantID: t.ID, Username: account, Password: encPwd,
+		TenantID: t.ID, Username: req.Username, Password: encPwd,
 		Nickname: req.CompanyName, Role: "admin", Status: 1,
 		OpenMonths: 0, ExpireAt: &expireAt,
 	}
