@@ -62,11 +62,11 @@ function IntelTab() {
   };
   const saveBrand = async () => {
     const v = brand.trim();
-    if (!v) { Message.warning('请输入默认品牌词'); return; }
+    if (!v) { Message.warning('请输入优化的关键词'); return; }
     setBrandSaving(true);
     try {
       await api.saveSettings({ default_brand: v });
-      Message.success('默认品牌词已保存');
+      Message.success('优化的关键词已保存');
     } catch (e: any) {
       Message.error(e.message || '保存失败');
     } finally {
@@ -107,14 +107,14 @@ function IntelTab() {
         @keyframes geoFadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
-      {/* 默认品牌词设置（关键词未单独填写品牌词时的兜底） */}
+      {/* 优化的关键词设置（关键词未单独填写时的兜底，用于 AI 回答命中检测） */}
       <Card style={{ borderRadius: 16, marginBottom: 16 }} bordered={false} size="small">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Text style={{ fontWeight: 600, flexShrink: 0 }}>默认品牌词</Text>
+          <Text style={{ fontWeight: 600, flexShrink: 0 }}>优化的关键词</Text>
           <Input
             value={brand}
             onChange={(v) => setBrand(v)}
-            placeholder="如：轻媒,QINGMEI"
+            placeholder="如：婚恋交友,同城相亲"
             style={{ width: 340, maxWidth: '100%' }}
             onPressEnter={saveBrand}
           />
@@ -122,7 +122,7 @@ function IntelTab() {
             保存
           </Button>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            逗号分隔多个品牌词；关键词未单独填写品牌词时，巡检将用它做 AI 回答命中检测
+            逗号分隔多个关键词；关键词未单独填写时，巡检将用它做 AI 回答命中检测
           </Text>
         </div>
       </Card>
