@@ -673,10 +673,33 @@ function TaskTab() {
       </Modal>
 
       {/* 发稿平台配置 */}
-      <Modal title="发稿平台配置" visible={cfgVisible} onCancel={() => setCfgVisible(false)} onOk={saveCfg} okText="保存" cancelText="取消">
+      <Modal title="发稿平台配置" visible={cfgVisible} onCancel={() => setCfgVisible(false)} onOk={saveCfg} okText="保存" cancelText="取消" style={{ width: 600 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <Space><Switch checked={!!cfg?.enabled} onChange={(v) => setCfg({ ...cfg, enabled: v })} checkedText="启用" uncheckedText="停用" />
+            <Typography.Text bold>① 先到发稿平台注册（任选一家）</Typography.Text>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, background: 'var(--color-fill-1)', borderRadius: 8, padding: '12px 14px' }}>
+              <Space wrap>
+                <Typography.Text style={{ fontSize: 13 }}>
+                  媒介盒子：<a href="https://www.meijiehezi.com/" target="_blank" rel="noreferrer">meijiehezi.com</a>
+                </Typography.Text>
+                <Typography.Text style={{ fontSize: 13 }}>
+                  软文街：<a href="https://www.ruanwen.la/" target="_blank" rel="noreferrer">ruanwen.la</a>
+                </Typography.Text>
+                <Typography.Text style={{ fontSize: 13 }}>
+                  投媒网：<a href="https://toumeiw.cn/" target="_blank" rel="noreferrer">toumeiw.cn</a>
+                </Typography.Text>
+                <Typography.Text style={{ fontSize: 13 }}>
+                  优媒汇：<a href="http://www.youmeiwang.com/" target="_blank" rel="noreferrer">youmeiwang.com</a>
+                </Typography.Text>
+              </Space>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                注册后到平台后台申请/获取「API 接口地址 + 鉴权 Key」，填入下方即可自动发稿；不配置则走人工发布。
+              </Typography.Text>
+            </div>
+          </div>
+          <div>
+            <Typography.Text bold>② 填写 API 配置</Typography.Text>
+            <Space style={{ marginTop: 8 }}><Switch checked={!!cfg?.enabled} onChange={(v) => setCfg({ ...cfg, enabled: v })} checkedText="启用" uncheckedText="停用" />
               <Typography.Text type="secondary">启用后，发布任务将自动对接下方接口</Typography.Text></Space>
           </div>
           <div><Typography.Text bold>发稿接口 URL</Typography.Text>
