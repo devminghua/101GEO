@@ -425,6 +425,9 @@ export const api = {
     request(`/super/channels/${id}/recharge`, { method: 'POST', body: JSON.stringify(body) }),
   superChannelSimulateLogin: (id: number) =>
     request<LoginResult>(`/super/channels/${id}/simulate-login`, { method: 'POST', body: '{}' }),
+  superChannelPlaintext: (id: number) => request(`/super/channels/${id}/plaintext`),
+  superChannelResetPassword: (id: number, pwd: string) =>
+    request(`/super/channels/${id}/password`, { method: 'PUT', body: JSON.stringify({ password: pwd }) }),
   // 渠道后台：品牌/客服 + 客户管理（范围限定自己渠道）
   channelProfile: () => request('/channel/profile'),
   channelSaveProfile: (body: any) => request('/channel/profile', { method: 'PUT', body: JSON.stringify(body) }),

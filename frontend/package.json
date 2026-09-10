@@ -12,6 +12,7 @@
     "@arco-design/web-react": "^2.63.0",
     "@wangeditor/editor": "^5.1.23",
     "@wangeditor/editor-for-react": "^1.0.6",
+    "dompurify": "^3.4.15",
     "echarts": "^5.5.0",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",

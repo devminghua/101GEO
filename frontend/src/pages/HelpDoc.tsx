@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Spin, Empty, Typography } from '@arco-design/web-react';
+import DOMPurify from 'dompurify';
 import { api } from '../api';
 
 // 客户端「使用指南」：只展示文档内容（导航由侧栏「使用指南」下拉菜单承载）。
@@ -43,7 +44,8 @@ export default function HelpDoc() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docParam, catParam]);
 
-  const rendered = curDoc ? injectBilibili(curDoc.content || '') : '';
+  // XSS 防护：文档 HTML 先经 DOMPurify 清洗（剔除 script/on* 事件等），再注入 B 站 iframe
+  const rendered = curDoc ? injectBilibili(DOMPurify.sanitize(curDoc.content || '')) : '';
 
   return (
     <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: '24px 32px' }}>

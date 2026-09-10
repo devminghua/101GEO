@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/rand"
 	"log"
 	"os"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 
 // Version 产品版本号：每次更新记录一次版本号（老板规则，2026-09-07 起）。
 // 当前 1.0.1。发版时改这里，客户端与 SaaS 端登录页/侧栏会自动显示。
-const Version = "1.0.16"
+const Version = "1.0.18"
 
 type Config struct {
 	Port         string // 后端监听端口
@@ -34,9 +35,21 @@ type Config struct {
 	LicensePubKey string // 卡密验签公钥（base64，客户端内置；空则禁用卡密）
 }
 
+// fallbackTokenSecret 未配置 GEO_JWT_SECRET 时的兜底：每次启动随机生成，
+// 避免固定弱密钥被攻击者伪造任意身份 JWT（安全审计修复：原为硬编码 "geo-tool-dev-secret"）。
+// 代价：重启后旧登录态失效；生产环境必须显式配置 GEO_JWT_SECRET。
+var fallbackTokenSecret = func() []byte {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err == nil {
+		log.Printf("[config] ⚠️ GEO_JWT_SECRET 未配置：使用随机临时密钥（重启后登录态失效），生产环境必须配置 GEO_JWT_SECRET")
+		return b
+	}
+	return []byte("geo-tool-dev-secret")
+}()
+
 func (c *Config) TokenSecret() []byte {
 	if c.JWTSecret == "" {
-		return []byte("geo-tool-dev-secret")
+		return fallbackTokenSecret
 	}
 	return []byte(c.JWTSecret)
 }

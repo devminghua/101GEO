@@ -408,6 +408,8 @@ func main() {
 		super.PUT("/channels/:id/status", handlers.UpdateChannelStatus)
 		super.POST("/channels/:id/recharge", handlers.ChannelRecharge)
 		super.POST("/channels/:id/simulate-login", handlers.SimulateChannelLogin)
+		super.GET("/channels/:id/plaintext", handlers.ChannelPlaintextPassword)
+		super.PUT("/channels/:id/password", handlers.ChannelResetPassword)
 		// 融合客户管理：一个客户=一个分站+一个登录账号，一键开通/列表/查询
 		super.GET("/customers", handlers.ListCustomers)
 		super.GET("/online-count", handlers.SuperOnlineCount)

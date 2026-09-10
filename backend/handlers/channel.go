@@ -190,6 +190,52 @@ func UpdateChannelStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已更新"})
 }
 
+// ChannelPlaintextPassword 查看渠道登录账号明文密码：GET /api/super/channels/:id/plaintext
+func ChannelPlaintextPassword(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	var u models.User
+	if err := database.DB.Where("role = ? AND channel_id = ?", "channel", id).First(&u).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 1, "msg": "渠道账号不存在"})
+		return
+	}
+	if !crypto.IsEncrypted(u.Password) {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "该账号为历史加密密码，无法直接查看；重置一次密码后即可查看明文"})
+		return
+	}
+	plain, err := crypto.Decrypt(u.Password, config.Load().PayloadSecret())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 1, "msg": "密码解密失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"username": u.Username, "plaintext": plain}})
+}
+
+// ChannelResetPassword 重置渠道登录密码：PUT /api/super/channels/:id/password
+func ChannelResetPassword(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	var req struct {
+		Password string `json:"password"`
+	}
+	if !jsonBody(c, &req) {
+		return
+	}
+	if msg := validatePassword(req.Password); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": msg})
+		return
+	}
+	encPwd, err := crypto.Hash(req.Password, config.Load().PayloadSecret())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 1, "msg": "密码加密失败"})
+		return
+	}
+	res := database.DB.Model(&models.User{}).Where("role = ? AND channel_id = ?", "channel", id).Update("password", encPwd)
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"code": 1, "msg": "渠道账号不存在"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "密码已重置"})
+}
+
 // SimulateChannelLogin 总后台一键登录渠道后台：POST /api/super/channels/:id/simulate-login
 // 签发该渠道启用账号的 JWT，返回结构与登录接口一致 {token, user}。
 func SimulateChannelLogin(c *gin.Context) {

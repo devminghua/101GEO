@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Card, Table, Button, Modal, Form, Input, Tag, Space, Message, Popconfirm, Switch, Typography, InputNumber,
 } from '@arco-design/web-react';
-import { IconPlus, IconEdit, IconExperiment } from '@arco-design/web-react/icon';
+import { IconPlus, IconEdit, IconExperiment, IconEye } from '@arco-design/web-react/icon';
 import { api } from '../../api';
 
 // 渠道管理：渠道商可自建分站、自定义品牌与客服联系方式。
@@ -18,6 +18,10 @@ export default function Channels() {
   // 渠道充值
   const [rechargeCh, setRechargeCh] = useState<any>(null);
   const [rechargeForm] = Form.useForm();
+  // 渠道密码查看
+  const [pwdView, setPwdView] = useState<any>(null);
+  const [plainPwd, setPlainPwd] = useState('');
+  const [plainLoading, setPlainLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -51,6 +55,10 @@ export default function Channels() {
     try {
       if (editing) {
         await api.updateChannel(editing.id, v);
+        // 编辑时选填重置密码
+        if (v.password) {
+          await api.superChannelResetPassword(editing.id, v.password);
+        }
         Message.success('渠道已更新');
       } else {
         const r: any = await api.createChannel(v);
@@ -62,6 +70,22 @@ export default function Channels() {
       Message.error(e.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // 查看渠道登录密码
+  const showPlain = async (row: any) => {
+    setPwdView(row);
+    setPlainPwd('');
+    setPlainLoading(true);
+    try {
+      const d: any = await api.superChannelPlaintext(row.id);
+      setPlainPwd(d.plaintext || '');
+    } catch (e: any) {
+      Message.error(e.message);
+      setPwdView(null);
+    } finally {
+      setPlainLoading(false);
     }
   };
 
@@ -160,9 +184,10 @@ export default function Channels() {
       ),
     },
     {
-      title: '操作', width: 170,
+      title: '操作', width: 200,
       render: (_: any, row: any) => (
         <Space>
+          <Button size="mini" icon={<IconEye />} onClick={() => showPlain(row)}>密码</Button>
           <Button size="mini" icon={<IconEdit />} onClick={() => openEdit(row)}>编辑</Button>
           <Button size="mini" icon={<IconExperiment />} onClick={() => simulate(row)}>一键登录</Button>
         </Space>
@@ -204,6 +229,24 @@ export default function Channels() {
         </Typography.Paragraph>
       </Modal>
 
+      {/* 查看渠道登录密码 */}
+      <Modal
+        title={`渠道「${pwdView?.name || ''}」登录密码`}
+        visible={!!pwdView}
+        onCancel={() => setPwdView(null)}
+        footer={<Button onClick={() => setPwdView(null)}>关闭</Button>}
+      >
+        <div style={{ fontSize: 13, marginBottom: 8 }}>
+          登录账号：<b>{pwdView?.username || '-'}</b>
+        </div>
+        <div style={{ fontSize: 13 }}>
+          明文密码：{plainLoading ? '查询中…' : <b style={{ fontSize: 16, letterSpacing: 1 }}>{plainPwd || '-'}</b>}
+        </div>
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>
+          密码可直接转发给渠道商用于登录渠道后台。
+        </Typography.Paragraph>
+      </Modal>
+
       <Modal
         title={editing ? '编辑渠道' : '新建渠道'}
         visible={visible}
@@ -225,6 +268,11 @@ export default function Channels() {
                 <Input.Password placeholder="至少 8 位，含字母和数字" />
               </Form.Item>
             </>
+          )}
+          {editing && (
+            <Form.Item label="重置登录密码（选填）" field="password" extra="留空 = 保持原密码不变；填写则重置为新密码">
+              <Input.Password placeholder="至少 8 位，含字母和数字" autoComplete="new-password" />
+            </Form.Item>
           )}
           <Form.Item label="品牌名称（旗下分站默认品牌）" field="brand_name" extra="留空则其下分站使用平台默认品牌">
             <Input placeholder="如：XX 科技" />
