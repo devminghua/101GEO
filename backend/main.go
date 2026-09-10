@@ -89,6 +89,7 @@ func main() {
 	r.GET("/api/auth/expiry", handlers.AuthExpiry)
 	r.GET("/api/system/info", handlers.GetSystemInfo)
 	r.POST("/api/auth/sms-code", handlers.SmsSend)
+	r.POST("/api/auth/email-code", handlers.EmailCode)
 	r.POST("/api/auth/register", handlers.Register)
 	// 注册配置（公开）：自助注册开关 + 短信验证开关，前端注册页据此渲染
 	r.GET("/api/auth/register-config", handlers.RegisterConfig)

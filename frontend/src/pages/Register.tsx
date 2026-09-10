@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Card, Form, Input, Button, Typography, Message } from '@arco-design/web-react';
-import { IconUser, IconLock, IconMobile } from '@arco-design/web-react/icon';
+import { IconUser, IconLock, IconMobile, IconEmail } from '@arco-design/web-react/icon';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setAuth } from '../api';
 
 // 手机号校验（中国大陆 11 位）
 const PHONE_RE = /^1[3-9]\d{9}$/;
+// 邮箱校验
+const EMAIL_RE = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/;
 
 export default function Register({ onSuccess }: { onSuccess: () => void }) {
   const navigate = useNavigate();
@@ -15,13 +17,13 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [debugCode, setDebugCode] = useState(''); // 【Mock】联调回显验证码，接入真实短信后移除
+  const [debugCode, setDebugCode] = useState(''); // 【Mock】联调回显验证码，接入真实发送后移除
   const [sysInfo, setSysInfo] = useState<any>(null);
-  const [smsRequired, setSmsRequired] = useState(true); // 短信验证开关（总后台短信设置控制）
+  const [verifyMode, setVerifyMode] = useState<'sms' | 'email' | 'off'>('sms'); // 验证方式（总后台设置控制）
 
   useEffect(() => {
     api.systemInfo().then((s: any) => setSysInfo(s || {})).catch(() => {});
-    api.registerConfig().then((c: any) => setSmsRequired(c?.sms_required ?? true)).catch(() => {});
+    api.registerConfig().then((c: any) => setVerifyMode(c?.verify_mode || (c?.sms_required ? 'sms' : 'off'))).catch(() => {});
   }, []);
 
   // 获取验证码 60s 倒计时
@@ -44,6 +46,31 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
   const sysLogo = (sysInfo && sysInfo.system_logo) || '';
 
   const sendCode = async () => {
+    if (verifyMode === 'email') {
+      let email = '';
+      try {
+        await form.validate(['email']);
+        email = (form.getFieldValue('email') || '').trim();
+      } catch {
+        return;
+      }
+      if (!EMAIL_RE.test(email)) {
+        Message.error('请先填写正确的邮箱');
+        return;
+      }
+      setSending(true);
+      try {
+        const data: any = await api.emailCode(email);
+        setDebugCode(data?.debug_code || '');
+        setCountdown(60);
+        Message.success('验证码已发送至邮箱' + (data?.debug_code ? '（Mock：见下方提示）' : ''));
+      } catch (e: any) {
+        Message.error(e.message || '发送失败');
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
     let phone = '';
     try {
       await form.validate(['phone']);
@@ -70,11 +97,19 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
 
   const submit = async () => {
     const values = await form.validate();
-    if (!PHONE_RE.test((values.phone || '').trim())) {
+    if (verifyMode === 'email') {
+      if (!EMAIL_RE.test((values.email || '').trim())) {
+        Message.error('邮箱格式不正确');
+        return;
+      }
+      if (!values.code) {
+        Message.error('请输入邮箱验证码');
+        return;
+      }
+    } else if (!PHONE_RE.test((values.phone || '').trim())) {
       Message.error('手机号格式不正确');
       return;
-    }
-    if (smsRequired && !values.code) {
+    } else if (verifyMode === 'sms' && !values.code) {
       Message.error('请输入短信验证码');
       return;
     }
@@ -82,7 +117,8 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
     try {
       const data = await api.register({
         phone: (values.phone || '').trim(),
-        code: smsRequired ? (values.code || '').trim() : '',
+        email: (values.email || '').trim(),
+        code: (values.code || '').trim(),
         password: values.password,
         company_name: (values.company_name || '').trim(),
         ref: refCode,
@@ -144,22 +180,35 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
         </div>
 
         <Form form={form} layout="vertical" autoComplete="off">
-          <Form.Item
-            label="手机号"
-            field="phone"
-            rules={[
-              { required: true, message: '请输入手机号' },
-              { match: PHONE_RE, message: '手机号格式不正确' },
-            ]}
-          >
-            <Input prefix={<IconMobile />} placeholder="用于登录与接收验证码" size="large" maxLength={11} />
-          </Form.Item>
-
-          {smsRequired && (
+          {verifyMode === 'email' ? (
             <Form.Item
-              label="短信验证码"
+              label="邮箱"
+              field="email"
+              rules={[
+                { required: true, message: '请输入邮箱' },
+                { match: EMAIL_RE, message: '邮箱格式不正确' },
+              ]}
+            >
+              <Input prefix={<IconEmail />} placeholder="用于登录与接收验证码" size="large" maxLength={64} />
+            </Form.Item>
+          ) : (
+            <Form.Item
+              label="手机号"
+              field="phone"
+              rules={[
+                { required: true, message: '请输入手机号' },
+                { match: PHONE_RE, message: '手机号格式不正确' },
+              ]}
+            >
+              <Input prefix={<IconMobile />} placeholder="用于登录" size="large" maxLength={11} />
+            </Form.Item>
+          )}
+
+          {verifyMode !== 'off' && (
+            <Form.Item
+              label={verifyMode === 'email' ? '邮箱验证码' : '短信验证码'}
               field="code"
-              rules={[{ required: true, message: '请输入短信验证码' }]}
+              rules={[{ required: true, message: '请输入验证码' }]}
             >
               <div style={{ display: 'flex', gap: 8 }}>
                 <Input prefix={<IconUser />} placeholder="6 位验证码" size="large" maxLength={6} style={{ flex: 1 }} />
@@ -169,7 +218,7 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
               </div>
             </Form.Item>
           )}
-          {smsRequired && debugCode && (
+          {verifyMode !== 'off' && debugCode && (
             <Typography.Text type="warning" style={{ fontSize: 12 }}>
               【联调 Mock】本次验证码：{debugCode}
             </Typography.Text>

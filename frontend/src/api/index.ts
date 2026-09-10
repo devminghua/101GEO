@@ -91,14 +91,16 @@ export const api = {
   // 滑动解锁（登录前置，无图像纯滑块）
   getCaptcha: () => request<{ id: string }>('/auth/captcha'),
 
-  // 自助注册：发送短信验证码 + 提交注册（注册即开通试用并直接登录）
+  // 自助注册：发送短信/邮箱验证码 + 提交注册（注册即开通试用并直接登录）
   smsSend: (phone: string) =>
     request<{ phone: string; debug_code?: string }>('/auth/sms-code', { method: 'POST', body: JSON.stringify({ phone }) }),
-  register: (body: { phone: string; code: string; password: string; company_name: string; ref?: string }) =>
+  emailCode: (email: string) =>
+    request<{ email: string; debug_code?: string }>('/auth/email-code', { method: 'POST', body: JSON.stringify({ email }) }),
+  register: (body: { phone: string; email?: string; code: string; password: string; company_name: string; ref?: string }) =>
     request<LoginResult>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
-  // 注册配置（公开）：自助注册开关 + 短信验证开关（前端注册页据此动态渲染）
+  // 注册配置（公开）：自助注册开关 + 验证方式（sms/email/off，前端注册页据此动态渲染）
   registerConfig: () =>
-    request<{ register_enabled: boolean; sms_required: boolean }>('/auth/register-config'),
+    request<{ register_enabled: boolean; verify_mode: 'sms' | 'email' | 'off'; sms_required: boolean }>('/auth/register-config'),
 
   // 账号有效期（登录页查询，匿名可用）& 客户端修改密码
   authExpiry: (username: string) => request(`/auth/expiry?username=${encodeURIComponent(username)}`),
@@ -569,11 +571,11 @@ export const api = {
     request<{ id: number; tier: number; code: string; points: number; status: number; remark: string; created_at: string }[]>(
       '/super/cards'),
 
-  // 短信设置（总后台 super）：注册短信验证开关 + 短信服务商配置
+  // 注册验证设置（总后台 super）：验证方式（短信/邮箱/关闭）+ 短信服务商 + SMTP 配置
   smsGetConfig: () =>
-    request<{ sms_required: boolean; provider: string; access_key_id: string; access_key_secret: string; sign_name: string; template_code: string }>(
+    request<{ verify_mode: 'sms' | 'email' | 'off'; sms_required: boolean; provider: string; access_key_id: string; access_key_secret: string; sign_name: string; template_code: string; smtp_host: string; smtp_port: number; smtp_user: string; smtp_pass: string; smtp_from: string }>(
       '/super/sms/config'),
-  smsSaveConfig: (body: { sms_required: boolean; provider: string; access_key_id: string; access_key_secret: string; sign_name: string; template_code: string }) =>
+  smsSaveConfig: (body: { verify_mode?: string; sms_required: boolean; provider: string; access_key_id: string; access_key_secret: string; sign_name: string; template_code: string; smtp_host?: string; smtp_port?: number; smtp_user?: string; smtp_pass?: string; smtp_from?: string }) =>
     request('/super/sms/config', { method: 'POST', body: JSON.stringify(body) }),
 
   // 第三方数据 API（Just One API）token 配置（总后台 super）：抖音/小红书稳定数据抓取

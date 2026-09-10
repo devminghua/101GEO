@@ -39,8 +39,8 @@ type smsSendReq struct {
 // SmsSend 发送注册短信验证码（公开接口）。
 // Mock 阶段验证码打印到服务日志，并在响应中回传 debug_code 便于联调；接入真实短信后移除 debug_code。
 func SmsSend(c *gin.Context) {
-	// 关闭短信验证时不再发送验证码
-	if !smsRequired() {
+	// 非短信验证模式时不再发送短信
+	if verifyMode() != "sms" {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "当前无需短信验证"})
 		return
 	}
@@ -97,6 +97,7 @@ func setupSender() {
 
 type registerReq struct {
 	Phone       string `json:"phone"`
+	Email       string `json:"email"` // 邮箱验证模式下：注册账号=邮箱
 	Code        string `json:"code"`
 	Password    string `json:"password"`
 	CompanyName string `json:"company_name"`
@@ -119,15 +120,26 @@ func Register(c *gin.Context) {
 	if !jsonBody(c, &req) {
 		return
 	}
+	mode := verifyMode()
 	req.Phone = strings.TrimSpace(req.Phone)
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	req.Code = strings.TrimSpace(req.Code)
 	req.CompanyName = strings.TrimSpace(req.CompanyName)
-	if !phoneRe.MatchString(req.Phone) {
+
+	// 账号标识：邮箱验证模式用邮箱；短信模式用手机号
+	account := req.Phone
+	if mode == "email" {
+		account = req.Email
+		if !emailRe.MatchString(account) {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "邮箱格式不正确"})
+			return
+		}
+	} else if !phoneRe.MatchString(req.Phone) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "手机号格式不正确"})
 		return
 	}
-	if req.Code == "" && smsRequired() {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "请输入短信验证码"})
+	if req.Code == "" && mode != "off" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "请输入验证码"})
 		return
 	}
 	if msg := validatePassword(req.Password); msg != "" {
@@ -143,20 +155,30 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// 1) 短信验证码校验（一次性）—— 总后台可在「短信设置」关闭短信验证，关闭则直接跳过
-	if smsRequired() && !sms.Verify(req.Phone, req.Code) {
+	// 1) 验证码校验（一次性）—— 总后台可在「注册验证设置」选择短信/邮箱/关闭
+	verifyOK := mode == "off"
+	if mode == "sms" {
+		verifyOK = sms.Verify(req.Phone, req.Code)
+	} else if mode == "email" {
+		verifyOK = sms.EmailVerify(req.Email, req.Code)
+	}
+	if !verifyOK {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "验证码错误或已过期，请重新获取"})
 		return
 	}
-	// 2) 登录账号（手机号）全局唯一
+	// 2) 登录账号全局唯一
 	var uc int64
-	database.DB.Model(&models.User{}).Where("username = ?", req.Phone).Count(&uc)
+	database.DB.Model(&models.User{}).Where("username = ?", account).Count(&uc)
 	if uc > 0 {
-		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "该手机号已注册，请直接登录"})
+		msg := "该手机号已注册，请直接登录"
+		if mode == "email" {
+			msg = "该邮箱已注册，请直接登录"
+		}
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": msg})
 		return
 	}
-	// 3) 分站标识自动派生（手机号清洗为 code，冲突追加数字后缀）
-	code := sanitizeCode(req.Phone)
+	// 3) 分站标识自动派生（账号清洗为 code，冲突追加数字后缀）
+	code := sanitizeCode(account)
 	if code == "" {
 		code = "c"
 	}
@@ -188,7 +210,7 @@ func Register(c *gin.Context) {
 		return
 	}
 	u := models.User{
-		TenantID: t.ID, Username: req.Phone, Password: encPwd,
+		TenantID: t.ID, Username: account, Password: encPwd,
 		Nickname: req.CompanyName, Role: "admin", Status: 1,
 		OpenMonths: 0, ExpireAt: &expireAt,
 	}
