@@ -126,6 +126,8 @@ export const api = {
 
   // 平台（已收归总后台统一管理，仅 super 可用；分站不再展示/编辑）
   listPlatforms: () => request('/platforms'),
+  // Token 用量看板（客户端）
+  usageOverview: (days: number = 7) => request(`/usage/overview?days=${days}`),
   platformTemplates: () => request('/platforms/templates'),
   createPlatform: (body: any) => request('/platforms', { method: 'POST', body: JSON.stringify(body) }),
   updatePlatform: (id: number, body: any) => request(`/platforms/${id}`, { method: 'PUT', body: JSON.stringify(body) }),

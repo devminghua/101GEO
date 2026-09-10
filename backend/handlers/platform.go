@@ -287,7 +287,7 @@ func TestPlatform(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "请先配置 API Key"})
 		return
 	}
-	client := ai.NewClient(p.BaseURL, p.APIKey, p.Model)
+	client := ai.NewClient(p.BaseURL, p.APIKey, p.Model).WithMeta(TenantID(c), p.Name, "平台测试")
 	// 429 限流自动退避重试（3s/8s 两次）：点击「测试」撞上巡检高峰或平台限流时不再直接报错
 	var answer string
 	var err error

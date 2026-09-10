@@ -69,7 +69,7 @@ func GenerateArticle(ctx context.Context, tid uint, req GenReq) (*models.CtnArti
 		"第一行输出【标题】，第二行输出【|||】，第三行开始输出正文（可多行）。\n" +
 		"即：\n标题\n|||\n正文……"
 
-	answer, err := ai.NewClient(p.BaseURL, p.APIKey, p.Model).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2400, 0.8)
+	answer, err := ai.NewClient(p.BaseURL, p.APIKey, p.Model).WithMeta(tid, p.Name, "内容投放").Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2400, 0.8)
 	if err != nil {
 		return nil, err
 	}

@@ -180,6 +180,7 @@ func migrate() {
 		&models.AiPlatform{},
 		// 分站对全局平台的自定义覆盖层（Key / 启用状态）
 		&models.TenantPlatformOverride{},
+		&models.AiUsageRecord{},
 		// 百度指数行业排行
 		&models.BaiduIndustryRank{},
 		// 邀约奖励 + 成长计划签到

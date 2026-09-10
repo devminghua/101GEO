@@ -187,7 +187,7 @@ func execute(tenantID uint, task *models.CheckTask) {
 					mu.Unlock()
 					return
 				}
-			client := ai.NewClient(p.BaseURL, p.APIKey, p.Model)
+			client := ai.NewClient(p.BaseURL, p.APIKey, p.Model).WithMeta(tenantID, p.Name, "巡检")
 			// 429 限流退避重试：最多重试 2 次，间隔 5s / 15s；整个重试序列在平台节流门内执行，
 			// 保证同一平台任何时刻只有一个请求在途（彻底消除并发 429）
 			var answer string

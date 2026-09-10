@@ -367,6 +367,9 @@ func main() {
 		api.POST("/creation/materials", handlers.SaveMaterial)
 		api.DELETE("/creation/materials/:id", handlers.DeleteMaterial)
 
+		/* ---- Token 用量看板 ---- */
+		api.GET("/usage/overview", handlers.UsageOverview)
+
 		/* ---- 内容投放（content） ---- */
 		// 1) 媒体库
 		api.GET("/content/media", handlers.ListContentMedia)

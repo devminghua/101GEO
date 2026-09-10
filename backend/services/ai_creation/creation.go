@@ -110,8 +110,9 @@ func SetSetting(tenantID uint, key, value string) error {
 }
 
 // newClient 从平台配置构造统一 AI 客户端
-func newClient(p *models.AiPlatform) *ai.Client {
-	return ai.NewClient(p.BaseURL, p.APIKey, p.Model)
+// newClient 从平台配置构造统一 AI 客户端（挂 token 用量统计元信息）
+func newClient(p *models.AiPlatform, tenantID uint) *ai.Client {
+	return ai.NewClient(p.BaseURL, p.APIKey, p.Model).WithMeta(tenantID, p.Name, "创作中心")
 }
 
 // mustPlatform 取平台（优先全局 tenant_id=0），无则返回 ErrNoPlatform。
@@ -145,7 +146,7 @@ func Chat(ctx context.Context, tenantID uint, req ChatReq) (*GenResult, error) {
 	if sys == "" {
 		sys = "你是 GEO 工具智能创作中心的 AI 助手，负责协助用户完成各类创作任务。请直接、专业、有条理地回答，不要声称自己是某个具体模型。"
 	}
-	answer, err := newClient(p).Chat(ctx, sys, req.Msgs, 1600, 0.7)
+	answer, err := newClient(p, tenantID).Chat(ctx, sys, req.Msgs, 1600, 0.7)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +173,7 @@ func WriteCopy(ctx context.Context, tenantID uint, systemPrompt, theme, requirem
 		return "无（按最佳实践自行发挥）"
 	})() + "\n"
 	cmd += "\n要求：直接输出成稿文案正文，结构清晰、有感染力、可直接使用，不要输出解释性语言或 Markdown 代码块。"
-	answer, err := newClient(p).Chat(ctx, systemPrompt, []ai.Message{{Role: "user", Content: cmd}}, 1800, 0.8)
+	answer, err := newClient(p, tenantID).Chat(ctx, systemPrompt, []ai.Message{{Role: "user", Content: cmd}}, 1800, 0.8)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +200,7 @@ func DouyinScript(ctx context.Context, tenantID uint, theme string) (*GenResult,
 		"要求：爆款结构（强钩子开头-过程递进-反转收尾）、每句台词口语化有情绪、给出切换节奏建议。\n" +
 		"请严格只输出一个 JSON 数组（不要 Markdown 代码块、不要解释），例如：\n" +
 		`[{"shot_order":1,"shot_size":"特写","scene":"...","line":"...","subtitle":"...","duration":2,"music":"..."}]`
-	answer, err := newClient(p).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2200, 0.8)
+	answer, err := newClient(p, tenantID).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2200, 0.8)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +226,7 @@ func XhsCopy(ctx context.Context, tenantID uint, theme string) (*GenResult, erro
 		"【标签】给出8-12个#话题标签\n" +
 		"【封面建议】给出封面图制作建议（主文案大字+构图+色调）\n\n" +
 		"只输出上述四个分段内容，不要其他解释。"
-	answer, err := newClient(p).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2000, 0.8)
+	answer, err := newClient(p, tenantID).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2000, 0.8)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +250,7 @@ func LearnCopy(ctx context.Context, tenantID uint, reference, theme string) (*Ge
 	cmd += "【创作主题】\n" + theme + "\n\n"
 	cmd += "步骤：1) 先一句话概括你从参考文本中学到的风格关键词；2) 依据该风格，围绕创作主题写一篇全新的、完整的作品（内容不得抄袭参考文本原文）。\n"
 	cmd += "直接输出‘风格拆解’+‘再创作作品’两部分。"
-	answer, err := newClient(p).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2200, 0.8)
+	answer, err := newClient(p, tenantID).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2200, 0.8)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +273,7 @@ func Xiegou(ctx context.Context, tenantID uint, original string) (*GenResult, er
 		"3) 语言自然流畅，不得出现机翻感或生搬硬套；\n" +
 		"4) 如原文含可整理的小标题或要点，请用更清晰的层次重新组织。\n\n" +
 		"直接输出改写后的全文。"
-	answer, err := newClient(p).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2200, 0.8)
+	answer, err := newClient(p, tenantID).Chat(ctx, sys, []ai.Message{{Role: "user", Content: cmd}}, 2200, 0.8)
 	if err != nil {
 		return nil, err
 	}

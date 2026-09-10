@@ -19,6 +19,7 @@ import {
   IconLock,
   IconQrcode,
   IconNotification,
+  IconThunderbolt,
   IconGift,
   IconTool,
   IconCustomerService,
@@ -32,6 +33,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Keywords from './pages/Keywords';
 import Platforms from './pages/Platforms';
+import UsageDashboard from './pages/UsageDashboard';
 import Tasks from './pages/Tasks';
 import ContentPublish from './pages/ContentPublish';
 import Report from './pages/Report';
@@ -358,6 +360,8 @@ export default function App() {
         { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
         // 充值中心：独立菜单入口（窄屏/侧栏折叠时 Token 卡片隐藏，这里保证充值入口始终可见）
         { key: '/points', label: '充值中心', icon: <IconQrcode /> },
+        // Token 用量看板：统计本分站 AI 调用真实消耗
+        { key: '/usage', label: 'Token 用量', icon: <IconThunderbolt /> },
         // 使用指南：SaaS 后台编辑的帮助文档（图文 + B 站视频），下拉「分类 → 文档」
         { key: '/help', label: '使用指南', icon: <IconBook />, children: helpTree.length > 0 ? helpTree.map((c: any) => ({
           key: `/help?cat=${c.id}`, label: c.name,
@@ -825,6 +829,7 @@ export default function App() {
                 />
                 {/* 点卡中心：查询余额与流水（AI 按次扣点） */}
                 <Route path="/points" element={<Points />} />
+                <Route path="/usage" element={<UsageDashboard />} />
                 <Route
                   path="/tasks"
                   element={hasFeature(user.features, 'tasks') ? <Tasks /> : <NoAccess feature="巡检任务" />}
@@ -939,6 +944,7 @@ function menuTitle(key: string): string {
   const map: Record<string, string> = {
     '/dashboard': '仪表盘',
     '/points': '充值中心',
+    '/usage': 'Token 用量',
     '/keywords': '关键词监控',
     '/platforms': 'AI 平台',
     '/super/platforms': 'AI 平台',

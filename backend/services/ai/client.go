@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"geo-tool/config"
+	"geo-tool/database"
+	"geo-tool/models"
 	"geo-tool/services/crypto"
 )
 
@@ -23,6 +25,27 @@ type Client struct {
 	Model   string
 	Timeout time.Duration
 	HTTP    *http.Client
+
+	// Token 用量统计元信息（WithMeta 设置后，每次成功调用自动写入 ai_usage_records）
+	TenantID     uint   // 0 = 不记录
+	PlatformName string // 空 = 不记录
+	Scene        string
+	LastUsage    Usage // 最近一次成功调用的 token 用量
+}
+
+// Usage OpenAI 兼容响应中的 token 用量。
+type Usage struct {
+	PromptTokens     int64 `json:"prompt_tokens"`
+	CompletionTokens int64 `json:"completion_tokens"`
+	TotalTokens      int64 `json:"total_tokens"`
+}
+
+// WithMeta 设置用量统计元信息（租户 + 平台名 + 场景），返回自身便于链式调用。
+func (c *Client) WithMeta(tenantID uint, platform, scene string) *Client {
+	c.TenantID = tenantID
+	c.PlatformName = platform
+	c.Scene = scene
+	return c
 }
 
 func NewClient(baseURL, apiKey, model string) *Client {
@@ -59,6 +82,7 @@ type chatResponse struct {
 			Content string `json:"content"`
 		} `json:"message"`
 	} `json:"choices"`
+	Usage Usage `json:"usage"`
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error"`
@@ -269,9 +293,31 @@ func (c *Client) doChat(ctx context.Context, url string, payload interface{}) (s
 			}
 			return "", lastErr
 		}
+		// Token 用量统计：解析 usage + 异步落库（不影响主流程）
+		c.LastUsage = cr.Usage
+		if c.TenantID > 0 && c.PlatformName != "" {
+			go recordUsage(c.TenantID, c.PlatformName, c.Model, c.Scene, cr.Usage)
+		}
 		return cr.Choices[0].Message.Content, nil
 	}
 	return "", lastErr
+}
+
+// recordUsage 异步写用量记录（goroutine 中调用，panic 兜底避免影响主流程）。
+func recordUsage(tid uint, platform, model, scene string, u Usage) {
+	defer func() { _ = recover() }()
+	if u.TotalTokens <= 0 && u.PromptTokens <= 0 && u.CompletionTokens <= 0 {
+		return // 平台未返回 usage，跳过
+	}
+	_ = database.DB.Create(&models.AiUsageRecord{
+		TenantID:         tid,
+		PlatformName:     platform,
+		Model:            model,
+		Scene:            scene,
+		PromptTokens:     u.PromptTokens,
+		CompletionTokens: u.CompletionTokens,
+		TotalTokens:      u.TotalTokens,
+	}).Error
 }
 
 // setAuth 兼容 Bearer / Api-Key 两种鉴权头

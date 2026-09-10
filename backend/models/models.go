@@ -238,3 +238,16 @@ type HelpDoc struct {
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+// AiUsageRecord AI 调用 token 用量记录（请求级真实 usage，供客户端「Token 用量」看板统计）。
+type AiUsageRecord struct {
+	ID               uint      `gorm:"primaryKey" json:"id"`
+	TenantID         uint      `gorm:"index;not null" json:"tenant_id"`
+	PlatformName     string    `gorm:"size:64;index" json:"platform_name"`  // 平台名（如 DeepSeek）
+	Model            string    `gorm:"size:64" json:"model"`                // 模型名
+	Scene            string    `gorm:"size:32;index" json:"scene"`          // 调用场景：巡检/创作中心/内容投放/平台测试
+	PromptTokens     int64     `json:"prompt_tokens"`                       // 输入 token
+	CompletionTokens int64     `json:"completion_tokens"`                   // 输出 token
+	TotalTokens      int64     `json:"total_tokens"`                        // 总 token
+	CreatedAt        time.Time `gorm:"index" json:"created_at"`
+}
