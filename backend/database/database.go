@@ -82,7 +82,50 @@ func Init(cfg *config.Config) {
 
 	migrate()
 	seed()
+	seedGlobalPlatforms()
 	fillMissingAvatars()
+}
+
+// defaultGlobalPlatforms 国内主流 AI 平台默认清单（tenant_id=0 全局）。
+// 启动时补缺（按名称），不覆盖已有配置；新增平台默认停用（enabled=false），配 Key 后启用。
+var defaultGlobalPlatforms = []models.AiPlatform{
+	{Name: "DeepSeek", BaseURL: "https://api.deepseek.com", Model: "deepseek-v4-flash"},
+	{Name: "豆包", BaseURL: "https://ark.cn-beijing.volces.com/api/v3", Model: "doubao-seed-evolving"},
+	{Name: "通义千问", BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", Model: "qwen3.6-plus"},
+	{Name: "智谱 GLM", BaseURL: "https://open.bigmodel.cn/api/paas/v4", Model: "glm-4.7-flash"},
+	{Name: "Kimi（月之暗面）", BaseURL: "https://api.moonshot.cn/v1", Model: "kimi-k2.6"},
+	{Name: "腾讯混元", BaseURL: "https://tokenhub.tencentmaas.com/v1/", Model: "hy4-preview"},
+	{Name: "百度文心（千帆）", BaseURL: "https://qianfan.baidubce.com/v2", Model: "ernie-5.0"},
+	{Name: "MiniMax（稀宇）", BaseURL: "https://api.minimaxi.com/v1", Model: "MiniMax-M2.7"},
+	{Name: "讯飞星火", BaseURL: "https://spark-api-open.xf-yun.com/v1", Model: "spark-4.0-ultra"},
+	{Name: "零一万物", BaseURL: "https://api.lingyiwanwu.com/v1", Model: "yi-large"},
+	{Name: "百川智能", BaseURL: "https://api.baichuan-ai.com/v1", Model: "baichuan4-turbo"},
+	{Name: "阶跃星辰", BaseURL: "https://api.stepfun.com/v1", Model: "step-2-16k"},
+	{Name: "小米 MiMo", BaseURL: "https://api.xiaomimimo.com/v1", Model: "mimo-v2.5-pro"},
+	{Name: "商汤日日新", BaseURL: "https://api.sensenova.cn/v1", Model: "SenseChat-5"},
+}
+
+// seedGlobalPlatforms 补种缺失的全局平台（按名称匹配，仅插入不更新，保护已配置的 Key/间隔）。
+func seedGlobalPlatforms() {
+	for _, p := range defaultGlobalPlatforms {
+		var cnt int64
+		DB.Model(&models.AiPlatform{}).Where("tenant_id = 0 AND name = ?", p.Name).Count(&cnt)
+		if cnt > 0 {
+			continue
+		}
+		p.TenantID = 0
+		p.Enabled = true // 先按模型默认值插入（bool false 会被 gorm default:true 吞掉，Create 后再显式 Update）
+		p.IntervalMs = 2000
+		if err := DB.Create(&p).Error; err != nil {
+			log.Printf("[db] 补种平台 %s 失败: %v", p.Name, err)
+			continue
+		}
+		// 新增平台默认停用，避免无 Key 拖累巡检；配 Key 后由管理员启用
+		if err := DB.Model(&p).Update("enabled", false).Error; err != nil {
+			log.Printf("[db] 停用新平台 %s 失败: %v", p.Name, err)
+		}
+		log.Printf("[db] 已补种默认平台：%s（%s，默认停用）", p.Name, p.Model)
+	}
 }
 
 // maskDSN 隐藏 DSN 中的密码，避免日志泄露。

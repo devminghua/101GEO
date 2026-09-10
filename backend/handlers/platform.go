@@ -48,16 +48,24 @@ func ListPlatforms(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
 }
 
-// PlatformTemplates 常见平台模板
+// PlatformTemplates 常见平台模板（国内主流大模型 OpenAI 兼容接口）
 func PlatformTemplates(c *gin.Context) {
 	templates := []gin.H{
-		{"name": "DeepSeek", "base_url": "https://api.deepseek.com", "model": "deepseek-chat"},
+		{"name": "DeepSeek", "base_url": "https://api.deepseek.com", "model": "deepseek-v4-flash"},
+		{"name": "豆包（火山方舟）", "base_url": "https://ark.cn-beijing.volces.com/api/v3", "model": "doubao-seed-evolving"},
+		{"name": "通义千问（阿里百炼）", "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "model": "qwen3.6-plus"},
+		{"name": "智谱 GLM", "base_url": "https://open.bigmodel.cn/api/paas/v4", "model": "glm-4.7-flash"},
+		{"name": "Kimi（月之暗面）", "base_url": "https://api.moonshot.cn/v1", "model": "kimi-k2.6"},
+		{"name": "腾讯混元", "base_url": "https://tokenhub.tencentmaas.com/v1/", "model": "hy4-preview"},
+		{"name": "百度文心（千帆）", "base_url": "https://qianfan.baidubce.com/v2", "model": "ernie-5.0"},
+		{"name": "MiniMax（稀宇）", "base_url": "https://api.minimaxi.com/v1", "model": "MiniMax-M2.7"},
+		{"name": "讯飞星火", "base_url": "https://spark-api-open.xf-yun.com/v1", "model": "spark-4.0-ultra"},
+		{"name": "零一万物", "base_url": "https://api.lingyiwanwu.com/v1", "model": "yi-large"},
+		{"name": "百川智能", "base_url": "https://api.baichuan-ai.com/v1", "model": "baichuan4-turbo"},
+		{"name": "阶跃星辰", "base_url": "https://api.stepfun.com/v1", "model": "step-2-16k"},
+		{"name": "小米 MiMo", "base_url": "https://api.xiaomimimo.com/v1", "model": "mimo-v2.5-pro"},
+		{"name": "商汤日日新", "base_url": "https://api.sensenova.cn/v1", "model": "SenseChat-5"},
 		{"name": "OpenAI", "base_url": "https://api.openai.com", "model": "gpt-4o-mini"},
-		{"name": "Kimi（月之暗面）", "base_url": "https://api.moonshot.cn", "model": "moonshot-v1-8k"},
-		{"name": "通义千问", "base_url": "https://dashscope.aliyuncs.com/compatible-mode", "model": "qwen-plus"},
-		{"name": "智谱 GLM", "base_url": "https://open.bigmodel.cn/api/paas/v4", "model": "glm-4-flash"},
-		{"name": "豆包", "base_url": "https://ark.cn-beijing.volces.com/api/v3", "model": "doubao-pro-32k"},
-		{"name": "腾讯混元", "base_url": "https://api.hunyuan.cloud.tencent.com/v1", "model": "hunyuan-turbo"},
 		{"name": "Ollama（本地）", "base_url": "http://localhost:11434/v1", "model": "qwen2.5:7b"},
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": templates})
