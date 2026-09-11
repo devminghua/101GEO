@@ -8,6 +8,7 @@ import {
   IconPlus, IconDelete, IconRedo, IconRefresh, IconEdit, IconThunderbolt,
 } from '@arco-design/web-react/icon';
 import { api } from '../api';
+import QuotaBadge, { notifyQuotaChanged } from '../components/QuotaBadge';
 
 const { Row, Col } = Grid;
 const TextArea = Input.TextArea;
@@ -229,6 +230,7 @@ export default function DouyinGain() {
       Message.loading(`正在刷新「${p.nickname}」...`);
       const res = await api.douyinRefreshPeer(p.id);
       Message.success(`已刷新（${res.sourced_from === 'real' ? '真实数据' : '估算数据'}）`);
+      notifyQuotaChanged(); // 刷新同行消耗每日查询配额，立即刷新余量显示
       const ps = await api.douyinListPeers();
       setPeers(ps || []);
       await loadAnalysis();
@@ -260,6 +262,7 @@ export default function DouyinGain() {
     try {
       const res = await api.douyinRefreshAllPeers();
       Message.success(`已更新 ${res.updated || 0} 个同行`);
+      notifyQuotaChanged(); // 批量更新消耗每日查询配额（算 1 次）
       const ps = await api.douyinListPeers();
       setPeers(ps || []);
       await loadAnalysis();
@@ -509,6 +512,7 @@ export default function DouyinGain() {
           <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>抖音获客</span>
           <Tag color="arcoblue" size="small">Beta</Tag>
           <Tag color="green" size="small">合规半自动</Tag>
+          <QuotaBadge compact />
         </div>
         <div style={{ color: '#86909C', fontSize: 13, marginTop: 4 }}>
           多账号管理 · 同行视频数据分析 · 评论区客户获取 · 打招呼话术辅助（人工确认执行）

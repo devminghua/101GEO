@@ -5,6 +5,7 @@ import {
 } from '@arco-design/web-react';
 import { IconSearch, IconPlayArrow, IconRefresh, IconBulb, IconThunderbolt, IconExpand, IconUp, IconPlus, IconDelete, IconEdit, IconCheck, IconArrowRise, IconUserGroup, IconFile } from '@arco-design/web-react/icon';
 import EChart from '../components/EChart';
+import QuotaBadge, { notifyQuotaChanged } from '../components/QuotaBadge';
 
 const { Row: GridRow, Col: GridCol } = Grid;
 const { Title, Text } = Typography;
@@ -450,6 +451,7 @@ export default function BaiduKeywords() {
     const settledList = await Promise.all(tasks);
     settled = true;
     if (timerRef.current) clearInterval(timerRef.current);
+    notifyQuotaChanged(); // 查询消耗每日配额，立即刷新余量显示
     const mapped: Record<string, MockResult> = {};
     const notes: Record<string, string> = {};
     settledList.forEach((it) => {
@@ -513,6 +515,7 @@ export default function BaiduKeywords() {
       setActiveKey(w);
       setExpandedPage(1);
       loadTrend(w, myDomains);
+      notifyQuotaChanged(); // 对比词也消耗配额
       Message.success(`「${w}」已加入对比`);
     } catch (err: any) {
       const reason = err && err.message ? err.message : '后端不可用';
@@ -727,7 +730,7 @@ export default function BaiduKeywords() {
       <div>
       {/* 页首 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <div>
+        <div style={{ minWidth: 0, maxWidth: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ width: 8, height: 26, borderRadius: 4, background: 'linear-gradient(180deg,#165DFF,#14C9C9,#FF7D00)' }} />
             <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>百度分析</span>
@@ -736,6 +739,7 @@ export default function BaiduKeywords() {
           <div style={{ color: '#86909C', fontSize: 13, marginTop: 4 }}>
             搜索同行动态 · 抓取前 {effDepth} 页 · 给出 P0/P1/P2 优化建议（已接通后端实时抓取）
           </div>
+          <QuotaBadge />
         </div>
         <Tag style={{ background: 'fff7E8', border: '1px solid #FF7D0033', color: '#D25F00', borderRadius: 6 }}>
           数据来自后端实时抓取；后端不可用时自动回退本地演示数据

@@ -153,6 +153,9 @@ export const api = {
   // 点卡计费（分站）
   getPoints: () => request<{ balance: number; records: any[] }>('/points'),
 
+  // 每日查询配额（百度 / 抖音 / 小红书共用同一额度池；remain = -1 表示不限量）
+  quotaInfo: () => request<{ limit: number; used: number; remain: number }>('/quota/info'),
+
   // 充值卡密兑换 token（分站，二选一充值方式之一）
   redeemCard: (code: string) =>
     request<{ points: number }>('/card/redeem', { method: 'POST', body: JSON.stringify({ code }) }),

@@ -8,6 +8,7 @@ import {
   IconPlus, IconDelete, IconRedo, IconRefresh, IconEdit, IconThunderbolt, IconNotification,
 } from '@arco-design/web-react/icon';
 import { api } from '../api';
+import QuotaBadge, { notifyQuotaChanged } from '../components/QuotaBadge';
 
 const { Row, Col } = Grid;
 const TextArea = Input.TextArea;
@@ -242,6 +243,7 @@ export default function XhsGain() {
       Message.loading(`正在刷新「${p.nickname}」...`);
       const res = await api.xhsRefreshPeer(p.id);
       Message.success(`已刷新（${res.sourced_from === 'real' ? '真实数据' : '估算数据'}）`);
+      notifyQuotaChanged(); // 刷新同行消耗每日查询配额，立即刷新余量显示
       const ps = await api.xhsListPeers();
       setPeers(ps || []);
       await loadAnalysis();
@@ -530,6 +532,7 @@ export default function XhsGain() {
           <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>小红书获客</span>
           <Tag color="arcoblue" size="small">Beta</Tag>
           <Tag color="green" size="small">合规半自动</Tag>
+          <QuotaBadge compact />
         </div>
         <div style={{ color: '#86909C', fontSize: 13, marginTop: 4 }}>
           多账号管理 · 同行笔记数据分析 · 评论区客户获取 · AI 话术辅助 · 价值客户上报（人工确认执行）
