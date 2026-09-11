@@ -43,7 +43,28 @@ const SECRET_KEYS = new Set([
 
 const MASK = '******';
 
-export default function PayConfig() {
+// 分组：系统设置页按分组拆成独立 Tab（微信支付 / 支付宝支付 / 告警通知）
+export type PayGroup = 'common' | 'wechat' | 'alipay' | 'notify';
+
+const GROUP_LABEL: Record<PayGroup, string> = {
+  common: '通用定价',
+  wechat: '微信支付（Native 扫码）',
+  alipay: '支付宝（当面付扫码）',
+  notify: '告警通知（到期预警 + 点数不足，推送企微/钉钉群）',
+};
+
+const GROUP_TIP: Partial<Record<PayGroup, string>> = {
+  wechat: '微信商户平台 → 账户中心 → API 安全：获取 APIv3 密钥、商户证书序列号、商户 API 私钥。',
+  alipay: '支付宝开放平台 → 应用 → 开发设置：获取应用私钥与支付宝公钥（推荐 RSA2 密钥模式）。',
+};
+
+export default function PayConfig({
+  groups = ['common', 'wechat', 'alipay', 'notify'],
+  title = '支付设置',
+}: {
+  groups?: PayGroup[];
+  title?: string;
+}) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -51,13 +72,17 @@ export default function PayConfig() {
   const [testing, setTesting] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
 
+  // 仅渲染并提交当前 Tab 关注的分组字段
+  const visible = FIELDS.filter((f) => groups.includes(f.group as PayGroup));
+  const hasGroup = (g: PayGroup) => groups.includes(g);
+
   const load = async () => {
     setLoading(true);
     try {
       const cfg = await api.payGetConfig();
       const init: Record<string, any> = {};
       let secretConfigured = false;
-      for (const f of FIELDS) {
+      for (const f of visible) {
         const v = cfg[f.key];
         if (SECRET_KEYS.has(f.key)) {
           // 密钥：已配置则回显占位符，未配置留空
@@ -91,7 +116,8 @@ export default function PayConfig() {
     setSaving(true);
     try {
       const body: Record<string, string> = {};
-      for (const f of FIELDS) {
+      // 只提交本 Tab 的字段，避免把其他 Tab 的空值覆盖到已配置项
+      for (const f of visible) {
         const v = values[f.key];
         if (f.type === 'switch') {
           body[f.key] = v ? '1' : '0';
@@ -149,42 +175,19 @@ export default function PayConfig() {
     );
   };
 
-  return (
-    <div>
-      <Card title="支付设置" style={{ marginBottom: 16 }}>
-        <Alert
-          type="info"
-          style={{ marginBottom: 16 }}
-          content="密钥类字段仅在首次填写时加密保存（enc:v1 AES-GCM），之后回显为 ****** 占位符；留空提交表示保留原值。回调地址需为公网可访问的 HTTPS 地址。"
-        />
-        <Form form={form} layout="vertical" disabled={loading}>
-          <Divider orientation="left">通用</Divider>
-          <Row gutter={16}>
-            {FIELDS.filter((f) => f.group === 'common').map((f) => (
-              <Col span={12} key={f.key}>{renderField(f)}</Col>
-            ))}
-          </Row>
-
-          <Divider orientation="left">微信支付（Native 扫码）</Divider>
-          <Row gutter={16}>
-            {FIELDS.filter((f) => f.group === 'wechat').map((f) => (
-              <Col span={12} key={f.key}>{renderField(f)}</Col>
-            ))}
-          </Row>
-
-          <Divider orientation="left">支付宝（当面付扫码）</Divider>
-          <Row gutter={16}>
-            {FIELDS.filter((f) => f.group === 'alipay').map((f) => (
-              <Col span={12} key={f.key}>{renderField(f)}</Col>
-            ))}
-          </Row>
-
-          <Divider orientation="left">告警通知（到期预警 + 点数不足，推送企微/钉钉群）</Divider>
-          <Row gutter={16}>
-            {FIELDS.filter((f) => f.group === 'notify').map((f) => (
-              <Col span={12} key={f.key}>{renderField(f)}</Col>
-            ))}
-          </Row>
+  const renderGroup = (g: PayGroup) => (
+    <>
+      <Divider orientation="left">{GROUP_LABEL[g]}</Divider>
+      {GROUP_TIP[g] && (
+        <div style={{ fontSize: 12, color: 'var(--color-text-3)', margin: '-8px 0 12px' }}>{GROUP_TIP[g]}</div>
+      )}
+      <Row gutter={16}>
+        {FIELDS.filter((f) => f.group === g).map((f) => (
+          <Col span={12} key={f.key}>{renderField(f)}</Col>
+        ))}
+      </Row>
+      {g === 'notify' && (
+        <>
           <Space style={{ marginBottom: 8 }}>
             <Button
               size="small"
@@ -226,9 +229,27 @@ export default function PayConfig() {
               content={preview}
             />
           )}
+        </>
+      )}
+    </>
+  );
+
+  return (
+    <div>
+      <Card title={title} style={{ marginBottom: 16 }}>
+        <Alert
+          type="info"
+          style={{ marginBottom: 16 }}
+          content="密钥类字段仅在首次填写时加密保存（enc:v1 AES-GCM），之后回显为 ****** 占位符；留空提交表示保留原值。回调地址需为公网可访问的 HTTPS 地址。"
+        />
+        <Form form={form} layout="vertical" disabled={loading}>
+          {hasGroup('common') && renderGroup('common')}
+          {hasGroup('wechat') && renderGroup('wechat')}
+          {hasGroup('alipay') && renderGroup('alipay')}
+          {hasGroup('notify') && renderGroup('notify')}
 
           <Button type="primary" long loading={saving} onClick={save} style={{ marginTop: 8 }}>
-            保存支付配置
+            保存{title}
           </Button>
         </Form>
       </Card>

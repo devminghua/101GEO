@@ -50,7 +50,6 @@ import XhsGain from './pages/XhsGain';
 import CreationCenter from './pages/CreationCenter';
 import GeoIntel from './pages/GeoIntel';
 import Points from './pages/Points';
-import PayConfig from './pages/super/PayConfig';
 import SuperNotifications from './pages/super/Notifications';
 import Settings from './pages/Settings';
 import LicenseActivate from './pages/LicenseActivate';
@@ -324,8 +323,7 @@ export default function App() {
         { key: '/super/channels', label: '渠道管理', icon: <IconUserGroup /> },
         // AI 平台已收归总后台统一管理（tenant_id=0 全局平台），仅 super 可配置
         { key: '/super/platforms', label: 'AI 平台', icon: <IconCommon /> },
-        // 扫码支付：微信 / 支付宝商户配置与点卡定价
-        { key: '/super/pay', label: '支付设置', icon: <IconQrcode /> },
+        // 扫码支付（微信/支付宝）配置已并入「系统设置」Tab，不再单独挂菜单
         // 站内信：SaaS 端统一推送，客户端左下角铃铛收取
         { key: '/super/notifications', label: '站内信推送', icon: <IconNotification /> },
         // 卡密管理：密钥对 + 批量生成/导出卡密（软件授权）
@@ -792,8 +790,8 @@ export default function App() {
                 <Route path="/super/channels" element={<SuperChannels />} />
                 {/* AI 平台统一由总后台管理（tenant_id=0 全局平台） */}
                 <Route path="/super/platforms" element={<Platforms />} />
-                {/* 扫码支付配置：微信 / 支付宝商户参数与点卡定价 */}
-                <Route path="/super/pay" element={<PayConfig />} />
+                {/* 扫码支付配置已并入「系统设置」Tab；旧地址保留兼容，重定向过去 */}
+                <Route path="/super/pay" element={<Navigate to="/settings" replace />} />
                 <Route path="/super/notifications" element={<SuperNotifications />} />
                 <Route path="/super/cards" element={<Cards />} />
                 <Route path="/super/sms" element={<SmsConfig />} />
@@ -948,7 +946,6 @@ function menuTitle(key: string): string {
     '/keywords': '关键词监控',
     '/platforms': 'AI 平台',
     '/super/platforms': 'AI 平台',
-    '/super/pay': '支付设置',
     '/super/notifications': '站内信推送',
     '/super/cards': '卡密管理',
     '/super/sms': '短信设置',

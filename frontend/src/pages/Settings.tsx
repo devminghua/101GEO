@@ -7,6 +7,7 @@ import {
   IconSave, IconUpload, IconInfoCircle, IconHistory,
 } from '@arco-design/web-react/icon';
 import { api, getStoredUser } from '../api';
+import PayConfig from './super/PayConfig';
 
 const { TabPane } = Tabs;
 const { Col } = Grid;
@@ -243,10 +244,14 @@ export default function Settings() {
     tabList.push({ key: 'system', title: '系统信息' });
     tabList.push({ key: 'doubao-image', title: '豆包文生图' });
   }
-  // 短信设置 / OSS 设置：仅 SaaS 端（super）可见，客户端调用总后台短信功能、不自行配置
+  // 短信 / OSS / 支付（微信·支付宝）/ 定价 / 告警：仅 SaaS 端（super）可见，客户端不自行配置
   if (role === 'super') {
     tabList.push({ key: 'aliyun-sms', title: '短信设置' });
     tabList.push({ key: 'aliyun-oss', title: 'OSS 设置' });
+    tabList.push({ key: 'wechat-pay', title: '微信设置' });
+    tabList.push({ key: 'alipay-pay', title: '支付宝设置' });
+    tabList.push({ key: 'pay-pricing', title: '充值定价' });
+    tabList.push({ key: 'pay-notify', title: '告警通知' });
   }
   if (isAdmin) tabList.push({ key: 'login-logs', title: '登录日志' });
 
@@ -606,6 +611,11 @@ export default function Settings() {
             {t.key === 'system' && renderSystemTab()}
             {t.key === 'aliyun-sms' && renderSmsTab()}
             {t.key === 'aliyun-oss' && renderOssTab()}
+            {/* 支付：微信 / 支付宝配置 + 定价 / 告警（复用 super/PayConfig，按分组拆分独立 Tab） */}
+            {t.key === 'wechat-pay' && <PayConfig groups={['wechat']} title="微信支付设置" />}
+            {t.key === 'alipay-pay' && <PayConfig groups={['alipay']} title="支付宝支付设置" />}
+            {t.key === 'pay-pricing' && <PayConfig groups={['common']} title="充值定价设置" />}
+            {t.key === 'pay-notify' && <PayConfig groups={['notify']} title="告警通知设置" />}
             {t.key === 'doubao-image' && renderDoubaoImageTab()}
             {t.key === 'login-logs' && renderLoginLogsTab()}
           </TabPane>
