@@ -26,7 +26,7 @@ const KPI_STYLE = [
 
 function fmtNum(v: any, digits = 1) {
   const n = Number(v);
-  if (Number.isNaN(n)) return '-';
+  if (typeof v === 'undefined' || v === null || v === '' || Number.isNaN(n)) return '-';
   return n.toFixed(digits);
 }
 
@@ -700,6 +700,340 @@ function ActionTab() {
 }
 
 /* ============================================================
+ * Tab 话题簇（提示词聚类）
+ * 对标 GEO 八阶段管线的第③步：把扁平关键词按「搜索意图」聚成话题。
+ * 目的：单看整体覆盖率会被少数品牌词拉高，按簇聚合才能看出
+ * 「哪一类问题我们完全缺席」这类结构性缺口。
+ * ============================================================ */
+const INTENT_META: Record<string, { label: string; color: string; desc: string }> = {
+  informational: { label: '认知型', color: '#165DFF', desc: '还在了解行业/问题，尚未形成品牌偏好' },
+  commercial: { label: '对比型', color: '#722ED1', desc: '正在选型比较，决策中段' },
+  transactional: { label: '决策型', color: '#00B42A', desc: '明确要购买或联系，转化意愿最强' },
+  navigational: { label: '品牌型', color: '#FF7D00', desc: '已经在找特定品牌，忠诚度验证' },
+};
+
+const CLUSTER_STATUS: Record<string, { label: string; color: string }> = {
+  empty: { label: '无关键词', color: 'gray' },
+  untested: { label: '未巡检', color: 'orange' },
+  weak: { label: '覆盖偏弱', color: 'red' },
+  normal: { label: '覆盖正常', color: 'blue' },
+  strong: { label: '覆盖领先', color: 'green' },
+};
+
+function ClusterTab() {
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
+  const [genning, setGenning] = useState(false);
+  const [extra, setExtra] = useState('');
+  const [overwrite, setOverwrite] = useState(false);
+  const [kwList, setKwList] = useState<any[]>([]);
+  const [form] = Form.useForm();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [assignId, setAssignId] = useState<number>(0);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [picked, setPicked] = useState<number[]>([]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [res, kws]: any = await Promise.all([api.listClusters(30), api.listKeywords()]);
+      setList(res || []);
+      setKwList(kws || []);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const runGenerate = async () => {
+    setGenning(true);
+    try {
+      const res: any = await api.generateClusters({ overwrite, extra });
+      Message.success(res?.msg || '聚类完成');
+      setGenOpen(false);
+      load();
+    } catch (e: any) {
+      Message.error(e.message || '聚类失败');
+    } finally { setGenning(false); }
+  };
+
+  const openCreate = () => {
+    setEditing(null); form.resetFields();
+    form.setFieldsValue({ intent: 'informational' });
+    setEditOpen(true);
+  };
+  const openEdit = (r: any) => {
+    setEditing(r);
+    form.setFieldsValue({ name: r.name, intent: r.intent, description: r.description, color: r.color, sort_order: r.sort_order });
+    setEditOpen(true);
+  };
+  const submit = async () => {
+    const v = await form.validate();
+    try {
+      if (editing) { await api.updateCluster(editing.id, v); Message.success('已更新'); }
+      else { await api.createCluster(v); Message.success('已创建'); }
+      setEditOpen(false); load();
+    } catch (e: any) { Message.error('保存失败：' + (e.message || e)); }
+  };
+
+  const openDetail = (r: any) => {
+    setAssignId(Number(r.id || 0));
+    setPicked(kwList.filter((k: any) => Number(k.cluster_id || 0) === Number(r.id || 0)).map((k: any) => k.id));
+    setAssignOpen(true);
+  };
+  const saveAssign = async () => {
+    try {
+      // 先把所有已选词归入本簇，再把从本簇移出的词退回未归类
+      if (picked.length > 0) {
+        await api.assignCluster({ cluster_id: assignId, keyword_ids: picked });
+      }
+      const inCl = kwList.filter((k: any) => Number(k.cluster_id || 0) === Number(assignId)).map((k: any) => k.id);
+      const removed = inCl.filter((id: number) => !picked.includes(id));
+      if (removed.length > 0) {
+        await api.assignCluster({ cluster_id: 0, keyword_ids: removed });
+      }
+      Message.success('已保存归类');
+      setAssignOpen(false); load();
+    } catch (e: any) { Message.error('保存失败：' + (e.message || e)); }
+  };
+
+  // 汇总：用于顶部一句话诊断
+  const tested = list.filter((c) => c.status !== 'empty' && c.status !== 'untested');
+  const weak = tested.filter((c) => c.coverage < 30);
+  const totalKw = list.reduce((s, c) => s + (c.keyword_count || 0), 0);
+  const unclassified = list.find((c) => c.id === 0);
+  const maxCov = Math.max(100, ...list.map((c) => Number(c.coverage) || 0));
+
+  return (
+    <div>
+      <Card
+        style={{ borderRadius: 16, marginBottom: 16 }}
+        bordered={false}
+        bodyStyle={{ padding: '18px 24px' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 420px', minWidth: 300 }}>
+            <Title heading={6} style={{ marginTop: 0, marginBottom: 6 }}>话题簇诊断</Title>
+            <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.7 }}>
+              AI 引擎按<Text bold>话题</Text>组织知识，而不是按<Text bold>词</Text>。
+              把 {totalKw} 个问题聚成 {list.length} 个话题簇后，可以看出结构性缺口。
+            </Text>
+            <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Tag color="arcoblue">共 {list.length} 簇</Tag>
+              <Tag color="gray">关键词 {totalKw}</Tag>
+              <Tag color={weak.length > 0 ? 'red' : 'green'}>
+                {weak.length > 0 ? `${weak.length} 个簇覆盖不足 30%` : '无严重薄弱簇'}
+              </Tag>
+              {unclassified && unclassified.keyword_count > 0 && (
+                <Tag color="orange">未归类 {unclassified.keyword_count} 个问题</Tag>
+              )}
+            </div>
+          </div>
+          <Space wrap>
+            <Button type="primary" icon={<IconThunderbolt />} onClick={() => setGenOpen(true)}>AI 一键聚类</Button>
+            <Button icon={<IconPlus />} onClick={openCreate}>新建簇</Button>
+            <Button icon={<IconRefresh />} onClick={load}>刷新</Button>
+          </Space>
+        </div>
+      </Card>
+
+      <Card
+        title="话题簇列表（按覆盖情况着色；覆盖不足的簇是优先改进对象）"
+        bordered={false}
+        style={{ borderRadius: 16 }}
+      >
+        {loading ? <Skeleton text={{ rows: 6 }} animation /> : (
+          <>
+            {list.length === 0 && (
+              <Empty
+                description={
+                  <span>
+                    还没有话题簇。点右上角「AI 一键聚类」，让 AI 按搜索意图把关键词自动分簇；
+                    <br />也可以手工新建簇后在详情里勾选问题。
+                  </span>
+                }
+              />
+            )}
+            <GridRow gutter={[16, 16]}>
+              {list.map((c: any) => {
+                const st = CLUSTER_STATUS[c.status] || CLUSTER_STATUS.untested;
+                const im = INTENT_META[c.intent] || INTENT_META.informational;
+                const cov = Number(c.coverage) || 0;
+                const barColor = c.status === 'weak' ? '#F53F3F' : c.status === 'normal' ? '#FF7D00' : c.status === 'strong' ? '#00B42A' : '#C9CDD4';
+                return (
+                  <GridCol span={8} key={`${c.id}`}>
+                    <div
+                      style={{
+                        border: '1px solid var(--color-border-2)', borderRadius: 12, padding: '14px 16px',
+                        borderLeft: `4px solid ${c.color || im.color}`, height: '100%',
+                        display: 'flex', flexDirection: 'column', gap: 10,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <Text bold style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {c.name}
+                        </Text>
+                        <Tag size="small" style={{ background: (im.color) + '1a', color: im.color, border: 'none', flex: '0 0 auto' }}>
+                          {im.label}
+                        </Tag>
+                      </div>
+                      {c.description && (
+                        <Text type="secondary" style={{ fontSize: 12, minHeight: 32 }}>{c.description}</Text>
+                      )}
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                          <Text type="secondary">品牌出现率</Text>
+                          <Text bold style={{ color: barColor }}>
+                            {c.status === 'untested' ? '未巡检' : `${fmtNum(cov)}%`}
+                          </Text>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 3, background: 'var(--color-fill-2)', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.min(100, (cov / maxCov) * 100)}%`, height: '100%', background: barColor, borderRadius: 3 }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <Tag size="small" color={st.color}>{st.label}</Tag>
+                        <Tag size="small" color="gray">{c.keyword_count} 词</Tag>
+                        {c.sample_count > 0 && <Tag size="small" color="gray">样本 {c.sample_count}</Tag>}
+                        {c.citation_rate > 0 && <Tag size="small" color="cyan">引用 {fmtNum(c.citation_rate)}%</Tag>}
+                      </div>
+                      <div style={{ marginTop: 'auto', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        {c.id !== 0 && (
+                          <>
+                            <Button size="mini" onClick={() => openDetail(c)}>归类</Button>
+                            <Button size="mini" icon={<IconEdit />} onClick={() => openEdit(c)} />
+                            <Popconfirm title="删除该话题簇？簇内关键词会退回未归类，不会被删除" onOk={async () => { await api.deleteCluster(c.id); load(); }}>
+                              <Button size="mini" status="danger" icon={<IconDelete />} />
+                            </Popconfirm>
+                          </>
+                        )}
+                        {c.id === 0 && <Button size="mini" onClick={() => openDetail(c)}>去归类</Button>}
+                      </div>
+                    </div>
+                  </GridCol>
+                );
+              })}
+            </GridRow>
+          </>
+        )}
+      </Card>
+
+      {/* AI 一键聚类 */}
+      <Modal
+        title="AI 一键聚类"
+        visible={genOpen}
+        onCancel={() => setGenOpen(false)}
+        onOk={runGenerate}
+        okText={genning ? '聚类中…' : '开始聚类'}
+        confirmLoading={genning}
+        cancelText="取消"
+      >
+        <Alert
+          type="info"
+          style={{ marginBottom: 14 }}
+          content="AI 会读取你现有的关键词，按搜索意图（认知/对比/决策/品牌）聚成 3~8 个话题簇，并把每个问题归入对应簇。该操作消耗 1 点点卡。"
+        />
+        <Form layout="vertical">
+          <FormItem label="补充业务背景（可选，帮助 AI 更准确理解行业）">
+            <Input.TextArea
+              rows={3}
+              value={extra}
+              onChange={setExtra}
+              placeholder="如：我们是婚恋门店 SaaS，客户主要是三四线城市的中小型婚介机构"
+            />
+          </FormItem>
+          <FormItem label="重建模式">
+            <Space>
+              <Switch checked={overwrite} onChange={setOverwrite} />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                开启后先清空现有话题簇再聚类（关键词本身不会删除，只是重新归类）
+              </Text>
+            </Space>
+          </FormItem>
+        </Form>
+      </Modal>
+
+      {/* 新建 / 编辑簇 */}
+      <Modal
+        title={editing ? '编辑话题簇' : '新建话题簇'}
+        visible={editOpen}
+        onCancel={() => setEditOpen(false)}
+        onOk={submit}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form form={form} layout="vertical">
+          <FormItem label="簇名称" field="name" rules={[{ required: true, message: '请填写簇名称' }]}>
+            <Input placeholder="如：价格与预算 / 服务对比 / 城市选择" />
+          </FormItem>
+          <FormItem label="搜索意图" field="intent" initialValue="informational">
+            <Select>
+              {Object.entries(INTENT_META).map(([k, v]) => (
+                <Select.Option key={k} value={k}>{v.label} —— {v.desc}</Select.Option>
+              ))}
+            </Select>
+          </FormItem>
+          <FormItem label="描述（该簇覆盖什么问题）" field="description">
+            <Input.TextArea rows={2} placeholder="如：客户在对比不同婚恋服务商时提出的问题" />
+          </FormItem>
+          <FormItem label="排序（数字越小越靠前）" field="sort_order" initialValue={0}>
+            <InputNumber min={0} max={9999} style={{ width: '100%' }} />
+          </FormItem>
+        </Form>
+      </Modal>
+
+      {/* 归类：勾选问题归入该簇 */}
+      <Modal
+        title={assignId === 0 ? '把问题归入话题簇' : `调整「${(list.find((c) => Number(c.id) === assignId) || {}).name || ''}」的归属`}
+        visible={assignOpen}
+        onCancel={() => setAssignOpen(false)}
+        onOk={saveAssign}
+        okText="保存归类"
+        cancelText="取消"
+        style={{ width: 620 }}
+      >
+        <Alert
+          type="info"
+          style={{ marginBottom: 12 }}
+          content="勾选要归入本簇的问题。未勾选但原本属于本簇的，保存后会自动退回「未归类」；从「未归类」进入时，若本簇尚未选定，请先用列表上的「归类」按钮。"
+        />
+        {assignId === 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>归入哪个簇：</Text>
+            <Select
+              style={{ width: 200 }}
+              placeholder="选择话题簇"
+              value={assignId || undefined}
+              onChange={(v) => setAssignId(Number(v))}
+            >
+              {list.filter((c) => c.id !== 0).map((c) => (
+                <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
+              ))}
+            </Select>
+          </div>
+        )}
+        <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid var(--color-border-2)', borderRadius: 8, padding: 12 }}>
+          {kwList.length === 0 && <Empty description="还没有关键词" />}
+          {kwList.map((k: any) => (
+            <div key={k.id} style={{ padding: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Switch
+                size="small"
+                checked={picked.includes(k.id)}
+                onChange={(v) => setPicked(v ? [...picked, k.id] : picked.filter((x) => x !== k.id))}
+              />
+              <Text style={{ fontSize: 13 }}>{k.question}</Text>
+              {Number(k.cluster_id || 0) !== Number(assignId) && Number(k.cluster_id || 0) > 0 && (
+                <Tag size="small" color="gray" style={{ flex: '0 0 auto' }}>已属其他簇</Tag>
+              )}
+            </div>
+          ))}
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ============================================================
  * Tab4 品牌事实库（GEO 准确率比对的知识底座）
  * ============================================================ */
 function FactTab() {
@@ -1309,22 +1643,25 @@ export default function GeoIntel() {
         <TabPane key="facts" title="④ 品牌事实库">
           <FactTab />
         </TabPane>
-        <TabPane key="comprisk" title="⑤ 竞品与风险词">
+        <TabPane key="clusters" title="⑤ 话题簇">
+          <ClusterTab />
+        </TabPane>
+        <TabPane key="comprisk" title="⑥ 竞品与风险词">
           <CompRiskTab />
         </TabPane>
-        <TabPane key="citations" title="⑥ 引用溯源">
+        <TabPane key="citations" title="⑦ 引用溯源">
           <CitationTab />
         </TabPane>
-        <TabPane key="audit" title="⑦ 网站审计">
+        <TabPane key="audit" title="⑧ 网站审计">
           <AuditTab />
         </TabPane>
-        <TabPane key="gen" title="⑧ AI 可读性文件">
+        <TabPane key="gen" title="⑨ AI 可读性文件">
           <GeneratorTab />
         </TabPane>
-        <TabPane key="channels" title="⑨ 阵地地图">
+        <TabPane key="channels" title="⑩ 阵地地图">
           <ChannelTab />
         </TabPane>
-        <TabPane key="ops" title="⑩ 巡检与报告">
+        <TabPane key="ops" title="⑪ 巡检与报告">
           <OpsReportTab />
         </TabPane>
       </Tabs>

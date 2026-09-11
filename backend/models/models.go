@@ -114,6 +114,34 @@ type AiPlatform struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// IntentType 搜索意图类型（GEO 管线第③步「提示词聚类」的标准分类）
+// 认知型：还在了解行业/问题，尚未形成品牌偏好
+// 对比型：在做方案选型/竞品比较，决策中段
+// 决策型：明确要买/要联系，转化意愿最强
+// 品牌型：已经在找特定品牌，忠诚度验证
+const (
+	IntentInformational = "informational"
+	IntentCommercial    = "commercial"
+	IntentTransactional = "transactional"
+	IntentNavigational  = "navigational"
+)
+
+// KeywordCluster 话题簇：把扁平的关键词按「搜索意图 / 业务主题」聚成一组。
+// 为什么要聚：AI 引擎按「话题」组织知识，而不是按「词」。
+// 覆盖率、引用率、准确率按簇统计，才能看出「哪一类问题我们完全缺席」——
+// 单看整体百分比会掩盖结构性缺口（例如全部命中都来自品牌词，行业词颗粒无收）。
+type KeywordCluster struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	TenantID    uint      `gorm:"index;not null" json:"tenant_id"`
+	Name        string    `gorm:"size:64;not null" json:"name"`        // 簇名，如「价格与预算」「服务对比」
+	Intent      string    `gorm:"size:32;default:informational" json:"intent"` // 搜索意图（见 IntentXxx 常量）
+	Description string    `gorm:"size:255" json:"description"`         // 该簇覆盖什么问题（供 AI 归类和人工审阅）
+	Color       string    `gorm:"size:16" json:"color"`                // 展示色（前端色卡）
+	SortOrder   int       `gorm:"default:0" json:"sort_order"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 // GeoKeyword GEO 关键词（按租户隔离）
 type GeoKeyword struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`
@@ -121,6 +149,8 @@ type GeoKeyword struct {
 	Question      string    `gorm:"size:255" json:"question"`
 	BrandKeywords string    `gorm:"size:255" json:"brand_keywords"`
 	Category      string    `gorm:"size:64" json:"category"`
+	// ClusterID 所属话题簇；0 = 未归类
+	ClusterID     uint      `gorm:"index;default:0" json:"cluster_id"`
 	Enabled       bool      `gorm:"default:true" json:"enabled"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`

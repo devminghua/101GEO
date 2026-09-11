@@ -132,6 +132,14 @@ export const api = {
   deleteKeyword: (id: number) => request(`/keywords/${id}`, { method: 'DELETE' }),
   batchDeleteKeywords: (ids: number[]) => request('/keywords/batch-delete', { method: 'POST', body: JSON.stringify({ ids }) }),
 
+  // 话题簇（提示词聚类）
+  listClusters: (days = 30) => request(`/clusters?days=${days}`),
+  createCluster: (body: any) => request('/clusters', { method: 'POST', body: JSON.stringify(body) }),
+  updateCluster: (id: number, body: any) => request(`/clusters/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteCluster: (id: number) => request(`/clusters/${id}`, { method: 'DELETE' }),
+  assignCluster: (body: any) => request('/clusters/assign', { method: 'POST', body: JSON.stringify(body) }),
+  generateClusters: (body: any) => request('/clusters/generate', { method: 'POST', body: JSON.stringify(body) }),
+
   // 平台（已收归总后台统一管理，仅 super 可用；分站不再展示/编辑）
   listPlatforms: () => request('/platforms'),
   // Token 用量看板（客户端）

@@ -147,6 +147,14 @@ func main() {
 		api.PUT("/keywords/:id", handlers.UpdateKeyword)
 		api.DELETE("/keywords/:id", handlers.DeleteKeyword)
 
+		// 话题簇（提示词聚类）：把扁平关键词按搜索意图聚成话题，支撑按簇的覆盖率诊断
+		api.GET("/clusters", handlers.ListClusters)
+		api.POST("/clusters", handlers.CreateCluster)
+		api.PUT("/clusters/:id", handlers.UpdateCluster)
+		api.DELETE("/clusters/:id", handlers.DeleteCluster)
+		api.POST("/clusters/assign", handlers.AssignCluster)
+		api.POST("/clusters/generate", handlers.GenClusters)
+
 		// AI 平台（API 配置/密钥）：分级管理 —— 分站 admin 可配置自己的平台（自己的 Key），
 		// 未配置时继承总后台全局平台(tenant_id=0)；operator 无权限
 		platforms := api.Group("/platforms")

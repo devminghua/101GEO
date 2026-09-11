@@ -26,6 +26,10 @@ type Client struct {
 	Timeout time.Duration
 	HTTP    *http.Client
 
+	// Thinking 推理模型思维链控制：nil=平台默认；Type=disabled 时关闭思考。
+	// 由 DisableThinking() 设置，仅对当前 client 实例生效。
+	Thinking *thinkingOptions
+
 	// Token 用量统计元信息（WithMeta 设置后，每次成功调用自动写入 ai_usage_records）
 	TenantID     uint   // 0 = 不记录
 	PlatformName string // 空 = 不记录
@@ -74,6 +78,30 @@ type chatRequest struct {
 	Messages    []chatMessage `json:"messages"`
 	MaxTokens   int           `json:"max_tokens"`
 	Temperature float64       `json:"temperature"`
+	// NoThink 关闭推理模型的思维链。
+	//
+	// 为什么必须支持：DeepSeek-V4 / Qwen3 / GLM-4.7 等推理模型会先输出一大段
+	// reasoning_content，而这段内容同样计入 max_tokens。做「把 100+ 个关键词
+	// 聚成话题簇」这类长任务时，推理过程会吃光整个预算，返回 finish_reason=length
+	// 且 content 为空（实测 1500 tokens 全部消耗在 reasoning_tokens 上，正文一个字都没有）。
+	// 对结构化抽取类任务关闭思考后，同样的问题 48 tokens 就稳定返回。
+	//
+	// 各家参数名不统一，这里统一用最通用的 {"thinking":{"type":"disabled"}}
+	// （DeepSeek-V4 / 智谱 GLM 支持），不支持该字段的平台会自动忽略。
+	Thinking *thinkingOptions `json:"thinking,omitempty"`
+}
+
+type thinkingOptions struct {
+	Type string `json:"type"` // disabled | enabled
+}
+
+// DisableThinking 关闭该次请求的思维链（用于结构化抽取等不需要推理的任务）。
+func (c *Client) DisableThinking() *Client {
+	if c.Thinking == nil {
+		c.Thinking = &thinkingOptions{}
+	}
+	c.Thinking.Type = "disabled"
+	return c
 }
 
 type chatResponse struct {
@@ -81,6 +109,7 @@ type chatResponse struct {
 		Message struct {
 			Content string `json:"content"`
 		} `json:"message"`
+		FinishReason string `json:"finish_reason"` // stop / length；length 说明被 max_tokens 截断
 	} `json:"choices"`
 	Usage Usage `json:"usage"`
 	Error *struct {
@@ -100,6 +129,7 @@ func (c *Client) Ask(ctx context.Context, question string) (string, error) {
 		MaxTokens: 800,
 		// temperature 固定 1：Kimi k2 系列仅允许 1，其余平台 1 也是标准默认值，全局安全
 		Temperature: 1,
+		Thinking:    c.Thinking,
 	}
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
@@ -170,7 +200,7 @@ func (c *Client) Chat(ctx context.Context, system string, msgs []Message, maxTok
 		messages = append(messages, chatMessage{Role: m.Role, Content: m.Content})
 	}
 	url := c.BaseURL + "/chat/completions"
-	payload := chatRequest{Model: c.Model, Messages: messages, MaxTokens: maxTokens, Temperature: temperature}
+	payload := chatRequest{Model: c.Model, Messages: messages, MaxTokens: maxTokens, Temperature: temperature, Thinking: c.Thinking}
 	return c.doChat(ctx, url, payload)
 }
 
@@ -287,7 +317,15 @@ func (c *Client) doChat(ctx context.Context, url string, payload interface{}) (s
 			return "", fmt.Errorf("API错误: %s", cr.Error.Message)
 		}
 		if len(cr.Choices) == 0 || cr.Choices[0].Message.Content == "" {
-			lastErr = fmt.Errorf("响应为空")
+			// 区分两种空：推理模型烧光预算（finish=length，有 reasoning_content）
+			// 与平台真的返回空。前者提示调用方考虑 DisableThinking。
+			hint := "响应为空"
+			if len(cr.Choices) > 0 {
+				if fr := cr.Choices[0].FinishReason; fr == "length" {
+					hint = "模型输出被 max_tokens 截断且正文为空（推理模型可能把预算消耗在思维链上，结构化任务建议 DisableThinking）"
+				}
+			}
+			lastErr = fmt.Errorf("%s", hint)
 			if attempt < maxRetries {
 				continue // 空响应自动重试
 			}

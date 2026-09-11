@@ -187,6 +187,7 @@ func migrate() {
 		&models.InviteRecord{},
 		&models.CheckinRecord{},
 		&models.PointRecord{},
+		&models.KeywordCluster{},
 		&models.GeoKeyword{},
 		&models.CheckTask{},
 		&models.CheckResult{},
