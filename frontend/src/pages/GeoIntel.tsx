@@ -45,6 +45,144 @@ function rateColor(v: number) {
 }
 
 /* ============================================================
+ * AI 可见度评分卡（AIVS）
+ * 对标 Profound / Otterly.AI / CiteLens 的旗舰指标：
+ * 一个客户看得懂的总分 + 四维拆解 + 行业基准 + 改进建议。
+ * ============================================================ */
+function gradeColorOf(grade: string) {
+  switch (grade) {
+    case 'A': return '#00B42A';
+    case 'B': return '#165DFF';
+    case 'C': return '#FF7D00';
+    default: return '#F53F3F';
+  }
+}
+
+function VisibilityScoreCard({ vs, sampleCount, refreshing }: { vs: any; sampleCount?: number; refreshing?: boolean }) {
+  if (!vs || typeof vs.score !== 'number') return null;
+  const gc = gradeColorOf(vs.grade);
+  const dims: any[] = vs.dimensions || [];
+  const bms: any[] = vs.benchmarks || [];
+  const sugs: string[] = vs.suggestions || [];
+  const delta = Number(vs.delta_30 || 0);
+  const lowConf = vs.confidence === '低' || vs.confidence === '中';
+
+  return (
+    <Card style={{ borderRadius: 16, marginBottom: 16 }} bordered={false} bodyStyle={{ padding: '20px 24px' }}>
+      <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+        {/* 左：总分环 */}
+        <div style={{ flex: '0 0 auto', textAlign: 'center', minWidth: 132 }}>
+          <Progress
+            type="circle"
+            percent={Number(vs.score)}
+            width={112}
+            strokeWidth={8}
+            color={gc}
+            formatText={() => (
+              <div style={{ lineHeight: 1.2 }}>
+                <div style={{ fontSize: 30, fontWeight: 700, color: gc }}>{fmtNum(vs.score, 0)}</div>
+                <div style={{ fontSize: 11, color: '#86909C' }}>AI 可见度</div>
+              </div>
+            )}
+          />
+          <div style={{ marginTop: 10 }}>
+            <Tag color={gc} size="large">{vs.grade} · {vs.grade_label}</Tag>
+          </div>
+          {delta !== 0 && (
+            <div style={{ fontSize: 12, marginTop: 8, color: delta > 0 ? '#00B42A' : '#F53F3F' }}>
+              较前期 {delta > 0 ? `↑ ${fmtNum(delta)}` : `↓ ${fmtNum(Math.abs(delta))}`} 分
+            </div>
+          )}
+        </div>
+
+        {/* 中：四维拆解 + 行业基准 */}
+        <div style={{ flex: '1 1 300px', minWidth: 260 }}>
+          <Text style={{ fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 12 }}>
+            得分拆解 <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>· 灰色刻度为行业基准</Text>
+          </Text>
+          {dims.map((d) => {
+            const bm = bms.find((b) => b.key === d.key);
+            const bmVal = bm ? Number(bm.benchmark) : 0;
+            const gap = Number(d.score) - bmVal;
+            const color = gap >= 0 ? '#00B42A' : Number(d.score) < bmVal - 15 ? '#F53F3F' : '#FF7D00';
+            return (
+              <div key={d.key} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                  <span>
+                    {d.name}
+                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 6 }}>
+                      权重 {Math.round(Number(d.weight) * 100)}%
+                    </Text>
+                  </span>
+                  <span style={{ fontWeight: 600, color }}>
+                    {fmtNum(d.score, 0)}
+                    <Text type="secondary" style={{ fontSize: 12, fontWeight: 400, marginLeft: 6 }}>
+                      基准 {fmtNum(bmVal, 0)} · {gap >= 0 ? '+' : ''}{fmtNum(gap, 0)}
+                    </Text>
+                  </span>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <Progress
+                    percent={Math.min(100, Number(d.score))}
+                    showText={false}
+                    color={color}
+                    strokeWidth={6}
+                    size="small"
+                  />
+                  {/* 行业基准刻度 */}
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -2,
+                      left: `calc(${Math.min(100, bmVal)}% - 1px)`,
+                      width: 2,
+                      height: 10,
+                      background: '#C9CDD4',
+                      borderRadius: 1,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          {lowConf && (
+            <div style={{ fontSize: 12, color: '#86909C', marginTop: 4 }}>
+              样本量 {sampleCount ?? 0} 条，置信度{vs.confidence}——AI 回答有概率性，建议积累更多巡检数据后再看趋势。
+            </div>
+          )}
+        </div>
+
+        {/* 右：改进建议 */}
+        <div style={{ flex: '1 1 260px', minWidth: 240 }}>
+          <Text style={{ fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 12 }}>优先改进项</Text>
+          {sugs.length === 0 ? (
+            <Text type="secondary" style={{ fontSize: 13 }}>暂无建议，继续保持。</Text>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {sugs.map((s, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--color-text-2)', lineHeight: '20px', opacity: refreshing ? 0.5 : 1 }}>
+                  <span
+                    style={{
+                      flex: '0 0 auto', width: 18, height: 18, borderRadius: '50%',
+                      background: i === 0 ? '#F53F3F' : 'var(--color-fill-2)',
+                      color: i === 0 ? '#fff' : '#86909C',
+                      fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1,
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/* ============================================================
  * Tab1 六项指标总览
  * ============================================================ */
 function IntelTab() {
@@ -142,6 +280,9 @@ function IntelTab() {
         </Space>
         <Button icon={<IconRefresh />} onClick={() => load(days)}>刷新</Button>
       </div>
+
+      {/* AI 可见度评分（最高优先级展示：一个总分 + 四维拆解 + 基准 + 建议） */}
+      {!skeleton && <VisibilityScoreCard vs={data.visibility} sampleCount={data.sample_count} refreshing={refreshing} />}
 
       {/* KPI 自适应网格：根据屏幕宽度自动换行，全部显示在屏幕内。
           marginBottom 给下方「各 AI 平台表现明细」留出间距——不能写在 GridRow 上：
@@ -954,6 +1095,8 @@ function AuditTab() {
 function GeneratorTab() {
   const [llms, setLlms] = useState('');
   const [schema, setSchema] = useState('');
+  const [blocks, setBlocks] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState('');
 
   const gen = async (kind: 'llms' | 'schema') => {
@@ -965,6 +1108,8 @@ function GeneratorTab() {
       } else {
         const res: any = await api.genSchema();
         setSchema(res?.content || '');
+        setBlocks(res?.blocks || []);
+        setSummary(res?.summary || null);
       }
       Message.success('生成成功');
     } catch (e: any) {
@@ -1031,8 +1176,55 @@ function GeneratorTab() {
         )}
       </GridCol>
       <GridCol span={24}>
+        <Card
+          title="结构化数据分块部署（复制各类 JSON-LD 分别写入站点）"
+          extra={<Text type="secondary" style={{ fontSize: 12 }}>Organization / FAQPage / ItemList，AI 引擎按需读取</Text>}
+        >
+          {blocks.length === 0 ? (
+            <Empty description="点击上方「生成」，将按品牌事实库产出三类结构化数据" />
+          ) : (
+            <>
+              {summary && (
+                <Space style={{ marginBottom: 12 }} wrap>
+                  <Tag color="arcoblue">Organization × {summary.organization || 0}</Tag>
+                  <Tag color="green">FAQ 问答 × {summary.faq || 0}</Tag>
+                  <Tag color="orange">事实条目 × {summary.itemlist || 0}</Tag>
+                </Space>
+              )}
+              <GridRow gutter={[16, 16]}>
+                {blocks.map((b: any, i: number) => {
+                  const txt = JSON.stringify(b, null, 2);
+                  const t = b['@type'] || 'JSON-LD';
+                  const desc: Record<string, string> = {
+                    Organization: '品牌实体：name / url / sameAs 实体锚定 / knowsAbout 领域',
+                    FAQPage: '问答对：直接对应「用户会怎么问 AI」，最容易被引用',
+                    ItemList: '品牌事实清单：结构化呈现全部事实条目',
+                  };
+                  return (
+                    <GridCol span={24} key={i}>
+                      <Card
+                        size="small"
+                        title={<Space><Tag color="purple">{t}</Tag><Text style={{ fontSize: 13 }}>{desc[t] || '结构化数据'}</Text></Space>}
+                        extra={
+                          <Space>
+                            <Button size="small" icon={<IconCopy />} onClick={() => copy(txt)}>复制</Button>
+                            <Button size="small" icon={<IconDownload />} onClick={() => download(`${t.toLowerCase()}.jsonld`, txt)}>下载</Button>
+                          </Space>
+                        }
+                      >
+                        <pre style={{ maxHeight: 260, overflow: 'auto', background: 'var(--geo-surface-2)', padding: 12, borderRadius: 6, fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{txt}</pre>
+                      </Card>
+                    </GridCol>
+                  );
+                })}
+              </GridRow>
+            </>
+          )}
+        </Card>
+      </GridCol>
+      <GridCol span={24}>
         <Alert type="info" title="部署建议"
-          content="将生成的 llms.txt 上传至站点根目录，JSON-LD 注入首页 <head>。llms.txt 让 AI 直接读取品牌事实，Schema 帮助搜索引擎/大模型理解实体关系，二者是提升引用率与事实一致率的标准化手段。" />
+          content="将生成的 llms.txt 上传至站点根目录；三类 JSON-LD 用 <script type=application/ld+json> 注入首页 <head>（FAQPage 建议放在对应问答页）。llms.txt 让 AI 直接读取品牌事实，Schema 帮助大模型理解实体关系与问答结构，二者是提升引用率与事实一致率的标准化手段。" />
       </GridCol>
     </GridRow>
   );

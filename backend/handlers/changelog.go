@@ -38,6 +38,17 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.30", Date: "2026-09-11", Title: "对照 GEO 行业标准架构的能力升级",
+		Items: items(
+			"feature", "新增「AI 可见度评分（AIVS）」：把六项原始指标合成 0~100 综合分，含曝光度/推荐位次/可信度/合规安全四维拆解、行业基准对标刻度与优先改进建议",
+			"feature", "巡检支持多采样：AI 平台可配置每问采样 1~5 次，按命中比例判定「稳定可见度」，消除大模型输出随机性造成的指标抖动",
+			"feature", "结构化数据生成升级为三类分块输出：Organization（含 sameAs 实体锚定、knowsAbout 领域）+ FAQPage（问答对）+ ItemList（事实清单），可分别复制部署",
+			"fix", "修复「AI 爬虫 UA 实测」形同虚设的问题：改为用 GPTBot / Google-Extended / PerplexityBot / ClaudeBot / Bytespider 等真实爬虫 UA 逐个实测，可发现「浏览器能访问但 AI 被 WAF 拦截」",
+			"fix", "修复 Schema 生成的语义错误：事实条目不再塞进 hasCredential（该字段专指资质证书），改用 knowsAbout 与 DefinedTerm ItemList",
+			"fix", "修复引用溯源落库时序问题：原在记录落库前调用导致 ResultID 为 0，引用数据可能丢失",
+		),
+	},
+	{
 		Version: "1.0.29", Date: "2026-09-11", Title: "客户端系统设置新增「升级日志」",
 		Items: items(
 			"feature", "客户端「系统设置」新增「升级日志」页签，按时间线展示历代版本更新内容（版本号 / 日期 / 变更类型）",

@@ -28,7 +28,7 @@ export default function Platforms() {
   const openAdd = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ enabled: true, sort_order: 0, interval_ms: 2000 });
+    form.setFieldsValue({ enabled: true, sort_order: 0, interval_ms: 2000, sample_count: 1 });
     setVisible(true);
   };
   const openEdit = (row: any) => {
@@ -43,12 +43,16 @@ export default function Platforms() {
 
   const save = async () => {
     const values = await form.validate();
-    // 排序/间隔字段为数字输入框，Arco 取到的是 string，需转为 number 再提交
-    for (const k of ['sort_order', 'interval_ms']) {
+    // 排序/间隔/采样次数字段为数字输入框，Arco 取到的是 string，需转为 number 再提交
+    for (const k of ['sort_order', 'interval_ms', 'sample_count']) {
       if (typeof values[k] === 'string') {
         const n = Number(values[k]);
         values[k] = Number.isNaN(n) || n < 0 ? 0 : n;
       }
+    }
+    // 采样次数约束 1~5
+    if (typeof values.sample_count === 'number') {
+      values.sample_count = Math.min(5, Math.max(1, values.sample_count || 1));
     }
     try {
       if (editing) {
@@ -212,6 +216,13 @@ export default function Platforms() {
                 extra="同一平台两次请求的最小间隔，用于规避限流(429)。默认 2000ms；0=系统默认800ms节流；Kimi免费档建议20000"
               >
                 <Input type="number" placeholder="如：2000" />
+              </Form.Item>
+              <Form.Item
+                label="采样次数"
+                field="sample_count"
+                extra="同一问题向该平台提问多少次（1~5，默认1）。AI 回答有随机性，采样多次按命中比例判定，指标更稳定；次数>1 会按次扣点卡，显著增加巡检耗时"
+              >
+                <Input type="number" placeholder="1~5，默认 1" />
               </Form.Item>
             </>
           )}

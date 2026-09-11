@@ -187,43 +187,94 @@ func execute(tenantID uint, task *models.CheckTask) {
 					mu.Unlock()
 					return
 				}
-			client := ai.NewClient(p.BaseURL, p.APIKey, p.Model).WithMeta(tenantID, p.Name, "巡检")
-			// 429 限流退避重试：最多重试 2 次，间隔 5s / 15s；整个重试序列在平台节流门内执行，
-			// 保证同一平台任何时刻只有一个请求在途（彻底消除并发 429）
-			var answer string
-			var err error
-			backoffs := []time.Duration{5 * time.Second, 15 * time.Second}
-			gates[p.ID].do(func() {
-				for attempt := 0; ; attempt++ {
-					ctx, cancel := context.WithTimeout(context.Background(), 110*time.Second)
-					answer, err = client.Ask(ctx, k.Question)
-					cancel()
-					if err == nil || attempt >= len(backoffs) || !strings.Contains(err.Error(), "429") {
-						break
-					}
-					time.Sleep(backoffs[attempt])
+				client := ai.NewClient(p.BaseURL, p.APIKey, p.Model).WithMeta(tenantID, p.Name, "巡检")
+				// 单组合采样次数：1~5。>1 时同一问题问多次，用命中比例衡量「稳定可见度」，
+				// 规避 LLM 输出概率性造成的单次误判（问一次没提到 ≠ 品牌不可见）。
+				rounds := p.SampleCount
+				if rounds < 1 {
+					rounds = 1
 				}
-			})
+				if rounds > 5 {
+					rounds = 5
+				}
+				// 多采样按次数扣点卡：先扣第 1 次（上面已扣），剩余 rounds-1 次在此补扣，
+				// 任何一次余额不足即停止继续采样（已采样的结果照常保留）。
+				paid := 1
+				var answer string
+				var err error
+				backoffs := []time.Duration{5 * time.Second, 15 * time.Second}
+				sampleHits := 0
+				bestAnswer := ""
+				bestPos := -1
+				bestMentions := 0
+				q := strings.ToLower(strings.TrimSpace(k.BrandKeywords))
+				if q == "" {
+					q = strings.ToLower(strings.TrimSpace(defaultBrand))
+				}
+
+				for round := 0; round < rounds; round++ {
+					if round > 0 {
+						if derr := points.DeductOne(tenantID, "GEO 智能巡检"); derr != nil {
+							break // 余额不足，停止追加采样
+						}
+						paid++
+					}
+					var curAnswer string
+					gates[p.ID].do(func() {
+						for attempt := 0; ; attempt++ {
+							ctx, cancel := context.WithTimeout(context.Background(), 110*time.Second)
+							curAnswer, err = client.Ask(ctx, k.Question)
+							cancel()
+							if err == nil || attempt >= len(backoffs) || !strings.Contains(err.Error(), "429") {
+								break
+							}
+							time.Sleep(backoffs[attempt])
+						}
+					})
+					if err != nil {
+						break // 本次采样失败，保留已有结果
+					}
+					if round == 0 {
+						answer = curAnswer
+					}
+					low := strings.ToLower(curAnswer)
+					hit, pos, mentions := detectBrand(q, low)
+					if hit {
+						sampleHits++
+						// 保留「最优一次」的回答作为展示样本（命中优先、位次更靠前优先）
+						if bestAnswer == "" || (bestPos < 0) || (pos > 0 && pos < bestPos) {
+							bestAnswer, bestPos, bestMentions = curAnswer, pos, mentions
+						}
+					} else if bestAnswer == "" {
+						bestAnswer, bestPos, bestMentions = curAnswer, pos, mentions
+					}
+				}
+				res.SampleCount = paid
+				res.SampleHits = sampleHits
 				res.CostMs = time.Since(qStart).Milliseconds()
 
-				if err != nil {
+				if answer == "" && err != nil {
 					res.ErrorMsg = err.Error()
 					res.Hit = false
 					res.HitPosition = -1
 					mu.Lock()
 					errCount++
 					mu.Unlock()
-			} else {
-				q := strings.ToLower(strings.TrimSpace(k.BrandKeywords))
-				if q == "" {
-					q = strings.ToLower(strings.TrimSpace(defaultBrand))
-				}
-				low := strings.ToLower(answer)
-				hit, pos, mentions := detectBrand(q, low)
+				} else {
+					// 判定口径：采样过半命中即视为「可见」（rounds=1 时退化为单次判定，口径兼容）
+					hit := sampleHits*2 >= paid
 					res.Hit = hit
-					res.HitPosition = pos
-					res.MentionCount = mentions
-					res.Response = truncate(answer, maxResponseLen)
+					if hit {
+						res.HitPosition = bestPos
+						res.MentionCount = bestMentions
+					} else {
+						res.HitPosition = -1
+					}
+					showAnswer := bestAnswer
+					if showAnswer == "" {
+						showAnswer = answer
+					}
+					res.Response = truncate(showAnswer, maxResponseLen)
 					mu.Lock()
 					if hit {
 						hitCount++
@@ -234,13 +285,21 @@ func execute(tenantID uint, task *models.CheckTask) {
 					mu.Unlock()
 				}
 
+				showAnswer := ""
+				if res.ErrorMsg == "" {
+					showAnswer = bestAnswer
+					if showAnswer == "" {
+						showAnswer = answer
+					}
+				}
+
 				mu.Lock()
 				db.Create(&res)
 				mu.Unlock()
 
-				// 引用溯源：从完整原始回答中提取 URL 落库（供溯源分析与引用率统计）
-				if err == nil && res.ID > 0 && strings.Contains(answer, "http") {
-					saveCitations(res, answer)
+				// 引用溯源须在落库拿到 ID 后执行（Citation 依赖 ResultID）
+				if res.ID > 0 && strings.Contains(showAnswer, "http") {
+					saveCitations(res, showAnswer)
 				}
 			}(p, k)
 		}

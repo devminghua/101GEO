@@ -33,13 +33,13 @@ type auditLayer struct {
 }
 
 type siteAuditDetail struct {
-	URL         string       `json:"url"`
-	Host        string       `json:"host"`
-	Score       int          `json:"score"`
-	Level       string       `json:"level"`
-	Layers      []auditLayer `json:"layers"`
+	URL         string         `json:"url"`
+	Host        string         `json:"host"`
+	Score       int            `json:"score"`
+	Level       string         `json:"level"`
+	Layers      []auditLayer   `json:"layers"`
 	GradeDist   map[string]int `json:"grade_dist"` // A/B/C/D 抽取块分级
-	OverallNote string       `json:"overall_note"`
+	OverallNote string         `json:"overall_note"`
 }
 
 // SiteAuditDetail 站点体检（四层）：按「访问→定向→理解→可引用」组织技术层检查。
@@ -92,6 +92,46 @@ func SiteAuditDetail(c *gin.Context) {
 		access.Checks = append(access.Checks, auditCheck{Name: "正文可读性", Status: "ok", Note: "提取正文约 " + itoaInt(textLen) + " 字"})
 	}
 
+	// AI 爬虫实测：用各主流 AI 引擎的真实爬虫 UA 请求首页。
+	// 很多站点会按 UA 做差异化响应（甚至直接 403 挡掉 AI 爬虫），
+	// 用浏览器 UA 测出来的「可访问」并不代表 AI 能抓到 —— 必须逐个 UA 实测。
+	// 覆盖：OpenAI GPTBot / Google-Extended / PerplexityBot / ClaudeBot /
+	//       Bytespider(字节·豆包) / Kimi(YisouBot 近似) / 通义(TongyiBot)
+	aiBots := []struct{ Name, UA string }{
+		{"GPTBot", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.1; +https://openai.com/gptbot"},
+		{"Google-Extended", "Mozilla/5.0 (compatible; Google-Extended/1.0; +http://www.google.com/bot.html)"},
+		{"PerplexityBot", "Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)"},
+		{"ClaudeBot", "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)"},
+		{"Bytespider", "Mozilla/5.0 (compatible; Bytespider; spider-feedback@bytedance.com)"},
+		{"Other-AI", "Mozilla/5.0 (compatible; AI-Crawler/1.0)"},
+	}
+	blockedBots := make([]string, 0)
+	allowedBots := make([]string, 0)
+	for _, b := range aiBots {
+		st, ok := fetchAsBot(client, base, b.UA)
+		// 200/3xx 视为可抓取；403/404/5xx/超时视为被拦
+		if ok && st >= 200 && st < 400 {
+			allowedBots = append(allowedBots, b.Name)
+		} else {
+			blockedBots = append(blockedBots, b.Name)
+		}
+	}
+	if len(blockedBots) == 0 {
+		access.Checks = append(access.Checks, auditCheck{
+			Name: "AI 爬虫 UA 实测", Status: "ok",
+			Note: "6 类 AI 爬虫 UA 均可正常抓取（" + strings.Join(allowedBots, "、") + "）",
+		})
+	} else {
+		access.Status = "warn"
+		access.Checks = append(access.Checks, auditCheck{
+			Name: "AI 爬虫 UA 实测", Status: "warn",
+			Note: "以下 AI 爬虫被拦或异常：" + strings.Join(blockedBots, "、") + "；建议检查 CDN/WAF 的爬虫放行规则",
+		})
+		// 全被拦属于严重问题
+		if len(allowedBots) == 0 {
+			access.Status = "fail"
+		}
+	}
 	// ---------- 定向层 ----------
 	direct := auditLayer{Key: "direct", Label: "定向", Desc: "抓取器找得到、认得清每个 URL 吗", Status: "ok"}
 	canonical := firstMatch(html, `<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']`)
@@ -140,13 +180,7 @@ func SiteAuditDetail(c *gin.Context) {
 	} else {
 		citable.Checks = append(citable.Checks, auditCheck{Name: "robots.txt", Status: "warn", Note: "未检测到 robots.txt"})
 	}
-	// AI 爬虫 UA 实测
-	if statusOK {
-		citable.Checks = append(citable.Checks, auditCheck{Name: "AI 爬虫 UA 抓首页", Status: "ok", Note: "首页可抓取"})
-	} else {
-		citable.Status = "warn"
-		citable.Checks = append(citable.Checks, auditCheck{Name: "AI 爬虫 UA 抓首页", Status: "warn", Note: "首页抓取异常"})
-	}
+	// （AI 爬虫 UA 实测已上移到访问层，用真实 UA 逐个探测）
 	if fetchHeadOK(client, base+"/sitemap.xml") {
 		citable.Checks = append(citable.Checks, auditCheck{Name: "sitemap.xml", Status: "ok", Note: "存在 sitemap.xml"})
 	} else {
@@ -223,8 +257,8 @@ func SiteAuditDetail(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": siteAuditDetail{
 		URL: target, Host: host, Score: score, Level: level,
-		Layers: []auditLayer{access, direct, understand, citable},
-		GradeDist: map[string]int{"A": gradeA, "B": gradeB, "C": gradeC, "D": gradeD},
+		Layers:      []auditLayer{access, direct, understand, citable},
+		GradeDist:   map[string]int{"A": gradeA, "B": gradeB, "C": gradeC, "D": gradeD},
 		OverallNote: overall,
 	}})
 }
@@ -254,12 +288,12 @@ func itoaInt(n int) string {
 // ============ 差距诊断（三缺口：内容 → 阵地 → 事实） ============
 
 type gapDiagnose struct {
-	ContentGap      int      `json:"content_gap"`
+	ContentGap       int      `json:"content_gap"`
 	ContentQuestions []string `json:"content_questions"`
-	ChannelGap      int      `json:"channel_gap"`
-	ChannelList     []string `json:"channel_list"`
-	FactGap         int      `json:"fact_gap"`
-	FactList        []string `json:"fact_list"`
+	ChannelGap       int      `json:"channel_gap"`
+	ChannelList      []string `json:"channel_list"`
+	FactGap          int      `json:"fact_gap"`
+	FactList         []string `json:"fact_list"`
 }
 
 // GapDiagnose 差距诊断：分数低只有三个原因，按顺序修（内容 → 阵地 → 事实）。

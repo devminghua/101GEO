@@ -4,18 +4,18 @@ import "time"
 
 // Tenant 分站（租户）。总后台统一管理分站。
 type Tenant struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Name      string    `gorm:"size:128;not null" json:"name"`            // 分站名称
-	Code      string    `gorm:"size:64;uniqueIndex;not null" json:"code"` // 分站标识（登录/调用时区分）
-	Logo      string    `gorm:"size:255" json:"logo"`                     // 分站 Logo（SaaS 端上传，客户端调用）
-	ChannelID uint      `gorm:"index;default:0" json:"channel_id"`        // 归属渠道（0=平台直营）
-	Status    int       `gorm:"default:1" json:"status"`                  // 1 启用 / 0 停用
-	Features  string    `gorm:"type:text" json:"features"`                // 该分站授权的功能模块 key 列表（JSON 数组字符串，如 ["dashboard","keywords"]；空=全部开放）
-	Points    int64     `gorm:"default:0" json:"points"`                  // 点卡余额（每次 AI 调用固定扣 1 点；由总后台充值）
-	DailyQueryLimit int `gorm:"default:3" json:"daily_query_limit"`       // 每日查询次数上限（跨小红书/抖音/百度统一配额；高级版本可解锁更多）
-	Remark    string    `gorm:"size:255" json:"remark"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	Name            string    `gorm:"size:128;not null" json:"name"`            // 分站名称
+	Code            string    `gorm:"size:64;uniqueIndex;not null" json:"code"` // 分站标识（登录/调用时区分）
+	Logo            string    `gorm:"size:255" json:"logo"`                     // 分站 Logo（SaaS 端上传，客户端调用）
+	ChannelID       uint      `gorm:"index;default:0" json:"channel_id"`        // 归属渠道（0=平台直营）
+	Status          int       `gorm:"default:1" json:"status"`                  // 1 启用 / 0 停用
+	Features        string    `gorm:"type:text" json:"features"`                // 该分站授权的功能模块 key 列表（JSON 数组字符串，如 ["dashboard","keywords"]；空=全部开放）
+	Points          int64     `gorm:"default:0" json:"points"`                  // 点卡余额（每次 AI 调用固定扣 1 点；由总后台充值）
+	DailyQueryLimit int       `gorm:"default:3" json:"daily_query_limit"`       // 每日查询次数上限（跨小红书/抖音/百度统一配额；高级版本可解锁更多）
+	Remark          string    `gorm:"size:255" json:"remark"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 // QueryQuota 每日查询配额计数：记录某分站某天某模块已用的查询次数。
@@ -23,7 +23,7 @@ type Tenant struct {
 type QueryQuota struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	TenantID  uint      `gorm:"index;not null" json:"tenant_id"`
-	Day       string    `gorm:"size:16;index;not null" json:"day"`   // 日期 YYYY-MM-DD
+	Day       string    `gorm:"size:16;index;not null" json:"day"`    // 日期 YYYY-MM-DD
 	Module    string    `gorm:"size:16;index;not null" json:"module"` // total / baidu / douyin / xhs
 	Count     int       `gorm:"default:0" json:"count"`
 	CreatedAt time.Time `json:"created_at"`
@@ -38,13 +38,13 @@ type ExtendRecord struct {
 	TenantName   string     `gorm:"size:128" json:"tenant_name"`
 	UserID       uint       `json:"user_id"`
 	Username     string     `gorm:"size:64" json:"username"`
-	Operator     string     `gorm:"size:64" json:"operator"` // 操作者（总后台管理员）
-	Months       int        `json:"months"`                  // 本次续费月数
-	PriceFen     int64      `json:"price_fen"`               // 续费时月单价快照（分），配置改价不影响历史
-	AmountFen    int64      `json:"amount_fen"`              // 金额 = 月单价 × 月数（分）
+	Operator     string     `gorm:"size:64" json:"operator"`   // 操作者（总后台管理员）
+	Months       int        `json:"months"`                    // 本次续费月数
+	PriceFen     int64      `json:"price_fen"`                 // 续费时月单价快照（分），配置改价不影响历史
+	AmountFen    int64      `json:"amount_fen"`                // 金额 = 月单价 × 月数（分）
 	PayMethod    string     `gorm:"size:16" json:"pay_method"` // 收款方式：微信/支付宝/银行转账/现金/赠送
-	ExpireBefore *time.Time `json:"expire_before"`           // 续费前到期时间（nil=原不限）
-	ExpireAfter  time.Time  `json:"expire_after"`            // 续费后到期时间
+	ExpireBefore *time.Time `json:"expire_before"`             // 续费前到期时间（nil=原不限）
+	ExpireAfter  time.Time  `json:"expire_after"`              // 续费后到期时间
 	Remark       string     `gorm:"size:255" json:"remark"`
 	CreatedAt    time.Time  `json:"created_at"`
 }
@@ -68,7 +68,7 @@ type User struct {
 	Username   string     `gorm:"size:64;uniqueIndex" json:"username"`
 	Password   string     `gorm:"size:255;not null" json:"-"`
 	Nickname   string     `gorm:"size:64" json:"nickname"`
-	Avatar     string     `gorm:"size:255" json:"avatar"` // NFT 数字头像 URL（identicon，注册时自动生成）
+	Avatar     string     `gorm:"size:255" json:"avatar"`            // NFT 数字头像 URL（identicon，注册时自动生成）
 	Role       string     `gorm:"size:16;default:admin" json:"role"` // super=总后台 / channel=渠道商 / admin=分站 / operator=AI优化员（受限，仅日常业务，无配置API/查看密钥/改密权限）
 	Status     int        `gorm:"default:1" json:"status"`
 	OpenMonths int        `json:"open_months"` // 开通月数（1-36）；0 表示未设置/不限
@@ -82,31 +82,36 @@ type User struct {
 // 已读用 ReadUserIDs 记录（JSON 数组字符串 [1,3,5]），避免关联表；读取/标已读都在 Go 侧处理。
 // 简化场景适用前提：单租户平均用户数 < 1000，单条站内信已读用户 < 1万；如未来站内信量级暴涨应改为 notification_reads 关联表。
 type Notification struct {
-	ID           uint       `gorm:"primaryKey" json:"id"`
-	TargetType   string     `gorm:"size:16;index;not null" json:"target_type"`
-	TenantID     uint       `gorm:"index" json:"tenant_id"`        // TargetType=tenant 时指向租户
-	UserID       uint       `gorm:"index" json:"user_id"`          // TargetType=user 时指向用户
-	Title        string     `gorm:"size:128;not null" json:"title"`
-	Content      string     `gorm:"type:text" json:"content"`
-	ReadUserIDs  string     `gorm:"type:text" json:"-"`            // JSON 数组字符串 [1,3,5]，记录已读用户 id
-	CreatedBy    uint       `json:"created_by"`                    // 推送人 user.id（super 管理员 ID）
-	CreatedAt    time.Time  `json:"created_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	TargetType  string    `gorm:"size:16;index;not null" json:"target_type"`
+	TenantID    uint      `gorm:"index" json:"tenant_id"` // TargetType=tenant 时指向租户
+	UserID      uint      `gorm:"index" json:"user_id"`   // TargetType=user 时指向用户
+	Title       string    `gorm:"size:128;not null" json:"title"`
+	Content     string    `gorm:"type:text" json:"content"`
+	ReadUserIDs string    `gorm:"type:text" json:"-"` // JSON 数组字符串 [1,3,5]，记录已读用户 id
+	CreatedBy   uint      `json:"created_by"`         // 推送人 user.id（super 管理员 ID）
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // AiPlatform AI 平台配置（按租户隔离）
 type AiPlatform struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	TenantID   uint      `gorm:"index;not null" json:"tenant_id"`
-	Name       string    `gorm:"size:64" json:"name"`
-	BaseURL    string    `gorm:"size:255" json:"base_url"`
-	APIKey     string    `gorm:"size:255" json:"api_key"`
-	Model      string    `gorm:"size:64" json:"model"`
-	Enabled    bool      `gorm:"default:true" json:"enabled"`
-	SortOrder  int       `gorm:"default:0" json:"sort_order"`
-	IntervalMs int       `gorm:"default:0" json:"interval_ms"` // 同平台两次请求最小间隔（毫秒）：0=默认800ms节流；用于规避 RPM 限流(429)
-	ConfigJSON string    `gorm:"type:text" json:"config_json"` // 扩展配置 JSON
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	TenantID   uint   `gorm:"index;not null" json:"tenant_id"`
+	Name       string `gorm:"size:64" json:"name"`
+	BaseURL    string `gorm:"size:255" json:"base_url"`
+	APIKey     string `gorm:"size:255" json:"api_key"`
+	Model      string `gorm:"size:64" json:"model"`
+	Enabled    bool   `gorm:"default:true" json:"enabled"`
+	SortOrder  int    `gorm:"default:0" json:"sort_order"`
+	IntervalMs int    `gorm:"default:0" json:"interval_ms"` // 同平台两次请求最小间隔（毫秒）：0=默认800ms节流；用于规避 RPM 限流(429)
+	// SampleCount 每个「平台×关键词」组合的采样次数（1~5，默认 1）。
+	// LLM 输出具概率性：同一问题问两次可能一次提到品牌、一次没有。单次采样会把这种
+	// 随机波动误判为「命中/未命中」，导致指标抖动。多次采样后按命中比例判定，
+	// 得到的是「稳定可见度」而非「某一次的运气」。采样次数>1 时消耗对应倍数的点卡。
+	SampleCount int       `gorm:"default:1" json:"sample_count"`
+	ConfigJSON  string    `gorm:"type:text" json:"config_json"` // 扩展配置 JSON
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // GeoKeyword GEO 关键词（按租户隔离）
@@ -139,21 +144,26 @@ type CheckTask struct {
 
 // CheckResult 巡检明细（按租户隔离）
 type CheckResult struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
-	TenantID      uint      `gorm:"index" json:"tenant_id"`
-	TaskID        uint      `gorm:"index" json:"task_id"`
-	PlatformID    uint      `json:"platform_id"`
-	PlatformName  string    `gorm:"size:64" json:"platform_name"`
-	KeywordID     uint      `json:"keyword_id"`
-	Question      string    `gorm:"size:255" json:"question"`
-	BrandKeywords string    `gorm:"size:255" json:"brand_keywords"`
-	Response      string    `gorm:"type:text" json:"response"`
-	Hit           bool      `json:"hit"`
-	HitPosition   int       `json:"hit_position"`
-	MentionCount  int       `json:"mention_count"`
-	CostMs        int64     `json:"cost_ms"`
-	ErrorMsg      string    `gorm:"type:text" json:"error_msg"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            uint   `gorm:"primaryKey" json:"id"`
+	TenantID      uint   `gorm:"index" json:"tenant_id"`
+	TaskID        uint   `gorm:"index" json:"task_id"`
+	PlatformID    uint   `json:"platform_id"`
+	PlatformName  string `gorm:"size:64" json:"platform_name"`
+	KeywordID     uint   `json:"keyword_id"`
+	Question      string `gorm:"size:255" json:"question"`
+	BrandKeywords string `gorm:"size:255" json:"brand_keywords"`
+	Response      string `gorm:"type:text" json:"response"`
+	Hit           bool   `json:"hit"`
+	HitPosition   int    `json:"hit_position"`
+	MentionCount  int    `json:"mention_count"`
+	// 多采样稳定性：LLM 输出具概率性，单次提问可能"碰巧"命中或漏掉。
+	// SampleCount 为该组合实际采样次数（≥1）；SampleHits 为其中命中品牌的次数。
+	// 稳定性 = SampleHits/SampleCount。SampleCount=1 时退化为传统单次判定，口径兼容。
+	SampleCount int       `gorm:"default:1" json:"sample_count"`
+	SampleHits  int       `gorm:"default:0" json:"sample_hits"`
+	CostMs      int64     `json:"cost_ms"`
+	ErrorMsg    string    `gorm:"type:text" json:"error_msg"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Setting 租户级配置，复合主键 (tenant_id, key)
@@ -167,21 +177,21 @@ type Setting struct {
 // status：0 待支付 / 1 已支付 / 2 已关闭 / 3 失败。
 // 入账幂等依赖 status 条件更新（WHERE status=0 原子抢占）。
 type RechargeOrder struct {
-	ID         uint       `gorm:"primaryKey" json:"id"`
-	OrderNo    string     `gorm:"size:64;uniqueIndex;not null" json:"order_no"` // 商户订单号
-	TenantID   uint       `gorm:"index;not null" json:"tenant_id"`              // 充值租户
-	Channel    string     `gorm:"size:16;not null" json:"channel"`              // wechat / alipay
-	AmountFen  int64      `json:"amount_fen"`                                   // 订单金额（分）
-	Points     int64      `json:"points"`                                       // 到账点数
-	DailyQueryLimit int   `gorm:"default:0" json:"daily_query_limit"`           // 套餐解锁的每日查询上限（0=不改变）
-	Status     int        `gorm:"default:0" json:"status"`                      // 0待支付/1已支付/2已关闭/3失败
-	CodeURL    string     `gorm:"type:text" json:"code_url"`                    // 二维码内容（微信 code_url / 支付宝 qr_code）
-	PrepayID   string     `gorm:"size:128" json:"prepay_id"`                    // 第三方预下单号（微信 prepay_id / 支付宝 out_trade_no 等同）
-	TradeNo    string     `gorm:"size:128" json:"trade_no"`                     // 第三方交易号（支付成功后的交易流水号）
-	ExpireTime time.Time  `json:"expire_time"`                                  // 订单过期时间
-	PayTime    *time.Time `json:"pay_time"`                                     // 支付成功时间
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+	ID              uint       `gorm:"primaryKey" json:"id"`
+	OrderNo         string     `gorm:"size:64;uniqueIndex;not null" json:"order_no"` // 商户订单号
+	TenantID        uint       `gorm:"index;not null" json:"tenant_id"`              // 充值租户
+	Channel         string     `gorm:"size:16;not null" json:"channel"`              // wechat / alipay
+	AmountFen       int64      `json:"amount_fen"`                                   // 订单金额（分）
+	Points          int64      `json:"points"`                                       // 到账点数
+	DailyQueryLimit int        `gorm:"default:0" json:"daily_query_limit"`           // 套餐解锁的每日查询上限（0=不改变）
+	Status          int        `gorm:"default:0" json:"status"`                      // 0待支付/1已支付/2已关闭/3失败
+	CodeURL         string     `gorm:"type:text" json:"code_url"`                    // 二维码内容（微信 code_url / 支付宝 qr_code）
+	PrepayID        string     `gorm:"size:128" json:"prepay_id"`                    // 第三方预下单号（微信 prepay_id / 支付宝 out_trade_no 等同）
+	TradeNo         string     `gorm:"size:128" json:"trade_no"`                     // 第三方交易号（支付成功后的交易流水号）
+	ExpireTime      time.Time  `json:"expire_time"`                                  // 订单过期时间
+	PayTime         *time.Time `json:"pay_time"`                                     // 支付成功时间
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // PayCallbackLog 支付回调原始报文日志（用于排查与对账）。
@@ -243,11 +253,11 @@ type HelpDoc struct {
 type AiUsageRecord struct {
 	ID               uint      `gorm:"primaryKey" json:"id"`
 	TenantID         uint      `gorm:"index;not null" json:"tenant_id"`
-	PlatformName     string    `gorm:"size:64;index" json:"platform_name"`  // 平台名（如 DeepSeek）
-	Model            string    `gorm:"size:64" json:"model"`                // 模型名
-	Scene            string    `gorm:"size:32;index" json:"scene"`          // 调用场景：巡检/创作中心/内容投放/平台测试
-	PromptTokens     int64     `json:"prompt_tokens"`                       // 输入 token
-	CompletionTokens int64     `json:"completion_tokens"`                   // 输出 token
-	TotalTokens      int64     `json:"total_tokens"`                        // 总 token
+	PlatformName     string    `gorm:"size:64;index" json:"platform_name"` // 平台名（如 DeepSeek）
+	Model            string    `gorm:"size:64" json:"model"`               // 模型名
+	Scene            string    `gorm:"size:32;index" json:"scene"`         // 调用场景：巡检/创作中心/内容投放/平台测试
+	PromptTokens     int64     `json:"prompt_tokens"`                      // 输入 token
+	CompletionTokens int64     `json:"completion_tokens"`                  // 输出 token
+	TotalTokens      int64     `json:"total_tokens"`                       // 总 token
 	CreatedAt        time.Time `gorm:"index" json:"created_at"`
 }

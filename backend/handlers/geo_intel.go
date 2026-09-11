@@ -202,10 +202,10 @@ type domainCnt struct {
 }
 
 type sourceGapResp struct {
-	TopDomains        []domainCnt `json:"top_domains"`         // 高频引用域名
-	BrandDomains      []domainCnt `json:"brand_domains"`       // 品牌被引用时的信源
-	CompetitorDomains []domainCnt `json:"competitor_domains"`  // 竞品被引用时的信源
-	GapDomains        []domainCnt `json:"gap_domains"`         // 信源缺口（竞品有、品牌没有）
+	TopDomains        []domainCnt `json:"top_domains"`        // 高频引用域名
+	BrandDomains      []domainCnt `json:"brand_domains"`      // 品牌被引用时的信源
+	CompetitorDomains []domainCnt `json:"competitor_domains"` // 竞品被引用时的信源
+	GapDomains        []domainCnt `json:"gap_domains"`        // 信源缺口（竞品有、品牌没有）
 }
 
 // SourceGaps 信源图谱：AI 回答中引用的站点，区分「品牌信源 vs 竞品信源」，
@@ -293,20 +293,24 @@ func sortDomains(m map[string]int64, limit int) []domainCnt {
 
 // geoIndicator 六项指标 + 平台/趋势明细
 type geoIndicator struct {
-	Days         int     `json:"days"`
-	Period       string  `json:"period"`
-	BrandRate    float64 `json:"brand_rate"`     // ① 品牌出现率
-	Top3Rate     float64 `json:"top3_rate"`      // ② 推荐率（TOP3 覆盖）
-	CitationRate float64 `json:"citation_rate"`  // ③ 引用率（有引用链接的回答占比）
-	AccuracyRate float64 `json:"accuracy_rate"`  // ④ 事实一致率（与品牌事实库无冲突）
-	BrandSov     float64 `json:"brand_sov"`      // ⑤a 品牌 AI 声量（出现率）
-	CompetitorSov float64 `json:"competitor_sov"` // ⑤b 竞品声量（提及率）
-	RiskRate     float64 `json:"risk_rate"`      // ⑥ 风险回答率（命中风险词）
-	AvgMention   float64 `json:"avg_mention"`
-	AvgCitation  float64 `json:"avg_citation"`
-	Platforms    []geoPlatform `json:"platforms"`
-	Trend        []TrendPoint  `json:"trend"`
-	Deltas       map[string]float64 `json:"deltas"` // 各核心指标「较前期」变化（百分点）
+	Days          int                `json:"days"`
+	Period        string             `json:"period"`
+	BrandRate     float64            `json:"brand_rate"`     // ① 品牌出现率
+	Top3Rate      float64            `json:"top3_rate"`      // ② 推荐率（TOP3 覆盖）
+	CitationRate  float64            `json:"citation_rate"`  // ③ 引用率（有引用链接的回答占比）
+	AccuracyRate  float64            `json:"accuracy_rate"`  // ④ 事实一致率（与品牌事实库无冲突）
+	BrandSov      float64            `json:"brand_sov"`      // ⑤a 品牌 AI 声量（出现率）
+	CompetitorSov float64            `json:"competitor_sov"` // ⑤b 竞品声量（提及率）
+	RiskRate      float64            `json:"risk_rate"`      // ⑥ 风险回答率（命中风险词）
+	AvgMention    float64            `json:"avg_mention"`
+	AvgCitation   float64            `json:"avg_citation"`
+	Platforms     []geoPlatform      `json:"platforms"`
+	Trend         []TrendPoint       `json:"trend"`
+	Deltas        map[string]float64 `json:"deltas"` // 各核心指标「较前期」变化（百分点）
+	// AI 可见度评分（0~100 综合分 + 四维拆解 + 行业基准 + 改进建议）
+	Visibility visibilityScore `json:"visibility"`
+	// 结果样本量（用于评分置信度提示）
+	SampleCount int `json:"sample_count"`
 }
 
 type geoPlatform struct {
@@ -350,6 +354,7 @@ func GeoIntel(c *gin.Context) {
 	cited, accurate, riskHit := 0, 0, 0
 	compHit := 0
 	mentionSum, citeSum := 0, 0
+	scoreDelta := 0.0
 
 	// 竞品关键词（逗号分隔同义名展开）
 	compWords := make([]string, 0)
@@ -554,14 +559,25 @@ func GeoIntel(c *gin.Context) {
 		lateB, lateT, lateC, lateA, lateR, lateComp := calcSeg(results[:mid])
 		earlyB, earlyT, earlyC, earlyA, earlyR, earlyComp := calcSeg(results[mid:])
 		ind.Deltas = map[string]float64{
-			"brand_rate":      round1(lateB - earlyB),
-			"top3_rate":       round1(lateT - earlyT),
-			"citation_rate":   round1(lateC - earlyC),
-			"accuracy_rate":   round1(lateA - earlyA),
-			"risk_rate":       round1(lateR - earlyR),
-			"competitor_sov":  round1(lateComp - earlyComp),
+			"brand_rate":     round1(lateB - earlyB),
+			"top3_rate":      round1(lateT - earlyT),
+			"citation_rate":  round1(lateC - earlyC),
+			"accuracy_rate":  round1(lateA - earlyA),
+			"risk_rate":      round1(lateR - earlyR),
+			"competitor_sov": round1(lateComp - earlyComp),
 		}
+		// 评分环比：用同一套评分函数分别复算前后期，得到分数变化（避免口径不一致）
+		lateScore := scoreOfResults(results[:mid], citeCnt, facts, risks, compWords)
+		earlyScore := scoreOfResults(results[mid:], citeCnt, facts, risks, compWords)
+		scoreDelta = round1(lateScore - earlyScore)
 	}
+
+	// AI 可见度评分：由六项原始指标合成总分 + 四维拆解 + 行业基准 + 改进建议
+	ind.Visibility = buildVisibilityScore(
+		ind.BrandRate, ind.Top3Rate, ind.CitationRate, ind.AccuracyRate,
+		ind.RiskRate, ind.AvgMention, success, scoreDelta,
+	)
+	ind.SampleCount = success
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": ind})
 }
@@ -577,11 +593,11 @@ type gapItem struct {
 }
 
 type gapResp struct {
-	Total          int        `json:"total"`
-	HighGap        int        `json:"high_gap"`
-	Gaps           []gapItem  `json:"gaps"`
-	CompetitorSOV  []compSOV  `json:"competitor_sov"`
-	UncoveredKeywords []string `json:"uncovered_keywords"`
+	Total             int       `json:"total"`
+	HighGap           int       `json:"high_gap"`
+	Gaps              []gapItem `json:"gaps"`
+	CompetitorSOV     []compSOV `json:"competitor_sov"`
+	UncoveredKeywords []string  `json:"uncovered_keywords"`
 }
 
 type compSOV struct {
@@ -733,9 +749,9 @@ type compareQ struct {
 type compareResp struct {
 	BeforeDays int        `json:"before_days"`
 	AfterDays  int        `json:"after_days"`
-	BrandRate  [2]float64 `json:"brand_rate"`   // [前期, 后期] 品牌出现率
-	FirstRate  [2]float64 `json:"first_rate"`   // [前期, 后期] 首推率
-	Questions  []compareQ `json:"questions"`    // 逐题前后期对比
+	BrandRate  [2]float64 `json:"brand_rate"` // [前期, 后期] 品牌出现率
+	FirstRate  [2]float64 `json:"first_rate"` // [前期, 后期] 首推率
+	Questions  []compareQ `json:"questions"`  // 逐题前后期对比
 }
 
 // CompareGeoIntel 效果归因：对比前后两个时间段的提及率变化。
@@ -1301,6 +1317,25 @@ func fetchHeadOK(client *http.Client, u string) bool {
 	return resp.StatusCode == 200
 }
 
+// fetchAsBot 以指定爬虫 UA 请求 URL，返回状态码与是否拿到响应。
+// 用于「AI 爬虫实测」：站点可能对普通浏览器放行、却对 AI 爬虫返回 403，
+// 必须用真实 UA 逐个验证，才知道 AI 到底有没有能力抓到这个站。
+func fetchAsBot(client *http.Client, u string, botUA string) (int, bool) {
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return 0, false
+	}
+	req.Header.Set("User-Agent", botUA)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, false
+	}
+	io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	resp.Body.Close()
+	return resp.StatusCode, true
+}
+
 // ---------- llms.txt / Schema 生成 ----------
 
 // GenerateLLMS 基于品牌事实库生成 llms.txt 内容
@@ -1326,37 +1361,149 @@ func GenerateLLMS(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"content": b.String(), "filename": "llms.txt"}})
 }
 
-// GenerateSchema 基于品牌事实库生成 schema.org JSON-LD
+// GenerateSchema 基于品牌事实库生成 schema.org JSON-LD。
+// 生产三类最被 AI 引擎采信的结构化数据：
+//
+//	① Organization —— 品牌实体本身（含 sameAs 实体锚定，帮助 AI 消歧）
+//	② FAQPage      —— 事实库中的问答对，直接对应「用户会怎么问 AI」
+//	③ HowTo/ItemList —— 事实条目归类后的结构化呈现
+//
+// 返回 multiple 数组，前端可分文件写入站点。
 func GenerateSchema(c *gin.Context) {
 	tid := TenantID(c)
 	brand := BrandOf(c)
 	var facts []models.FactItem
-	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&facts)
-	description := ""
-	for _, f := range facts {
-		if f.Category == "品类" && description == "" {
-			description = f.Fact
-		}
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Order("id asc").Find(&facts)
+
+	// 站点信息（用于 sameAs / url 实体锚定）
+	siteURL := readSetting(tid, "site_url")
+	if siteURL == "" {
+		siteURL = readSetting(0, "site_url")
 	}
-	type Fact struct {
-		Type string `json:"@type"`
-		Text string `json:"text"`
-	}
+	phone := readSetting(tid, KeyServicePhone)
+
+	// ---- ① Organization：品牌实体 ----
 	org := map[string]interface{}{
 		"@context": "https://schema.org",
 		"@type":    "Organization",
 		"name":     brand,
-		"description": description,
 	}
-	if len(facts) > 0 {
-		factsList := make([]Fact, 0, len(facts))
-		for _, f := range facts {
-			factsList = append(factsList, Fact{Type: f.Category, Text: f.Fact})
+	if siteURL != "" {
+		org["url"] = siteURL
+		// sameAs 是实体锚定的关键：告诉 AI 「这个官网、这个百科、这个公众号是同一个人/机构」
+		org["sameAs"] = []string{siteURL}
+	}
+	if phone != "" {
+		org["contactPoint"] = map[string]interface{}{
+			"@type": "ContactPoint", "telephone": phone, "contactType": "customer service",
 		}
-		org["hasCredential"] = factsList
 	}
-	out, _ := json.MarshalIndent(org, "", "  ")
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"content": string(out), "filename": "schema.jsonld"}})
+	// 按事实分类归纳到 knowsAbout（比 JSON 塞 hasCredential 语义正确）
+	cats := map[string]bool{}
+	for _, f := range facts {
+		if c := strings.TrimSpace(f.Category); c != "" {
+			cats[c] = true
+		}
+	}
+	if len(cats) > 0 {
+		known := make([]string, 0, len(cats))
+		for c := range cats {
+			known = append(known, c)
+		}
+		sort.Strings(known)
+		org["knowsAbout"] = known
+	}
+	// description 取「品类」或「介绍/简介」类事实
+	for _, f := range facts {
+		if c := f.Category; c == "品类" || c == "简介" || c == "介绍" || c == "品牌介绍" {
+			if d, _ := org["description"].(string); d == "" {
+				org["description"] = f.Fact
+			}
+		}
+	}
+	if _, ok := org["description"]; !ok {
+		org["description"] = brand
+	}
+
+	// ---- ② FAQPage：事实库中的问答对（AI 引擎最喜欢直接引用的形态）----
+	type qaPair struct{ Q, A string }
+	pairs := make([]qaPair, 0)
+	for _, f := range facts {
+		q := strings.TrimSpace(f.Question)
+		if q == "" {
+			continue
+		}
+		pairs = append(pairs, qaPair{Q: q, A: f.Fact})
+	}
+	faq := map[string]interface{}{
+		"@context": "https://schema.org",
+		"@type":    "FAQPage",
+		"mainEntity": func() []map[string]interface{} {
+			out := make([]map[string]interface{}, 0, len(pairs))
+			for _, p := range pairs {
+				out = append(out, map[string]interface{}{
+					"@type": "Question",
+					"name":  p.Q,
+					"acceptedAnswer": map[string]interface{}{
+						"@type": "Answer",
+						"text":  p.A,
+					},
+				})
+			}
+			return out
+		}(),
+	}
+
+	// ---- ③ ItemList：事实清单的结构化呈现（无问答时的兜底形态）----
+	type factOut struct {
+		Type string `json:"@type"`
+		Name string `json:"name"`
+		Text string `json:"text"`
+	}
+	listItems := make([]map[string]interface{}, 0, len(facts))
+	for i, f := range facts {
+		name := strings.TrimSpace(f.Category)
+		if name == "" {
+			name = brand + " 品牌事实"
+		}
+		listItems = append(listItems, map[string]interface{}{
+			"@type":    "ListItem",
+			"position": i + 1,
+			"item": factOut{
+				Type: "DefinedTerm",
+				Name: name,
+				Text: f.Fact,
+			},
+		})
+	}
+	itemList := map[string]interface{}{
+		"@context":        "https://schema.org",
+		"@type":           "ItemList",
+		"name":            brand + " 品牌事实清单",
+		"numberOfItems":   len(listItems),
+		"itemListElement": listItems,
+	}
+
+	blocks := []map[string]interface{}{org}
+	if len(pairs) > 0 {
+		blocks = append(blocks, faq)
+	}
+	if len(listItems) > 0 {
+		blocks = append(blocks, itemList)
+	}
+
+	// 兼容旧版：保留 content 字段（输出 Organization 主块），新增 blocks 数组供分文件写入
+	mainOut, _ := json.MarshalIndent(org, "", "  ")
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{
+		"content":  string(mainOut),
+		"filename": "schema.jsonld",
+		"blocks":   blocks,
+		"summary": gin.H{
+			"organization": 1,
+			"faq":          len(pairs),
+			"itemlist":     len(listItems),
+		},
+	}})
 }
 
 // ---------- 工具函数 ----------
