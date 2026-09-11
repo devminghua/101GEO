@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -1491,6 +1490,9 @@ type auditDims struct {
 	Note  string `json:"note"`
 }
 
+// RunAudit 网站 GEO 审计 —— v1.0.33 起与「百度分析 → 站点体检」共用同一套四层加权评分核心
+// （handlers.runSiteAuditCore），彻底消除历史遗留的双口径问题：
+// 同一站点无论在哪个入口跑，分数、等级、待优化项、行动工单都完全一致，且写同一张 audit_results 表。
 func RunAudit(c *gin.Context) {
 	var body struct {
 		URL string `json:"url"`
@@ -1499,175 +1501,23 @@ func RunAudit(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "请提供要审计的站点 URL"})
 		return
 	}
-	target := strings.TrimSpace(body.URL)
-	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
-		target = "https://" + target
-	}
-	u, err := url.Parse(target)
-	if err != nil {
+	target := normalizeAuditURL(body.URL)
+	if target == "" {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "URL 格式错误"})
 		return
 	}
-	host := u.Hostname()
 
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(target)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "无法访问站点: " + err.Error()})
-		return
-	}
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 3*1024*1024))
-	resp.Body.Close()
-	html := string(raw)
-	statusOK := resp.StatusCode == 200
-	contentType := resp.Header.Get("Content-Type")
-	isHTML := strings.Contains(contentType, "text/html") || strings.Contains(html, "<html")
-
-	dims := []auditDims{}
-	score := 0
-
-	// 1 可访问性
-	if statusOK {
-		score += 10
-		dims = append(dims, auditDims{Label: "站点可访问性", Score: 10, Pass: true, Note: "HTTP 200"})
-	} else {
-		dims = append(dims, auditDims{Label: "站点可访问性", Score: 0, Pass: false, Note: fmt.Sprintf("HTTP %d", resp.StatusCode)})
-	}
-
-	// 2 标题与品牌词
-	brand := BrandOf(c)
-	title := firstMatch(html, `<title[^>]*>([^<]{1,200})</title>`)
-	if title != "" && (brand == "" || strings.Contains(title, brand)) {
-		score += 10
-		dims = append(dims, auditDims{Label: "标题与品牌词", Score: 10, Pass: true, Note: title})
-	} else {
-		score += 3
-		dims = append(dims, auditDims{Label: "标题与品牌词", Score: 3, Pass: false, Note: "标题缺失或未含品牌词: " + title})
-	}
-
-	// 3 meta description
-	desc := firstMatch(html, `<meta[^>]+name=["']description["'][^>]+content=["']([^"]{1,300})["']`)
-	if desc == "" {
-		desc = firstMatch(html, `<meta[^>]+content=["']([^"]{1,300})["'][^>]+name=["']description["']`)
-	}
-	if desc != "" {
-		score += 10
-		dims = append(dims, auditDims{Label: "Meta 描述", Score: 10, Pass: true, Note: truncateCN(desc, 60)})
-	} else {
-		dims = append(dims, auditDims{Label: "Meta 描述", Score: 0, Pass: false, Note: "缺少 meta description"})
-	}
-
-	// 4 H1 结构
-	h1s := regexp.MustCompile(`<h1[^>]*>`).FindAllString(html, -1)
-	if len(h1s) >= 1 && len(h1s) <= 3 {
-		score += 10
-		dims = append(dims, auditDims{Label: "H1 标题结构", Score: 10, Pass: true, Note: fmt.Sprintf("%d 个 H1", len(h1s))})
-	} else if len(h1s) == 0 {
-		dims = append(dims, auditDims{Label: "H1 标题结构", Score: 0, Pass: false, Note: "未检测到 H1"})
-	} else {
-		score += 5
-		dims = append(dims, auditDims{Label: "H1 标题结构", Score: 5, Pass: false, Note: fmt.Sprintf("%d 个 H1（建议 1 个）", len(h1s))})
-	}
-
-	// 5 结构化数据
-	hasJSONLD := strings.Contains(html, "application/ld+json") || strings.Contains(html, "application/ld+json")
-	hasMicro := strings.Contains(html, "itemscope") || strings.Contains(html, "itemtype=")
-	if hasJSONLD || hasMicro {
-		score += 10
-		dims = append(dims, auditDims{Label: "结构化数据", Score: 10, Pass: true, Note: "检测到 JSON-LD / Microdata"})
-	} else {
-		dims = append(dims, auditDims{Label: "结构化数据", Score: 0, Pass: false, Note: "缺少 Schema 结构化数据，AI 难以理解实体关系"})
-	}
-
-	// 6 llms.txt
-	if fetchHeadOK(client, strings.TrimRight(target, "/")+"/llms.txt") {
-		score += 10
-		dims = append(dims, auditDims{Label: "llms.txt", Score: 10, Pass: true, Note: "存在 /llms.txt，可直接喂给大模型"})
-	} else {
-		dims = append(dims, auditDims{Label: "llms.txt", Score: 0, Pass: false, Note: "缺少 llms.txt，建议生成供大模型友好读取"})
-	}
-
-	// 7 robots.txt
-	if fetchHeadOK(client, strings.TrimRight(target, "/")+"/robots.txt") {
-		score += 10
-		dims = append(dims, auditDims{Label: "robots.txt", Score: 10, Pass: true, Note: "存在 robots.txt"})
-	} else {
-		score += 5
-		dims = append(dims, auditDims{Label: "robots.txt", Score: 5, Pass: false, Note: "未检测到 robots.txt（建议补充）"})
-	}
-
-	// 8 页面体积
-	if len(raw) < 2*1024*1024 {
-		score += 10
-		dims = append(dims, auditDims{Label: "页面体积", Score: 10, Pass: true, Note: fmt.Sprintf("%.1f KB", float64(len(raw))/1024)})
-	} else {
-		score += 4
-		dims = append(dims, auditDims{Label: "页面体积", Score: 4, Pass: false, Note: fmt.Sprintf("%.1f MB，建议压缩", float64(len(raw))/1024/1024)})
-	}
-
-	// 9 图片 alt
-	imgN := len(regexp.MustCompile(`<img[^>]*>`).FindAllString(html, -1))
-	altN := len(regexp.MustCompile(`<img[^>]*alt=["'][^"']+["']`).FindAllString(html, -1))
-	if imgN == 0 || altN == imgN {
-		score += 10
-		dims = append(dims, auditDims{Label: "图片 Alt", Score: 10, Pass: true, Note: fmt.Sprintf("%d 张图全部带 alt", imgN)})
-	} else {
-		score += 5
-		dims = append(dims, auditDims{Label: "图片 Alt", Score: 5, Pass: false, Note: fmt.Sprintf("%d 张图中 %d 张缺 alt", imgN, imgN-altN)})
-	}
-
-	// 10 正文可读性
-	textLen := len(stripTags(html))
-	hasBody := textLen > 500
-	if hasBody && isHTML {
-		score += 10
-		dims = append(dims, auditDims{Label: "正文可读性", Score: 10, Pass: true, Note: fmt.Sprintf("提取正文约 %d 字", textLen)})
-	} else {
-		dims = append(dims, auditDims{Label: "正文可读性", Score: 0, Pass: false, Note: "正文内容过少或非 HTML"})
-	}
-
-	level := "poor"
-	if score >= 90 {
-		level = "excellent"
-	} else if score >= 70 {
-		level = "good"
-	} else if score >= 50 {
-		level = "medium"
-	}
-
-	// findings：未满分项
-	findings := []string{}
-	for _, d := range dims {
-		if d.Pass == false {
-			findings = append(findings, d.Label+": "+d.Note)
-		}
-	}
-	if level != "excellent" {
-		for _, d := range dims {
-			if d.Pass && d.Score < 10 {
-				findings = append(findings, d.Label+": 部分通过，可进一步优化")
-			}
-		}
-	}
-
-	dimJSON, _ := json.Marshal(dims)
-	findJSON, _ := json.Marshal(findings)
-	rec := models.AuditResult{
-		TenantID: TenantID(c), URL: target, Score: score, Level: level,
-		Dimensions: string(dimJSON), Findings: string(findJSON),
-	}
-	database.DB.Create(&rec)
-
-	// 审计低分自动生成行动任务
-	if score < 70 {
-		for _, f := range findings {
-			createOptTaskIfMissing(TenantID(c), "audit", "网站优化: "+f, "站点 "+target+" 审计得分 "+strconv.Itoa(score)+"。"+f, 2, "audit:"+target+":"+f)
-		}
-	}
+	tid := TenantID(c)
+	client := &http.Client{Timeout: 20 * time.Second}
+	rep := runSiteAuditCore(client, target, BrandOf(c))
+	id := saveAuditResult(tid, target, rep)
+	spawnAuditTasks(tid, target, rep)
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{
-		"id": rec.ID, "url": target, "score": score, "level": level,
-		"dimensions": dims, "findings": findings, "host": host,
+		"id": id, "url": rep.URL, "score": rep.Score, "level": rep.Level,
+		"dimensions": rep.Dimensions, "findings": rep.Findings,
+		"layers": rep.Layers, "grade_dist": rep.GradeDist,
+		"overall_note": rep.OverallNote, "host": rep.Host,
 	}})
 }
 

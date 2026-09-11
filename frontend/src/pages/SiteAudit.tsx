@@ -62,7 +62,8 @@ export default function SiteAudit() {
           <Button type="primary" icon={<IconLaunch />} loading={loading} onClick={run}>开始体检</Button>
         </Space>
         <div style={{ marginTop: 8, fontSize: 13, color: '#86909C' }}>
-          按「访问 → 定向 → 理解 → 可引用」四层体检：每层依赖上一层，访问层失败时下游一切优化在引擎侧不可见。
+          按「访问 → 定向 → 理解 → 可引用」四层加权体检（权重 30/18/32/20），每层依赖上一层，访问层失败时下游一切优化在引擎侧不可见。
+          与「GEO 智能 → ⑧ 网站审计」共用同一套评分核心与历史记录，两个入口结果完全一致。
         </div>
       </Card>
 
@@ -82,6 +83,19 @@ export default function SiteAudit() {
                 <div style={{ fontSize: 12, color: '#86909C', marginTop: 4 }}>{data.url}</div>
               </div>
             </Space>
+            {(data.layers || []).length > 0 && (
+              <div style={{ marginTop: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                {data.layers.map((l: any) => (
+                  <div key={l.key} style={{ flex: '1 1 150px', minWidth: 150 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                      <span><b style={{ color: LAYER_META[l.key]?.color }}>{l.label}</b></span>
+                      <span style={{ color: '#86909C' }}>{l.score ?? '-'}<span style={{ opacity: 0.6 }}>/{l.weight ?? '-'}</span></span>
+                    </div>
+                    <Progress percent={l.weight ? ((l.score || 0) / l.weight) * 100 : 0} size="small" color={LAYER_META[l.key]?.color} formatText={() => ''} />
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           <GridRow gutter={[16, 16]}>

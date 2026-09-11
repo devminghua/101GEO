@@ -1440,8 +1440,15 @@ function CitationTab() {
 }
 
 /* ============================================================
- * Tab7 网站 GEO 审计
+ * Tab7 网站 GEO 审计（v1.0.33 起与「百度分析 → 站点体检」共用同一套四层加权口径）
  * ============================================================ */
+const AUDIT_LAYER_COLOR: any = {
+  access: '#F53F3F',
+  direct: '#FF7D00',
+  understand: '#165DFF',
+  citable: '#00B42A',
+};
+
 function AuditTab() {
   const [url, setUrl] = useState('');
   const [auditing, setAuditing] = useState(false);
@@ -1481,17 +1488,45 @@ function AuditTab() {
   return (
     <GridRow gutter={[16, 16]}>
       <GridCol span={10}>
-        <Card title="运行站点 GEO 审计（AI 可读性 / 收录友好度评分）">
+        <Card title="运行站点 GEO 审计（四层加权：访问 / 定向 / 理解 / 可引用）">
           <Space style={{ width: '100%', marginBottom: 12 }}>
             <Input placeholder="如：https://www.example.com" value={url} onChange={setUrl} style={{ flex: 1 }} onPressEnter={run} />
             <Button type="primary" icon={<IconThunderbolt />} loading={auditing} onClick={run}>开始审计</Button>
           </Space>
+          <div style={{ fontSize: 12, color: '#86909C', marginBottom: 12 }}>
+            与「百度分析 → 站点体检」共用同一套评分核心，同一站点两个入口结果完全一致，历史记录也通用。
+          </div>
           {result && (
             <div>
               <div style={{ textAlign: 'center', margin: '8px 0 16px' }}>
                 <Statistic title={`综合评分 · ${result.url}`} value={result.score} suffix="/100" />
                 <div style={{ marginTop: 4 }}><Tag color={levelMap[result.level]?.c}>{levelMap[result.level]?.t}</Tag></div>
               </div>
+              {(result.layers || []).length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  {(result.layers || []).map((l: any) => {
+                    const color = AUDIT_LAYER_COLOR[l.key] || '#86909C';
+                    return (
+                      <div key={l.key} style={{ marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3 }}>
+                          <Space size={6}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block' }} />
+                            <b>{l.label}</b>
+                            <Text type="secondary" style={{ fontSize: 12 }}>权重 {l.weight}</Text>
+                          </Space>
+                          <b style={{ color }}>{l.score}<span style={{ color: '#86909C', fontWeight: 400 }}>/{l.weight}</span></b>
+                        </div>
+                        <Progress
+                          percent={l.weight ? (l.score / l.weight) * 100 : 0}
+                          size="small"
+                          color={color}
+                          formatText={() => ''}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               {(result.dimensions || []).map((d: any, i: number) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px dashed var(--color-border-2)' }}>
                   <Text style={{ fontSize: 13 }}>{d.label}</Text>
@@ -1507,11 +1542,11 @@ function AuditTab() {
               )}
             </div>
           )}
-          {!result && !auditing && <Empty description="输入站点 URL 开始审计，评估其对 AI 搜索引擎的友好度" />}
+          {!result && !auditing && <Empty description="输入站点 URL 开始审计，按「访问 → 定向 → 理解 → 可引用」四层评估 AI 友好度" />}
         </Card>
       </GridCol>
       <GridCol span={14}>
-        <Card title="审计历史">
+        <Card title="审计历史（与站点体检共用）">
           <Table
             size="small" rowKey="id" pagination={false}
             data={history}
