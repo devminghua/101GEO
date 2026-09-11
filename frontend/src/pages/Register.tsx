@@ -113,11 +113,12 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
   };
 
   const submit = async () => {
-    const values = await form.validate();
+    // 协议优先校验：未勾选直接提示，避免用户先被表单字段错误淹没
     if (agreement.enabled && !agreed) {
       Message.error(`请先阅读并勾选同意《${agreement.title}》`);
       return;
     }
+    const values = await form.validate();
     if (!USERNAME_RE.test((values.username || '').trim())) {
       Message.error('登录账号仅限 3-32 位字母/数字/下划线/连字符');
       return;
