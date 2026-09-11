@@ -21,9 +21,10 @@ import (
 )
 
 // 注册开通试用配置（可通过总后台全局设置覆盖，均留默认值即开箱可用）：
-//   register_enabled      = "0" 关闭自助注册（默认开启）
-//   register_trial_days   = 试用天数（默认 7 天）
-//   register_trial_points = 试用赠送点数（默认 100 点，便于试用期内跑巡检）
+//
+//	register_enabled      = "0" 关闭自助注册（默认开启）
+//	register_trial_days   = 试用天数（默认 7 天）
+//	register_trial_points = 试用赠送点数（默认 100 点，便于试用期内跑巡检）
 const (
 	defTrialDays   = 7
 	defTrialPoints = 100
@@ -102,7 +103,8 @@ type registerReq struct {
 	Code        string `json:"code"`
 	Password    string `json:"password"`
 	CompanyName string `json:"company_name"`
-	Ref         string `json:"ref"` // 邀请码（被邀请注册时带上，注册成功给邀请人发奖励）
+	Ref         string `json:"ref"`    // 邀请码（被邀请注册时带上，注册成功给邀请人发奖励）
+	Agreed      bool   `json:"agreed"` // 是否已勾选同意《网站注册安全协议》
 }
 
 // usernameRe 登录账号：字母/数字/下划线/连字符，3-32 位。
@@ -163,6 +165,11 @@ func Register(c *gin.Context) {
 	}
 	if len([]rune(req.CompanyName)) > 64 {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "公司/机构名称过长（最多 64 字）"})
+		return
+	}
+	// 网站注册安全协议：SaaS 端开启时必须勾选同意（前端已拦，此处兜底防绕过）
+	if agreementEnabled() && !req.Agreed {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "请先阅读并同意《" + agreementTitle() + "》"})
 		return
 	}
 

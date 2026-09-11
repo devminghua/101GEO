@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -28,7 +29,57 @@ const (
 	settingSmtpUser = "smtp_user"
 	settingSmtpPass = "smtp_pass" // enc:v1 加密存储
 	settingSmtpFrom = "smtp_from"
+	// 网站注册安全协议（注册页勾选，内容由 SaaS 端维护）
+	settingAgreementEnabled = "register_agreement_enabled" // "1"=注册需勾选同意（默认开启）；"0"=不需要
+	settingAgreementTitle   = "register_agreement_title"   // 协议标题
+	settingAgreementContent = "register_agreement_content" // 协议正文（支持换行纯文本）
+	settingAgreementUpdate  = "register_agreement_updated" // 最近修改时间（YYYY-MM-DD）
 )
+
+// defAgreementTitle / defAgreementContent 未配置时的默认注册安全协议。
+const (
+	defAgreementTitle   = "网站注册安全协议"
+	defAgreementContent = `欢迎注册使用本平台（以下简称"本平台"）。为保障您的账号与数据安全，请在注册前仔细阅读并同意以下条款：
+
+一、账号安全
+1. 您注册时填写的登录账号、手机号或邮箱应真实有效，且为您本人所有或已获合法授权。
+2. 请妥善保管账号与密码，不要向他人泄露。因您保管不善导致的损失，由您自行承担。
+3. 本平台采用加密方式存储密码，任何工作人员均不会向您索要密码。
+
+二、信息收集与使用
+1. 本平台仅收集为提供服务所必需的信息（登录账号、手机号/邮箱、公司/机构名称等）。
+2. 您的信息仅用于身份验证、服务开通、安全风控与必要的服务通知，不会向无关第三方出售或非法披露。
+3. 本平台将依照《中华人民共和国网络安全法》《中华人民共和国个人信息保护法》等法律法规处理您的个人信息。
+
+三、用户行为规范
+1. 您承诺不利用本平台从事任何违法违规活动，不发布违法违规内容。
+2. 不得使用自动化工具恶意注册、批量注册或攻击本平台服务。
+
+四、协议变更
+本协议内容可能根据法律法规或业务需要更新，更新后将在注册页公示。继续使用本平台即视为接受更新后的协议。
+
+如您同意以上条款，请勾选"我已阅读并同意"后完成注册。`
+)
+
+// agreementEnabled 注册是否需勾选安全协议（默认需要）。
+func agreementEnabled() bool {
+	return getGlobalSetting(settingAgreementEnabled) != "0"
+}
+
+// agreementTitle / agreementContent 读取协议标题与正文（未配置走默认文案）。
+func agreementTitle() string {
+	if t := strings.TrimSpace(getGlobalSetting(settingAgreementTitle)); t != "" {
+		return t
+	}
+	return defAgreementTitle
+}
+
+func agreementContent() string {
+	if s := getGlobalSetting(settingAgreementContent); strings.TrimSpace(s) != "" {
+		return s
+	}
+	return defAgreementContent
+}
 
 // emailRe 邮箱格式校验。
 var emailRe = regexp.MustCompile(`^[\w.+-]+@[\w-]+(\.[\w-]+)+$`)
@@ -116,6 +167,11 @@ func RegisterConfig(c *gin.Context) {
 		"register_enabled": getGlobalSetting("register_enabled") != "0",
 		"verify_mode":      verifyMode(), // sms / email / off
 		"sms_required":     verifyMode() == "sms",
+		// 网站注册安全协议（SaaS 端可编辑）
+		"agreement_enabled": agreementEnabled(),
+		"agreement_title":   agreementTitle(),
+		"agreement_content": agreementContent(),
+		"agreement_updated": getGlobalSetting(settingAgreementUpdate),
 	}})
 }
 
@@ -135,6 +191,11 @@ func GetSmsConfig(c *gin.Context) {
 		"smtp_user": getGlobalSetting(settingSmtpUser),
 		"smtp_pass": maskSecret(smtpPlainPassword()),
 		"smtp_from": getGlobalSetting(settingSmtpFrom),
+		// 网站注册安全协议
+		"agreement_enabled": agreementEnabled(),
+		"agreement_title":   agreementTitle(),
+		"agreement_content": agreementContent(),
+		"agreement_updated": getGlobalSetting(settingAgreementUpdate),
 	}})
 }
 
@@ -152,7 +213,7 @@ func smtpPlainPassword() string {
 // SaveSmsConfig 保存注册验证配置（super）。密钥类字段留空或含 * 表示不修改（脱敏回显场景）。
 func SaveSmsConfig(c *gin.Context) {
 	var req struct {
-		VerifyMode      string `json:"verify_mode"` // sms / email / off
+		VerifyMode      string `json:"verify_mode"`  // sms / email / off
 		SmsRequired     bool   `json:"sms_required"` // 兼容旧前端：true=短信
 		Provider        string `json:"provider"`
 		AccessKeyID     string `json:"access_key_id"`
@@ -164,6 +225,10 @@ func SaveSmsConfig(c *gin.Context) {
 		SmtpUser        string `json:"smtp_user"`
 		SmtpPass        string `json:"smtp_pass"`
 		SmtpFrom        string `json:"smtp_from"`
+		// 网站注册安全协议
+		AgreementEnabled bool    `json:"agreement_enabled"`
+		AgreementTitle   *string `json:"agreement_title"`
+		AgreementContent *string `json:"agreement_content"`
 	}
 	if !jsonBody(c, &req) {
 		return
@@ -202,6 +267,28 @@ func SaveSmsConfig(c *gin.Context) {
 		}
 	}
 	upsertGlobalSetting(settingSmtpFrom, strings.TrimSpace(req.SmtpFrom))
+	// 网站注册安全协议：Enabled 用普通 bool；标题/正文用指针区分"未传"与"清空"
+	if req.AgreementEnabled {
+		upsertGlobalSetting(settingAgreementEnabled, "1")
+	} else {
+		upsertGlobalSetting(settingAgreementEnabled, "0")
+	}
+	changed := false
+	if req.AgreementTitle != nil {
+		if t := strings.TrimSpace(*req.AgreementTitle); t != "" {
+			upsertGlobalSetting(settingAgreementTitle, t)
+			changed = true
+		}
+	}
+	if req.AgreementContent != nil {
+		if v := strings.TrimSpace(*req.AgreementContent); v != "" {
+			upsertGlobalSetting(settingAgreementContent, v)
+			changed = true
+		}
+	}
+	if changed {
+		upsertGlobalSetting(settingAgreementUpdate, time.Now().Format("2006-01-02"))
+	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已保存"})
 }
 

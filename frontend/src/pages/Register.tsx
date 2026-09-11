@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, Typography, Message } from '@arco-design/web-react';
+import { Card, Checkbox, Form, Input, Button, Typography, Message, Modal } from '@arco-design/web-react';
 import { IconUser, IconLock, IconMobile, IconEmail, IconIdcard } from '@arco-design/web-react/icon';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setAuth } from '../api';
@@ -22,10 +22,25 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
   const [debugCode, setDebugCode] = useState(''); // 【Mock】联调回显验证码，接入真实发送后移除
   const [sysInfo, setSysInfo] = useState<any>(null);
   const [verifyMode, setVerifyMode] = useState<'sms' | 'email' | 'off'>('sms'); // 验证方式（总后台设置控制）
+  // 网站注册安全协议（SaaS 端可编辑）
+  const [agreement, setAgreement] = useState({ enabled: true, title: '网站注册安全协议', content: '', updated: '' });
+  const [agreed, setAgreed] = useState(false);
+  const [agreementVisible, setAgreementVisible] = useState(false);
 
   useEffect(() => {
     api.systemInfo().then((s: any) => setSysInfo(s || {})).catch(() => {});
-    api.registerConfig().then((c: any) => setVerifyMode(c?.verify_mode || (c?.sms_required ? 'sms' : 'off'))).catch(() => {});
+    api
+      .registerConfig()
+      .then((c: any) => {
+        setVerifyMode(c?.verify_mode || (c?.sms_required ? 'sms' : 'off'));
+        setAgreement({
+          enabled: c?.agreement_enabled !== false,
+          title: (c?.agreement_title || '网站注册安全协议').trim(),
+          content: c?.agreement_content || '',
+          updated: c?.agreement_updated || '',
+        });
+      })
+      .catch(() => {});
   }, []);
 
   // 获取验证码 60s 倒计时
@@ -99,6 +114,10 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
 
   const submit = async () => {
     const values = await form.validate();
+    if (agreement.enabled && !agreed) {
+      Message.error(`请先阅读并勾选同意《${agreement.title}》`);
+      return;
+    }
     if (!USERNAME_RE.test((values.username || '').trim())) {
       Message.error('登录账号仅限 3-32 位字母/数字/下划线/连字符');
       return;
@@ -129,6 +148,7 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
         password: values.password,
         company_name: (values.company_name || '').trim(),
         ref: refCode,
+        agreed,
       });
       setAuth(data);
       Message.success('注册成功，已自动开通试用');
@@ -282,6 +302,24 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
             <Input prefix={<IconUser />} placeholder="将作为您的分站名称" size="large" maxLength={64} />
           </Form.Item>
 
+          {agreement.enabled && (
+            <div style={{ marginTop: -4, marginBottom: 12 }}>
+              <Checkbox checked={agreed} onChange={setAgreed}>
+                <span style={{ fontSize: 13 }}>我已阅读并同意</span>
+                <a
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setAgreementVisible(true);
+                  }}
+                  href="#"
+                  style={{ fontSize: 13, color: '#4F46E5' }}
+                >
+                  《{agreement.title}》
+                </a>
+              </Checkbox>
+            </div>
+          )}
+
           <Button type="primary" long size="large" loading={loading} onClick={submit} style={{ marginTop: 4 }}>
             注 册
           </Button>
@@ -296,6 +334,37 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
           </Button>
         </div>
       </Card>
+
+      <Modal
+        title={agreement.title}
+        visible={agreementVisible}
+        onCancel={() => setAgreementVisible(false)}
+        footer={
+          <div style={{ textAlign: 'right' }}>
+            <Button onClick={() => setAgreementVisible(false)}>关闭</Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                setAgreed(true);
+                setAgreementVisible(false);
+              }}
+            >
+              我已阅读并同意
+            </Button>
+          </div>
+        }
+        autoFocus={false}
+        style={{ width: 620 }}
+      >
+        <div style={{ maxHeight: '52vh', overflow: 'auto', whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.9, color: 'var(--color-text-1)' }}>
+          {agreement.content || '协议内容暂未配置。'}
+        </div>
+        {agreement.updated && (
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 10 }}>
+            最近更新日期：{agreement.updated}
+          </Typography.Text>
+        )}
+      </Modal>
     </div>
   );
 }

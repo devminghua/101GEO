@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { Card, Form, Input, Switch, Radio, Button, Message, Typography, Alert, Divider, InputNumber } from '@arco-design/web-react';
 import { api } from '../../api';
 
-// 注册验证设置（总后台 super）：验证方式（短信 / 邮箱 / 关闭）+ 短信服务商 + SMTP 邮箱配置。
+// 注册验证设置（总后台 super）：验证方式（短信 / 邮箱 / 关闭）+ 短信服务商 + SMTP 邮箱配置 + 网站注册安全协议。
 // 配置存全局（tenant_id=0），所有分站的自主注册共用同一套。
 export default function SmsConfig() {
   const [loading, setLoading] = useState(false);
   const [provider, setProvider] = useState('mock');
   const [form] = Form.useForm();
   const verifyMode = Form.useWatch('verify_mode', form) ?? 'sms';
+  const agreementEnabled = Form.useWatch('agreement_enabled', form) ?? true;
 
   const load = async () => {
     try {
@@ -27,6 +28,9 @@ export default function SmsConfig() {
         smtp_user: c.smtp_user,
         smtp_pass: c.smtp_pass, // 脱敏值，留空/含 * 表示保存时不修改
         smtp_from: c.smtp_from,
+        agreement_enabled: c.agreement_enabled !== false,
+        agreement_title: c.agreement_title,
+        agreement_content: c.agreement_content,
       });
     } catch {
       /* 忽略 */
@@ -52,6 +56,9 @@ export default function SmsConfig() {
         smtp_user: v.smtp_user || '',
         smtp_pass: v.smtp_pass || '',
         smtp_from: v.smtp_from || '',
+        agreement_enabled: v.agreement_enabled !== false,
+        agreement_title: v.agreement_title || '',
+        agreement_content: v.agreement_content || '',
       });
       Message.success('已保存');
       load();
@@ -67,7 +74,7 @@ export default function SmsConfig() {
       <Alert
         type="info"
         style={{ marginBottom: 20 }}
-        content="以下配置对全部分站的自主注册统一生效。验证方式三选一：短信验证码 / 邮箱验证码 / 全部关闭（直接注册）。"
+        content="以下配置对全部分站的自主注册统一生效。验证方式三选一：短信验证码 / 邮箱验证码 / 全部关闭（直接注册）；页面底部可维护注册页的《网站注册安全协议》。"
       />
       <Form form={form} layout="vertical" initialValues={{ verify_mode: 'sms', provider: 'mock' }}>
         <Form.Item label="注册验证方式" field="verify_mode">
@@ -136,6 +143,35 @@ export default function SmsConfig() {
             </Form.Item>
             <Form.Item label="发件人地址" field="smtp_from" extra="一般与发件账号一致">
               <Input placeholder="如：LinkGeo <service@yourdomain.com>" />
+            </Form.Item>
+          </>
+        )}
+
+        <Divider />
+        <Typography.Title heading={6} style={{ marginTop: 4 }}>网站注册安全协议</Typography.Title>
+        <Form.Item
+          label="注册时需勾选同意"
+          field="agreement_enabled"
+          triggerPropName="checked"
+        >
+          <Switch checkedText="开启" uncheckedText="关闭" />
+        </Form.Item>
+        <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: -12, marginBottom: 16 }}>
+          开启后，注册页展示协议勾选框，未勾选不允许提交注册；关闭则注册页不展示该勾选项。协议内容对全部分站统一生效。
+        </div>
+
+        {agreementEnabled && (
+          <>
+            <Form.Item label="协议标题" field="agreement_title" rules={[{ required: true, message: '请输入协议标题' }]}>
+              <Input placeholder="如：网站注册安全协议" maxLength={64} />
+            </Form.Item>
+            <Form.Item
+              label="协议正文"
+              field="agreement_content"
+              rules={[{ required: true, message: '请输入协议正文' }]}
+              extra="支持换行，按纯文本展示；注册页点协议标题可弹窗查看全文"
+            >
+              <Input.TextArea autoSize={{ minRows: 12, maxRows: 24 }} placeholder="请输入注册安全协议全文…" />
             </Form.Item>
           </>
         )}
