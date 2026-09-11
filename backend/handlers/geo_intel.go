@@ -890,7 +890,11 @@ func UpdateOptTask(c *gin.Context) {
 			now := time.Now()
 			updates["done_at"] = &now
 		} else {
+			// 重开任务时清掉复测结论，避免残留旧结论误导
 			updates["done_at"] = nil
+			updates["verify_status"] = ""
+			updates["verify_note"] = ""
+			updates["verified_at"] = nil
 		}
 	}
 	if body.Priority > 0 {
@@ -905,6 +909,167 @@ func UpdateOptTask(c *gin.Context) {
 func DeleteOptTask(c *gin.Context) {
 	database.DB.Where("id = ? AND tenant_id = ?", c.Param("id"), TenantID(c)).Delete(&models.OptTask{})
 	c.JSON(http.StatusOK, gin.H{"code": 0})
+}
+
+// VerifyOptTaskLoop 闭环复测：对已完成的行动项回测效果。
+// 做法是「任务完成时间点前 7 天 vs 后 7 天」对比，用同口径指标验证改动是否真的生效，
+// 并把结论写回任务（improved / unchanged / worse）。
+// 为什么需要：只有「完成」没有「验证」的行动清单是假闭环——运营会习惯性点完成，
+// 但没人知道内容到底有没有被 AI 采纳。复测把这条链路闭合。
+func VerifyOptTaskLoop(c *gin.Context) {
+	tid := TenantID(c)
+	var t models.OptTask
+	if err := database.DB.Where("id = ? AND tenant_id = ?", c.Param("id"), tid).First(&t).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 1, "msg": "行动项不存在"})
+		return
+	}
+	if t.Status != "done" || t.DoneAt == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "请先标记该行动项为「已完成」，再做复测"})
+		return
+	}
+
+	pivot := *t.DoneAt
+	var before, after []models.CheckResult
+	database.DB.Where("tenant_id = ? AND created_at >= ? AND created_at < ? AND error_msg = ''",
+		tid, pivot.AddDate(0, 0, -7), pivot).Find(&before)
+	database.DB.Where("tenant_id = ? AND created_at >= ? AND created_at < ? AND error_msg = ''",
+		tid, pivot, pivot.AddDate(0, 0, 7)).Find(&after)
+
+	if len(after) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "完成后还没有新的巡检数据，无法复测。请先执行一次巡检"})
+		return
+	}
+	if len(before) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "完成前 7 天没有巡检基线数据，无法对比"})
+		return
+	}
+
+	// 按任务类型选取最能反映该任务效果的指标
+	metricOf := func(rs []models.CheckResult) float64 {
+		if len(rs) == 0 {
+			return 0
+		}
+		switch t.Type {
+		case "citation":
+			// 引用率：按有引用的结果占比
+			ids := make([]uint, 0, len(rs))
+			for _, r := range rs {
+				ids = append(ids, r.ID)
+			}
+			var cites []models.Citation
+			database.DB.Where("tenant_id = ? AND result_id IN ? AND domain != ''", tid, ids).Find(&cites)
+			seen := map[uint]bool{}
+			for _, ct := range cites {
+				seen[ct.ResultID] = true
+			}
+			return round1(float64(len(seen)) / float64(len(rs)) * 100)
+		case "risk":
+			// 风险回答率（越低越好）
+			var risks []models.RiskWord
+			database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&risks)
+			hit := 0
+			for _, r := range rs {
+				low := strings.ToLower(r.Response)
+				for _, rw := range risks {
+					if rw.Word != "" && strings.Contains(low, strings.ToLower(rw.Word)) {
+						hit++
+						break
+					}
+				}
+			}
+			return round1(float64(hit) / float64(len(rs)) * 100)
+		default:
+			// gap / competitor / audit 等都看品牌出现率
+			h := 0
+			for _, r := range rs {
+				if r.Hit {
+					h++
+				}
+			}
+			return round1(float64(h) / float64(len(rs)) * 100)
+		}
+	}
+
+	bv := metricOf(before)
+	av := metricOf(after)
+	diff := round1(av - bv)
+
+	// 风险类任务指标越低越好，判定方向相反
+	metricName := "品牌出现率"
+	improved := diff >= 5
+	worse := diff <= -5
+	if t.Type == "citation" {
+		metricName = "引用率"
+	} else if t.Type == "risk" {
+		metricName = "风险回答率"
+		improved = diff <= -5
+		worse = diff >= 5
+	}
+
+	status := "unchanged"
+	label := "无变化"
+	if improved {
+		status, label = "improved", "已改善"
+	} else if worse {
+		status, label = "worse", "变差"
+	}
+	note := fmt.Sprintf("完成前 7 天 %s %.1f%%（%d 条样本），完成后 7 天 %.1f%%（%d 条样本），变化 %+.1f 个百分点 → %s",
+		metricName, bv, len(before), av, len(after), diff, label)
+
+	now := time.Now()
+	database.DB.Model(&t).Updates(map[string]interface{}{
+		"verify_status": status, "verify_note": note, "verified_at": &now,
+	})
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{
+		"verify_status": status, "metric": metricName,
+		"before": bv, "after": av, "delta": diff,
+		"before_samples": len(before), "after_samples": len(after),
+		"note": note,
+	}})
+}
+
+// LoopSummary 闭环概览：一眼看清「监测 → 诊断 → 行动 → 复测」四段各有多少积压。
+func LoopSummary(c *gin.Context) {
+	tid := TenantID(c)
+
+	var open, doing, done, verified, improved int64
+	database.DB.Model(&models.OptTask{}).Where("tenant_id = ? AND status = ?", tid, "open").Count(&open)
+	database.DB.Model(&models.OptTask{}).Where("tenant_id = ? AND status = ?", tid, "doing").Count(&doing)
+	database.DB.Model(&models.OptTask{}).Where("tenant_id = ? AND status = ?", tid, "done").Count(&done)
+	database.DB.Model(&models.OptTask{}).Where("tenant_id = ? AND verify_status <> ''", tid).Count(&verified)
+	database.DB.Model(&models.OptTask{}).Where("tenant_id = ? AND verify_status = ?", tid, "improved").Count(&improved)
+
+	// 监测：近 7 天是否有巡检数据
+	since := time.Now().AddDate(0, 0, -7)
+	var recent int64
+	database.DB.Model(&models.CheckResult{}).Where("tenant_id = ? AND created_at >= ?", tid, since).Count(&recent)
+
+	// 诊断：关键词 / 话题簇
+	var kwCnt, clCnt, unclassified int64
+	database.DB.Model(&models.GeoKeyword{}).Where("tenant_id = ? AND enabled = ?", tid, true).Count(&kwCnt)
+	database.DB.Model(&models.KeywordCluster{}).Where("tenant_id = ?", tid).Count(&clCnt)
+	database.DB.Model(&models.GeoKeyword{}).Where("tenant_id = ? AND enabled = ? AND cluster_id = 0", tid, true).Count(&unclassified)
+
+	steps := []gin.H{
+		{"key": "monitor", "name": "监测", "value": recent, "unit": "条回答（近 7 天）",
+			"done": recent > 0, "hint": "在「巡检任务」中执行巡检，或在 AI 平台配置后等待自动巡检"},
+		{"key": "diagnose", "name": "诊断", "value": clCnt, "unit": "个话题簇",
+			"done": clCnt > 0 && unclassified < kwCnt, "hint": "用「话题簇」的 AI 一键聚类，把关键词按搜索意图分组后看结构性缺口"},
+		{"key": "action", "name": "行动", "value": open + doing, "unit": "项待办",
+			"done": open+doing == 0, "hint": "点「一键生成行动清单」，系统会从巡检数据推导具体要做的事"},
+		{"key": "verify", "name": "复测", "value": verified, "unit": "项已验证",
+			"done": verified > 0 && improved > 0, "hint": "完成行动项后点「复测」，用完成前后 7 天数据验证是否真的生效"},
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{
+		"steps": steps,
+		"counts": gin.H{
+			"open": open, "doing": doing, "done": done,
+			"verified": verified, "improved": improved, "pending_verify": done - verified,
+			"keywords": kwCnt, "clusters": clCnt, "unclassified": unclassified,
+			"recent_results": recent,
+		},
+	}})
 }
 
 // GenerateOptTasks 基于最新巡检数据重新生成优化行动清单（幂等：已存在的 open 任务不重复）
@@ -1041,7 +1206,218 @@ func GenerateOptTasks(c *gin.Context) {
 		}
 	}
 
+	// ---- 话题簇驱动的闭环信号（GEO 管线第⑧步「强化闭环」）----
+	// 簇是从「AI 如何组织话题」的视角切的，因此簇级信号比词级信号更能命中
+	// 结构性缺口：某个话题簇整体 0 覆盖，说明这一类问题我们完全没有内容资产。
+	created += generateClusterDrivenTasks(tid, results)
+
+	// 信源建设任务：竞品被引用而品牌未被引用的域名
+	created += generateSourceTasks(tid, results)
+
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"created": created}})
+}
+
+// generateClusterDrivenTasks 从话题簇派生行动任务：
+//  1. 某个簇「有词但一条都没测」→ 提示去巡检（数据缺口）
+//  2. 某个簇覆盖率 < 20% → 高优内容缺口（按簇批量处理，比逐词精准）
+//  3. 某个簇「未归类」占比过高 → 提示先做聚类
+func generateClusterDrivenTasks(tid uint, results []models.CheckResult) int {
+	created := 0
+
+	var kws []models.GeoKeyword
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&kws)
+	if len(kws) == 0 {
+		return 0
+	}
+	var clusters []models.KeywordCluster
+	database.DB.Where("tenant_id = ?", tid).Find(&clusters)
+	clName := map[uint]string{}
+	for _, cl := range clusters {
+		clName[cl.ID] = cl.Name
+	}
+
+	kwCluster := map[uint]uint{}
+	byCluster := map[uint][]uint{}
+	for _, k := range kws {
+		kwCluster[k.ID] = k.ClusterID
+		byCluster[k.ClusterID] = append(byCluster[k.ClusterID], k.ID)
+	}
+
+	// 簇级聚合（仅统计成功结果）
+	type cAgg struct {
+		total, hits int
+		questions   map[string]int // 问题 → 缺席次数
+	}
+	agg := map[uint]*cAgg{}
+	for _, r := range results {
+		if r.ErrorMsg != "" {
+			continue
+		}
+		cl := kwCluster[r.KeywordID]
+		a, ok := agg[cl]
+		if !ok {
+			a = &cAgg{questions: map[string]int{}}
+			agg[cl] = a
+		}
+		a.total++
+		if r.Hit {
+			a.hits++
+		} else {
+			a.questions[r.Question]++
+		}
+	}
+
+	for clID, kwIDs := range byCluster {
+		if clID == 0 {
+			continue // 未归类单独处理
+		}
+		name := clName[clID]
+		if name == "" {
+			continue
+		}
+		a := agg[clID]
+		if a == nil || a.total == 0 {
+			// ① 该簇从未被巡检过
+			if len(kwIDs) >= 3 {
+				detail := fmt.Sprintf("话题簇「%s」下已有 %d 个问题，但一条巡检记录都没有。建议先执行巡检，拿到该话题的可见度基线，再决定内容投入方向。", name, len(kwIDs))
+				if createOptTaskIfMissing(tid, "gap", fmt.Sprintf("话题簇未测：%s", name), detail, 3, "cluster-untested:"+fmt.Sprint(clID)) {
+					created++
+				}
+			}
+			continue
+		}
+		cov := float64(a.hits) / float64(a.total) * 100
+		if cov < 20 {
+			// ② 簇整体覆盖不足：列出缺席最多的问题，形成批量选题
+			top := topMissed(a.questions, 5)
+			detail := fmt.Sprintf("话题簇「%s」共 %d 个问题、%d 条回答，品牌出现率仅 %.0f%%（%d 条命中）。这是结构性缺口——整个话题缺少能引用你的内容资产。\n\n优先攻克以下高频缺席问题：\n%s\n\n建议：针对该话题产出 1~2 篇体系化长文（覆盖多个子问题），并在「内容投放」中分发。",
+				name, len(kwIDs), a.total, cov, a.hits, strings.Join(top, "\n"))
+			pri := 2
+			if cov == 0 {
+				pri = 1
+			}
+			if createOptTaskIfMissing(tid, "gap", fmt.Sprintf("话题簇覆盖不足：%s（%.0f%%）", name, cov), detail, pri, "cluster-low:"+fmt.Sprint(clID)) {
+				created++
+			}
+		}
+	}
+
+	// ③ 未归类占比过高 → 先聚类
+	if n := len(byCluster[0]); n >= 10 {
+		pct := float64(n) / float64(len(kws)) * 100
+		if pct >= 30 {
+			detail := fmt.Sprintf("当前 %d/%d（%.0f%%）的问题尚未归入任何话题簇，簇级诊断会失真。建议在「GEO 智能 → 话题簇」中执行「AI 一键聚类」，让系统按搜索意图自动分组。", n, len(kws), pct)
+			if createOptTaskIfMissing(tid, "gap", "关键词尚未聚类", detail, 3, "cluster-unclassified") {
+				created++
+			}
+		}
+	}
+	return created
+}
+
+// topMissed 取缺席次数最高的 N 个问题，格式化为可读列表
+func topMissed(m map[string]int, n int) []string {
+	type kv struct {
+		q string
+		c int
+	}
+	list := make([]kv, 0, len(m))
+	for q, c := range m {
+		list = append(list, kv{q, c})
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].c > list[j].c })
+	out := make([]string, 0, n)
+	for i := 0; i < len(list) && i < n; i++ {
+		out = append(out, fmt.Sprintf("%d. %s（缺席 %d 次）", i+1, list[i].q, list[i].c))
+	}
+	return out
+}
+
+// generateSourceTasks 信源建设任务：竞品被 AI 引用、而品牌从未被引用的域名。
+// 依据「AI 引用偏好」的反向工程：竞品能拿到引用，说明该信源被引擎信任，
+// 我们把品牌内容铺到同一批域名上，是最高效的引用提升路径。
+func generateSourceTasks(tid uint, results []models.CheckResult) int {
+	created := 0
+
+	var comps []models.Competitor
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&comps)
+	if len(comps) == 0 {
+		return 0
+	}
+	compWords := []string{}
+	for _, cm := range comps {
+		for _, w := range strings.Split(cm.Name, ",") {
+			if w = strings.TrimSpace(w); w != "" {
+				compWords = append(compWords, strings.ToLower(w))
+			}
+		}
+	}
+	if len(compWords) == 0 {
+		return 0
+	}
+
+	var cites []models.Citation
+	database.DB.Where("tenant_id = ? AND domain != ''", tid).Find(&cites)
+	if len(cites) == 0 {
+		return 0
+	}
+
+	resultMap := map[uint]models.CheckResult{}
+	ids := make([]uint, 0, len(cites))
+	for _, ct := range cites {
+		ids = append(ids, ct.ResultID)
+	}
+	var rs []models.CheckResult
+	database.DB.Where("tenant_id = ? AND id IN ?", tid, ids).Find(&rs)
+	for _, r := range rs {
+		resultMap[r.ID] = r
+	}
+
+	compDomain := map[string]int{}
+	brandDomain := map[string]int{}
+	for _, ct := range cites {
+		r, ok := resultMap[ct.ResultID]
+		if !ok {
+			continue
+		}
+		low := strings.ToLower(r.Response)
+		isComp := false
+		for _, w := range compWords {
+			if strings.Contains(low, w) {
+				isComp = true
+				break
+			}
+		}
+		if isComp {
+			compDomain[ct.Domain]++
+		}
+		if r.Hit {
+			brandDomain[ct.Domain]++
+		}
+	}
+
+	// 只取竞品有、品牌无的域名，按竞品被引用次数降序，最多 5 条
+	type kv struct {
+		d string
+		c int
+	}
+	gaps := make([]kv, 0, len(compDomain))
+	for d, c := range compDomain {
+		if brandDomain[d] == 0 && c >= 2 {
+			gaps = append(gaps, kv{d, c})
+		}
+	}
+	sort.Slice(gaps, func(i, j int) bool { return gaps[i].c > gaps[j].c })
+	if len(gaps) > 5 {
+		gaps = gaps[:5]
+	}
+	for _, g := range gaps {
+		detail := fmt.Sprintf("域名「%s」在近 30 天有 %d 条含竞品的 AI 回答引用，但从未引用过你的品牌。\n\n说明该信源已被 AI 引擎信任，是最省力的引用突破口。建议：\n1. 查看该域名上的相关页面，确认收录偏好（如百科式条目、榜单、对比评测）；\n2. 用相同体裁产出品牌相关内容并提交（投稿/PR/合作）；\n3. 复测观察该域名的引用情况。", g.d, g.c)
+		if createOptTaskIfMissing(tid, "citation", fmt.Sprintf("信源建设：%s", g.d), detail, 2, "source-gap:"+g.d) {
+			created++
+		}
+	}
+	return created
 }
 
 // createOptTaskIfMissing 幂等创建行动任务

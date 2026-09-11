@@ -591,12 +591,18 @@ function ActionTab() {
   const [loading, setLoading] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
   const [filter, setFilter] = useState('');
+  const [summary, setSummary] = useState<any>(null);
+  const [verifying, setVerifying] = useState<number>(0);
 
   const load = async () => {
     setLoading(true);
     try {
-      const res: any = await api.listActions(filter ? `status=${filter}` : '');
+      const [res, sum]: any = await Promise.all([
+        api.listActions(filter ? `status=${filter}` : ''),
+        api.loopSummary(),
+      ]);
       setList(res || []);
+      setSummary(sum || null);
     } catch (e: any) {
       Message.error('行动清单加载失败：' + (e.message || e));
     } finally {
@@ -620,8 +626,20 @@ function ActionTab() {
 
   const updateStatus = async (id: number, status: string) => {
     await api.updateAction(id, { status });
-    Message.success(status === 'done' ? '已标记完成' : status === 'doing' ? '已标记进行中' : '已重新打开');
+    Message.success(status === 'done' ? '已标记完成，建议随后点「复测」验证效果' : status === 'doing' ? '已标记进行中' : '已重新打开');
     load();
+  };
+
+  const verify = async (id: number) => {
+    setVerifying(id);
+    try {
+      const res: any = await api.verifyAction(id);
+      const map: any = { improved: 'success', unchanged: 'warning', worse: 'error' };
+      Message[map[res?.verify_status] || 'info'](res?.note || '复测完成');
+      load();
+    } catch (e: any) {
+      Message.error(e.message || '复测失败');
+    } finally { setVerifying(0); }
   };
 
   const typeTag: any = {
@@ -632,70 +650,157 @@ function ActionTab() {
     audit: { c: 'orange', t: '网站优化' },
   };
 
+  const verifyTag: any = {
+    improved: { c: 'green', t: '已验证·改善' },
+    unchanged: { c: 'orange', t: '已验证·无变化' },
+    worse: { c: 'red', t: '已验证·变差' },
+  };
+
+  const steps: any[] = summary?.steps || [];
+  const counts = summary?.counts || {};
+
   return (
-    <Card
-      title="优化行动清单（监测 → 建议 → 内容 → 复测 闭环）"
-      extra={
-        <Space>
-          <Select value={filter} onChange={(v) => { setFilter(v); setTimeout(load, 0); }} style={{ width: 120 }} placeholder="全部状态">
-            <Select.Option value="">全部</Select.Option>
-            <Select.Option value="open">待处理</Select.Option>
-            <Select.Option value="doing">进行中</Select.Option>
-            <Select.Option value="done">已完成</Select.Option>
-          </Select>
-          <Button type="primary" icon={<IconThunderbolt />} loading={genLoading} onClick={generate}>
-            一键生成行动清单
-          </Button>
-        </Space>
-      }
-    >
-      <Table
-        loading={loading} rowKey="id"
-        data={list}
-        columns={[
-          { title: '类型', dataIndex: 'type', width: 100, render: (v) => <Tag color={typeTag[v]?.c}>{typeTag[v]?.t || v}</Tag> },
-          { title: '任务', dataIndex: 'title' },
-          { title: '详情与依据', dataIndex: 'detail' },
-          {
-            title: '优先级', dataIndex: 'priority', width: 90,
-            render: (v) => <Tag color={v === 1 ? 'red' : v === 2 ? 'orange' : 'blue'}>P{v}</Tag>,
-          },
-          {
-            title: '风险分级', dataIndex: 'risk_level', width: 100,
-            render: (v) => v === 'high'
-              ? <Tag color="red">高风险·技改</Tag>
-              : v === 'observe'
-                ? <Tag color="orange">需观察</Tag>
-                : <Tag color="green">低风险·速优</Tag>,
-          },
-          {
-            title: '状态', dataIndex: 'status', width: 110,
-            render: (v) => v === 'done'
-              ? <Tag color="green" icon={<IconCheckCircle />}>已完成</Tag>
-              : v === 'doing'
-                ? <Tag color="blue" icon={<IconClockCircle />}>进行中</Tag>
-                : <Tag color="orange" icon={<IconExclamationCircle />}>待处理</Tag>,
-          },
-          {
-            title: '操作', width: 200,
-            render: (_v, r) => (
-              <Space>
-                {r.status !== 'done' && (
-                  <Button size="mini" type="primary" status="success" onClick={() => updateStatus(r.id, 'done')}>完成</Button>
-                )}
-                {r.status === 'done' && <Button size="mini" onClick={() => updateStatus(r.id, 'open')}>重开</Button>}
-                {r.status === 'open' && <Button size="mini" onClick={() => updateStatus(r.id, 'doing')}>开始</Button>}
-                <Popconfirm title="确认删除该行动项？" onOk={async () => { await api.deleteAction(r.id); load(); }}>
-                  <Button size="mini" status="danger" icon={<IconDelete />} />
-                </Popconfirm>
-              </Space>
-            ),
-          },
-        ]}
-        pagination={{ pageSize: 10, showTotal: true }}
-      />
-      {list.length === 0 && <Empty description="暂无行动项，点击「一键生成行动清单」基于巡检数据自动生成" />}
-    </Card>
+    <div>
+      {/* 闭环概览：监测 → 诊断 → 行动 → 复测 */}
+      {steps.length > 0 && (
+        <Card
+          bordered={false}
+          style={{ borderRadius: 16, marginBottom: 16 }}
+          bodyStyle={{ padding: '18px 24px' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+            <Title heading={6} style={{ margin: 0 }}>优化闭环进度</Title>
+            {counts.pending_verify > 0 && (
+              <Tag color="orange">有 {counts.pending_verify} 项已完成但未复测</Tag>
+            )}
+          </div>
+          <GridRow gutter={[12, 12]}>
+            {steps.map((s, i) => (
+              <GridCol span={6} key={s.key}>
+                <div
+                  style={{
+                    border: '1px solid var(--color-border-2)', borderRadius: 12, padding: '14px 16px',
+                    borderTop: `3px solid ${s.done ? '#00B42A' : '#FF7D00'}`, height: '100%',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <div
+                      style={{
+                        width: 22, height: 22, borderRadius: '50%', flex: '0 0 auto',
+                        background: s.done ? '#00B42A' : '#FF7D00', color: '#fff',
+                        fontSize: 12, fontWeight: 700, display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {s.done ? <IconCheckCircle /> : i + 1}
+                    </div>
+                    <Text bold>{s.name}</Text>
+                  </div>
+                  <div style={{ marginBottom: 6 }}>
+                    <Text style={{ fontSize: 20, fontWeight: 700 }}>{s.value}</Text>
+                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 6 }}>{s.unit}</Text>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 11, lineHeight: 1.6 }}>{s.hint}</Text>
+                </div>
+              </GridCol>
+            ))}
+          </GridRow>
+          {counts.keywords > 0 && (
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
+              数据底座：{counts.keywords} 个关键词 · {counts.clusters} 个话题簇
+              {counts.unclassified > 0 && ` · ${counts.unclassified} 个未归类`}
+              {counts.recent_results > 0 && ` · 近 7 天 ${counts.recent_results} 条巡检记录`}
+            </Text>
+          )}
+        </Card>
+      )}
+
+      <Card
+        title="优化行动清单（监测 → 建议 → 内容 → 复测 闭环）"
+        extra={
+          <Space>
+            <Select value={filter} onChange={(v) => { setFilter(v); setTimeout(load, 0); }} style={{ width: 120 }} placeholder="全部状态">
+              <Select.Option value="">全部</Select.Option>
+              <Select.Option value="open">待处理</Select.Option>
+              <Select.Option value="doing">进行中</Select.Option>
+              <Select.Option value="done">已完成</Select.Option>
+            </Select>
+            <Button type="primary" icon={<IconThunderbolt />} loading={genLoading} onClick={generate}>
+              一键生成行动清单
+            </Button>
+          </Space>
+        }
+      >
+        <Table
+          loading={loading} rowKey="id"
+          data={list}
+          columns={[
+            { title: '类型', dataIndex: 'type', width: 100, render: (v) => <Tag color={typeTag[v]?.c}>{typeTag[v]?.t || v}</Tag> },
+            { title: '任务', dataIndex: 'title' },
+            { title: '详情与依据', dataIndex: 'detail', ellipsis: true },
+            {
+              title: '优先级', dataIndex: 'priority', width: 90,
+              render: (v) => <Tag color={v === 1 ? 'red' : v === 2 ? 'orange' : 'blue'}>P{v}</Tag>,
+            },
+            {
+              title: '风险分级', dataIndex: 'risk_level', width: 100,
+              render: (v) => v === 'high'
+                ? <Tag color="red">高风险·技改</Tag>
+                : v === 'observe'
+                  ? <Tag color="orange">需观察</Tag>
+                  : <Tag color="green">低风险·速优</Tag>,
+            },
+            {
+              title: '状态', dataIndex: 'status', width: 110,
+              render: (v) => v === 'done'
+                ? <Tag color="green" icon={<IconCheckCircle />}>已完成</Tag>
+                : v === 'doing'
+                  ? <Tag color="blue" icon={<IconClockCircle />}>进行中</Tag>
+                  : <Tag color="orange" icon={<IconExclamationCircle />}>待处理</Tag>,
+            },
+            {
+              title: '复测结论', dataIndex: 'verify_status', width: 130,
+              render: (v, r) => {
+                if (v && verifyTag[v]) {
+                  return (
+                    <span>
+                      <Tag color={verifyTag[v].c}>{verifyTag[v].t}</Tag>
+                      {r.verify_note && (
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+                          {r.verify_note}
+                        </Text>
+                      )}
+                    </span>
+                  );
+                }
+                if (r.status === 'done') return <Tag color="gray">待复测</Tag>;
+                return <Text type="secondary">-</Text>;
+              },
+            },
+            {
+              title: '操作', width: 230,
+              render: (_v, r) => (
+                <Space>
+                  {r.status !== 'done' && (
+                    <Button size="mini" type="primary" status="success" onClick={() => updateStatus(r.id, 'done')}>完成</Button>
+                  )}
+                  {r.status === 'done' && (
+                    <Button size="mini" type="primary" loading={verifying === r.id} onClick={() => verify(r.id)}>复测</Button>
+                  )}
+                  {r.status === 'done' && <Button size="mini" onClick={() => updateStatus(r.id, 'open')}>重开</Button>}
+                  {r.status === 'open' && <Button size="mini" onClick={() => updateStatus(r.id, 'doing')}>开始</Button>}
+                  <Popconfirm title="确认删除该行动项？" onOk={async () => { await api.deleteAction(r.id); load(); }}>
+                    <Button size="mini" status="danger" icon={<IconDelete />} />
+                  </Popconfirm>
+                </Space>
+              ),
+            },
+          ]}
+          pagination={{ pageSize: 10, showTotal: true }}
+        />
+        {list.length === 0 && <Empty description="暂无行动项，点击「一键生成行动清单」基于巡检数据自动生成" />}
+      </Card>
+    </div>
   );
 }
 

@@ -262,6 +262,9 @@ func main() {
 		api.POST("/geo/actions/generate", handlers.GenerateOptTasks)
 		api.PUT("/geo/actions/:id", handlers.UpdateOptTask)
 		api.DELETE("/geo/actions/:id", handlers.DeleteOptTask)
+		// 闭环：完成后复测效果 + 四段闭环概览
+		api.POST("/geo/actions/:id/verify", handlers.VerifyOptTaskLoop)
+		api.GET("/geo/loop-summary", handlers.LoopSummary)
 		// 网站 GEO 审计 & 生成器
 		api.POST("/geo/audit", handlers.RunAudit)
 		api.GET("/geo/audits", handlers.ListAudits)
