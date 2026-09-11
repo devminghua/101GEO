@@ -281,6 +281,17 @@ export const api = {
   // 登录日志（仅 super/admin）：?limit=&status=success|fail
   listLoginLogs: (params = '') => request(`/auth/login-logs?${params}`),
 
+  // 升级日志（公开只读）：历代版本更新记录，系统设置「升级日志」页签使用
+  changelog: () => request<{
+    current: string;
+    entries: Array<{
+      version: string;
+      date: string;
+      title: string;
+      items: Array<{ type: 'feature' | 'improve' | 'fix' | 'security'; text: string }>;
+    }>;
+  }>('/changelog'),
+
   // 一键导出报告文档（md / html / docx），通过浏览器下载
   exportReport: async (format: 'md' | 'html' | 'docx', days = 7): Promise<string> => {
     const token = getToken();

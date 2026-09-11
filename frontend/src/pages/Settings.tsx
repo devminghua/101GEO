@@ -70,6 +70,17 @@ export default function Settings() {
     }).finally(() => setLogLoading(false));
   };
 
+  // ===== 升级日志（所有角色可见，数据由后端内嵌返回）=====
+  const [changelog, setChangelog] = useState<any | null>(null);
+  const [changelogLoading, setChangelogLoading] = useState(false);
+
+  const loadChangelog = () => {
+    setChangelogLoading(true);
+    api.changelog().then((d: any) => setChangelog(d || null)).catch((e: any) => {
+      Message.error(e.message);
+    }).finally(() => setChangelogLoading(false));
+  };
+
   useEffect(() => {
     if (!isOperator) {
       api.getSettings().then((s: any) => {
@@ -261,8 +272,16 @@ export default function Settings() {
     tabList.push({ key: 'pay-notify', title: '告警通知' });
   }
   if (isAdmin) tabList.push({ key: 'login-logs', title: '登录日志' });
+  // 升级日志：全部角色（含 AI 优化员）可见，纯只读展示
+  tabList.push({ key: 'changelog', title: '升级日志' });
 
   const [activeTab, setActiveTab] = useState<string>(tabList[0]?.key || 'system');
+
+  // 首次切到「升级日志」页签时再拉取，避免拖慢系统设置首屏
+  useEffect(() => {
+    if (activeTab === 'changelog' && !changelog && !changelogLoading) loadChangelog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const renderSystemTab = () => (
     <Card title="系统信息" style={cardStyle} bordered={false}>
@@ -552,6 +571,118 @@ export default function Settings() {
     </Card>
   );
 
+  // 升级日志：时间线展示历代版本更新（版本号高亮、变更按类型着色）
+  const changeTypeMeta: Record<string, { label: string; color: string }> = {
+    feature: { label: '新增', color: 'arcoblue' },
+    improve: { label: '优化', color: 'cyan' },
+    fix: { label: '修复', color: 'orange' },
+    security: { label: '安全', color: 'red' },
+  };
+  // 记录较多时默认只展开最近若干条，避免页面被拉得极长
+  const CHANGE_PREVIEW = 5;
+  const [changelogExpanded, setChangelogExpanded] = useState(false);
+
+  const renderChangelogTab = () => {
+    const all: any[] = changelog?.entries || [];
+    const current = changelog?.current || '';
+    const entries = changelogExpanded ? all : all.slice(0, CHANGE_PREVIEW);
+    return (
+      <Card
+        title="升级日志"
+        style={cardStyle}
+        bordered={false}
+        extra={
+          <Space>
+            {current && <Tag color="arcoblue">当前版本 v{current}</Tag>}
+            <Button icon={<IconHistory />} loading={changelogLoading} onClick={loadChangelog}>
+              刷新
+            </Button>
+          </Space>
+        }
+      >
+        <Spin loading={changelogLoading} style={{ display: 'block', width: '100%' }}>
+          {all.length === 0 ? (
+            <div style={{ padding: '24px 0', color: '#86909C', fontSize: 13 }}>暂无升级记录</div>
+          ) : (
+            <div style={{ maxWidth: 880 }}>
+              {entries.map((e, i) => {
+                const isCurrent = !!current && e.version === current;
+                return (
+                  <div
+                    key={e.version}
+                    style={{
+                      display: 'flex',
+                      gap: 16,
+                      paddingBottom: i === entries.length - 1 && entries.length === all.length ? 0 : 20,
+                    }}
+                  >
+                    {/* 左侧时间轴：圆点 + 竖线 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '0 0 auto' }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          marginTop: 6,
+                          background: isCurrent ? 'rgb(var(--primary-6))' : 'var(--color-fill-4)',
+                          boxShadow: isCurrent ? '0 0 0 4px rgba(79,70,229,.14)' : 'none',
+                        }}
+                      />
+                      {/* 仅最后一条且已全部展开时不再画竖线 */}
+                      {!(i === entries.length - 1 && entries.length === all.length) && (
+                        <span style={{ flex: 1, width: 1, background: 'var(--color-fill-2)', marginTop: 6 }} />
+                      )}
+                    </div>
+                    {/* 右侧内容 */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        <span style={{ fontSize: 15, fontWeight: 600 }}>v{e.version}</span>
+                        {isCurrent && <Tag color="arcoblue" size="small">当前版本</Tag>}
+                        <span style={{ fontSize: 13, color: '#86909C' }}>{e.date}</span>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 500, margin: '6px 0 8px' }}>{e.title}</div>
+                      <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                        {(e.items || []).map((it: any, j: number) => {
+                          const meta = changeTypeMeta[it.type] || changeTypeMeta.improve;
+                          return (
+                            <li
+                              key={j}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 8,
+                                fontSize: 13,
+                                color: 'var(--color-text-2)',
+                                lineHeight: '22px',
+                                marginBottom: 4,
+                              }}
+                            >
+                              <Tag color={meta.color} size="small" style={{ flex: '0 0 auto', marginTop: 2 }}>
+                                {meta.label}
+                              </Tag>
+                              <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-word' }}>{it.text}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })}
+              {all.length > CHANGE_PREVIEW && (
+                <div style={{ marginTop: 16, paddingLeft: 26 }}>
+                  <Button type="text" size="small" onClick={() => setChangelogExpanded((v) => !v)}>
+                    {changelogExpanded ? '收起历史版本' : `展开全部 ${all.length} 个版本`}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </Spin>
+      </Card>
+    );
+  };
+
   const renderLoginLogsTab = () => (
     <Card
       title="登录日志"
@@ -625,6 +756,7 @@ export default function Settings() {
             {t.key === 'pay-notify' && <PayConfig groups={['notify']} title="告警通知设置" />}
             {t.key === 'doubao-image' && renderDoubaoImageTab()}
             {t.key === 'login-logs' && renderLoginLogsTab()}
+            {t.key === 'changelog' && renderChangelogTab()}
           </TabPane>
         ))}
       </Tabs>

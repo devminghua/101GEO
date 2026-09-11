@@ -88,6 +88,8 @@ func main() {
 	r.GET("/api/auth/captcha", handlers.GetCaptcha)
 	r.GET("/api/auth/expiry", handlers.AuthExpiry)
 	r.GET("/api/system/info", handlers.GetSystemInfo)
+	// 升级日志（公开只读）：历代版本更新记录，客户端系统设置与登录页均可展示
+	r.GET("/api/changelog", handlers.Changelog)
 	r.POST("/api/auth/sms-code", handlers.SmsSend)
 	r.POST("/api/auth/email-code", handlers.EmailCode)
 	r.POST("/api/auth/register", handlers.Register)

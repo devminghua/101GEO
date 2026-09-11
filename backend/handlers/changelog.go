@@ -1,0 +1,178 @@
+package handlers
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"geo-tool/config"
+)
+
+// 升级日志：把历代版本更新记录内嵌在二进制里（无需数据库、无需联网、单机版同样可用），
+// 通过只读接口 GET /api/changelog 返回，客户端「系统设置 → 升级日志」按时间线渲染。
+//
+// 维护约定：每完成一轮版本迭代，除了递增 config.Version 与补 docs/开发文档.md，
+// 必须同步在下面 changelogEntries 头部插入一条新记录（最新在最前）。
+
+// ChangelogItem 单条变更：type 取值 feature(新增) / improve(优化) / fix(修复) / security(安全)
+type ChangelogItem struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+// ChangelogEntry 一个版本的更新记录
+type ChangelogEntry struct {
+	Version string          `json:"version"`
+	Date    string          `json:"date"`
+	Title   string          `json:"title"`
+	Items   []ChangelogItem `json:"items"`
+}
+
+func items(pairs ...string) []ChangelogItem {
+	out := make([]ChangelogItem, 0, len(pairs)/2)
+	for i := 0; i+1 < len(pairs); i += 2 {
+		out = append(out, ChangelogItem{Type: pairs[i], Text: pairs[i+1]})
+	}
+	return out
+}
+
+var changelogEntries = []ChangelogEntry{
+	{
+		Version: "1.0.29", Date: "2026-09-11", Title: "客户端系统设置新增「升级日志」",
+		Items: items(
+			"feature", "客户端「系统设置」新增「升级日志」页签，按时间线展示历代版本更新内容（版本号 / 日期 / 变更类型）",
+			"feature", "日志数据内嵌在后端二进制中，SaaS 端、客户端与单机版共用同一份，无需联网、无需额外配置",
+			"improve", "自动标注当前运行版本，一眼判断是否已是最新版本",
+		),
+	},
+	{
+		Version: "1.0.28", Date: "2026-09-11", Title: "GEO 智能页区块间距修正",
+		Items: items(
+			"fix", "「各 AI 平台表现明细」与上方 KPI 区块间距由 0px 修正为 20px，大屏与移动端均自适应",
+		),
+	},
+	{
+		Version: "1.0.27", Date: "2026-09-11", Title: "系统设置保存按钮宽度优化",
+		Items: items(
+			"improve", "系统设置各页保存按钮由撑满整行缩至容器 1/3（约 185~318px），靠左对齐，界面不再头重脚轻",
+		),
+	},
+	{
+		Version: "1.0.26", Date: "2026-09-11", Title: "支付设置并入「系统设置」",
+		Items: items(
+			"feature", "「微信设置」「支付宝设置」并入系统设置，顺序排在 OSS 设置之后，另含充值定价与告警通知",
+			"improve", "拆分为独立页签后只提交当前页字段，避免跨页空值覆盖已配置项",
+			"improve", "顶部独立「支付设置」菜单移除，配置入口统一收敛到系统设置",
+		),
+	},
+	{
+		Version: "1.0.25", Date: "2026-09-11", Title: "注册页《网站注册安全协议》",
+		Items: items(
+			"feature", "注册页新增《网站注册安全协议》勾选，未勾选无法提交注册",
+			"feature", "SaaS 端可编辑协议标题与正文，并可开关是否强制勾选",
+			"security", "后端对未勾选做兜底校验，防止绕过前端直接调用接口注册",
+		),
+	},
+	{
+		Version: "1.0.24", Date: "2026-09-10", Title: "文案调整",
+		Items: items(
+			"improve", "GEO 情报页「默认品牌词」更名为「优化的关键词」，表意更准确",
+		),
+	},
+	{
+		Version: "1.0.23", Date: "2026-09-10", Title: "客户端「Token 用量」看板",
+		Items: items(
+			"feature", "新增 Token 用量看板：请求级真实 usage 统计，含平台分布、使用场景、趋势与明细",
+			"feature", "官方演示数据一并展示，新用户也能看到看板形态",
+		),
+	},
+	{
+		Version: "1.0.22", Date: "2026-09-10", Title: "内容投放注册入口引导",
+		Items: items(
+			"feature", "内容投放发稿平台配置新增注册入口引导（4 家主流平台），配置前先注册不再摸黑",
+		),
+	},
+	{
+		Version: "1.0.21", Date: "2026-09-10", Title: "注册支持自定义登录账号",
+		Items: items(
+			"feature", "注册时可填写自定义登录账号，账号与手机号 / 邮箱分离，全局唯一",
+		),
+	},
+	{
+		Version: "1.0.20", Date: "2026-09-10", Title: "注册邮箱验证",
+		Items: items(
+			"feature", "注册验证方式三选一：短信验证 / 邮箱验证 / 全部关闭，并支持 SMTP 配置",
+		),
+	},
+	{
+		Version: "1.0.19", Date: "2026-09-10", Title: "国内主流 AI 平台整合",
+		Items: items(
+			"feature", "整合国内主流 AI 平台至 14 家，新增百度文心、MiniMax、讯飞星火、零一万物、百川、阶跃、小米、商汤",
+			"improve", "启动自动补种，新平台默认停用，按需开启",
+		),
+	},
+	{
+		Version: "1.0.18", Date: "2026-09-10", Title: "安全审计修复",
+		Items: items(
+			"security", "JWT 兜底密钥随机化，杜绝默认密钥被伪造 token",
+			"security", "帮助文档内容接入 DOMPurify 清洗，修复 XSS 风险",
+		),
+	},
+	{
+		Version: "1.0.17", Date: "2026-09-09", Title: "渠道管理增强",
+		Items: items(
+			"feature", "渠道管理支持查看渠道明文密码，编辑时可选填重置密码",
+		),
+	},
+	{
+		Version: "1.0.16", Date: "2026-09-09", Title: "文案调整",
+		Items: items(
+			"improve", "昵称输入框占位字「如 红娘小兰」三处全部去掉",
+		),
+	},
+	{
+		Version: "1.0.15", Date: "2026-09-09", Title: "渠道后台界面精简",
+		Items: items(
+			"improve", "渠道后台去掉侧栏 Token 卡片（客户端保留）",
+		),
+	},
+	{
+		Version: "1.0.14", Date: "2026-09-09", Title: "客户端新增「充值中心」入口",
+		Items: items(
+			"feature", "客户端菜单新增「充值中心」独立入口，侧栏折叠后也不会丢失充值入口",
+		),
+	},
+	{
+		Version: "1.0.13", Date: "2026-09-09", Title: "总后台一键登录渠道后台",
+		Items: items(
+			"feature", "总后台支持一键登录渠道后台",
+			"fix", "切回总后台时菜单未恢复的问题修复",
+		),
+	},
+	{
+		Version: "1.0.12", Date: "2026-09-09", Title: "渠道点数链条",
+		Items: items(
+			"feature", "平台给渠道充值 → 渠道拨付客户，余额不足时直接拒绝，防止超发",
+		),
+	},
+	{
+		Version: "1.0.11", Date: "2026-09-09", Title: "渠道分发能力",
+		Items: items(
+			"feature", "渠道可自建分站，具备品牌客服、客户管理全能力与品牌三层回退",
+		),
+	},
+	{
+		Version: "1.0.10", Date: "2026-09-08", Title: "手机端登录兼容",
+		Items: items(
+			"fix", "手机端登录滑块浮点轨迹容错（SlideX / Track 支持 float64 并做 Round）",
+		),
+	},
+}
+
+// Changelog 升级日志：GET /api/changelog（公开只读，登录页与客户端均可取）
+func Changelog(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{
+		"current": config.Version,
+		"entries": changelogEntries,
+	}})
+}
