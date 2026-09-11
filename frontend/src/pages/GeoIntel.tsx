@@ -143,8 +143,11 @@ function IntelTab() {
         <Button icon={<IconRefresh />} onClick={() => load(days)}>刷新</Button>
       </div>
 
-      {/* KPI 自适应网格：根据屏幕宽度自动换行，全部显示在屏幕内 */}
-      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', opacity: refreshing ? 0.5 : 1, transition: 'opacity .3s ease' }}>
+      {/* KPI 自适应网格：根据屏幕宽度自动换行，全部显示在屏幕内。
+          marginBottom 给下方「各 AI 平台表现明细」留出间距——不能写在 GridRow 上：
+          Row 带 gutter 时会输出内联 margin:-8px 覆盖掉（净剩 8px 被 Col 的 padding 抵消），
+          故此间距挂在网格容器上；视觉间距 = marginBottom 28 - Row 负 8 = 20px。 */}
+      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 28, opacity: refreshing ? 0.5 : 1, transition: 'opacity .3s ease' }}>
         {skeleton
           ? KPI_STYLE.map((k) => (
               <div key={k.key}>
@@ -218,8 +221,8 @@ function IntelTab() {
           )}
       </div>
 
-      {/* 下方两栏响应式 */}
-      <GridRow gutter={[16, 16]} style={{ marginTop: 16 }}>
+      {/* 下方两栏响应式（与上方间距由上方网格容器的 marginBottom 提供） */}
+      <GridRow gutter={[16, 16]}>
         <GridCol xs={24} md={14}>
           <Card title="各 AI 平台表现明细" style={{ borderRadius: 16 }}>
             {skeleton ? (
