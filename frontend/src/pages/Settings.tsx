@@ -20,6 +20,13 @@ const cardStyle: CSSProperties = {
 const sectionStyle: CSSProperties = {
   padding: '0 4px 24px',
 };
+// 保存按钮统一样式：Arco Form 是 flex-column，子元素默认被拉伸撑满整行；
+// 这里限宽到容器 1/3 并靠左，避免出现超长按钮。
+const saveBtnStyle: CSSProperties = {
+  width: '33%',
+  minWidth: 150,
+  alignSelf: 'flex-start',
+};
 
 // 角色展示文案与颜色
 const roleMeta: Record<string, { label: string; color: string }> = {
@@ -323,7 +330,7 @@ export default function Settings() {
             </Form.Item>
           </>
         )}
-        <Button type="primary" icon={<IconSave />} loading={sysSaving} onClick={saveSystemInfo}>
+        <Button type="primary" icon={<IconSave />} loading={sysSaving} onClick={saveSystemInfo} style={saveBtnStyle}>
           保存系统信息
         </Button>
       </Form>
@@ -399,7 +406,7 @@ export default function Settings() {
               }}
             </Form.Item>
           </Card>
-          <Button type="primary" icon={<IconSave />} onClick={save} style={{ marginTop: 20 }}>
+          <Button type="primary" icon={<IconSave />} onClick={save} style={{ ...saveBtnStyle, marginTop: 20 }}>
             保存设置
           </Button>
         </Form>
@@ -480,7 +487,7 @@ export default function Settings() {
               <Input placeholder="https://cdn.example.com" />
             </Form.Item>
           </Card>
-          <Button type="primary" icon={<IconSave />} onClick={save} style={{ marginTop: 20 }}>
+          <Button type="primary" icon={<IconSave />} onClick={save} style={{ ...saveBtnStyle, marginTop: 20 }}>
             保存设置
           </Button>
         </Form>
@@ -537,7 +544,7 @@ export default function Settings() {
               <Input.Password placeholder="已设置则留空保留原密钥" autoComplete="new-password" />
             </Form.Item>
           </Card>
-          <Button type="primary" icon={<IconSave />} onClick={save} style={{ marginTop: 20 }}>
+          <Button type="primary" icon={<IconSave />} onClick={save} style={{ ...saveBtnStyle, marginTop: 20 }}>
             保存设置
           </Button>
         </Form>

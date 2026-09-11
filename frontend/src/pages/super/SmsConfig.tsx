@@ -176,7 +176,13 @@ export default function SmsConfig() {
           </>
         )}
 
-        <Button type="primary" loading={loading} onClick={save}>
+        {/* 保存按钮限宽到容器 1/3（Arco Form 为 flex-column，默认会被拉伸撑满整行） */}
+        <Button
+          type="primary"
+          loading={loading}
+          onClick={save}
+          style={{ width: '33%', minWidth: 150, alignSelf: 'flex-start' }}
+        >
           保存
         </Button>
       </Form>

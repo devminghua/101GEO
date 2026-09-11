@@ -248,7 +248,13 @@ export default function PayConfig({
           {hasGroup('alipay') && renderGroup('alipay')}
           {hasGroup('notify') && renderGroup('notify')}
 
-          <Button type="primary" long loading={saving} onClick={save} style={{ marginTop: 8 }}>
+          {/* 保存按钮限宽到容器 1/3（Arco Form 为 flex-column，默认会被拉伸撑满整行） */}
+          <Button
+            type="primary"
+            loading={saving}
+            onClick={save}
+            style={{ width: '33%', minWidth: 150, alignSelf: 'flex-start', marginTop: 8 }}
+          >
             保存{title}
           </Button>
         </Form>
