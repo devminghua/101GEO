@@ -51,13 +51,16 @@ type ExtendRecord struct {
 
 // PointRecord 点卡流水（按租户隔离）。amount 正=充值 / 负=消费；balance_after 为操作后余额。
 type PointRecord struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	TenantID     uint      `gorm:"index;not null" json:"tenant_id"`
+	ID uint `gorm:"primaryKey" json:"id"`
+	// 复合索引 (tenant_id, created_at)：点卡流水页按租户取最近 N 条并倒序。
+	// 只有 tenant_id 单列索引时，PG 会退化为「索引取全部本租户行 + 内存排序」；
+	// 数据量上万后每次翻页都要扫全部分区（v1.0.45 实测走 Seq Scan）。
+	TenantID     uint      `gorm:"index;not null;index:idx_point_records_tenant_created,priority:1" json:"tenant_id"`
 	Amount       int64     `json:"amount"`              // 正=充值 / 负=消费
 	Type         string    `gorm:"size:16" json:"type"` // recharge 充值 / consume 消费
 	Remark       string    `gorm:"size:255" json:"remark"`
 	BalanceAfter int64     `json:"balance_after"` // 操作后余额
-	CreatedAt    time.Time `json:"created_at"`
+	CreatedAt    time.Time `gorm:"index:idx_point_records_tenant_created,priority:2,sort:desc" json:"created_at"`
 }
 
 // User 后台账号。TenantID=0 表示总后台超级管理员，>0 表示该分站的管理账号。
@@ -133,10 +136,10 @@ const (
 type KeywordCluster struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	TenantID    uint      `gorm:"index;not null" json:"tenant_id"`
-	Name        string    `gorm:"size:64;not null" json:"name"`        // 簇名，如「价格与预算」「服务对比」
+	Name        string    `gorm:"size:64;not null" json:"name"`                // 簇名，如「价格与预算」「服务对比」
 	Intent      string    `gorm:"size:32;default:informational" json:"intent"` // 搜索意图（见 IntentXxx 常量）
-	Description string    `gorm:"size:255" json:"description"`         // 该簇覆盖什么问题（供 AI 归类和人工审阅）
-	Color       string    `gorm:"size:16" json:"color"`                // 展示色（前端色卡）
+	Description string    `gorm:"size:255" json:"description"`                 // 该簇覆盖什么问题（供 AI 归类和人工审阅）
+	Color       string    `gorm:"size:16" json:"color"`                        // 展示色（前端色卡）
 	SortOrder   int       `gorm:"default:0" json:"sort_order"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -144,22 +147,23 @@ type KeywordCluster struct {
 
 // GeoKeyword GEO 关键词（按租户隔离）
 type GeoKeyword struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
-	TenantID      uint      `gorm:"index;not null" json:"tenant_id"`
-	Question      string    `gorm:"size:255" json:"question"`
-	BrandKeywords string    `gorm:"size:255" json:"brand_keywords"`
-	Category      string    `gorm:"size:64" json:"category"`
+	ID            uint   `gorm:"primaryKey" json:"id"`
+	TenantID      uint   `gorm:"index;not null" json:"tenant_id"`
+	Question      string `gorm:"size:255" json:"question"`
+	BrandKeywords string `gorm:"size:255" json:"brand_keywords"`
+	Category      string `gorm:"size:64" json:"category"`
 	// ClusterID 所属话题簇；0 = 未归类
-	ClusterID     uint      `gorm:"index;default:0" json:"cluster_id"`
-	Enabled       bool      `gorm:"default:true" json:"enabled"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ClusterID uint      `gorm:"index;default:0" json:"cluster_id"`
+	Enabled   bool      `gorm:"default:true" json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // CheckTask 巡检任务（按租户隔离）
 type CheckTask struct {
-	ID           uint       `gorm:"primaryKey" json:"id"`
-	TenantID     uint       `gorm:"index;not null" json:"tenant_id"`
+	ID uint `gorm:"primaryKey" json:"id"`
+	// 复合索引 (tenant_id, created_at)：工作日志/任务列表按租户取最近任务并倒序。
+	TenantID     uint       `gorm:"index;not null;index:idx_check_tasks_tenant_created,priority:1" json:"tenant_id"`
 	Mode         string     `gorm:"size:16" json:"mode"` // manual/auto
 	Status       string     `gorm:"size:16" json:"status"`
 	TotalQueries int        `json:"total_queries"`
@@ -169,13 +173,15 @@ type CheckTask struct {
 	Coverage     int        `json:"coverage"`
 	StartedAt    *time.Time `json:"started_at"`
 	FinishedAt   *time.Time `json:"finished_at"`
-	CreatedAt    time.Time  `json:"created_at"`
+	CreatedAt    time.Time  `gorm:"index:idx_check_tasks_tenant_created,priority:2,sort:desc" json:"created_at"`
 }
 
 // CheckResult 巡检明细（按租户隔离）
 type CheckResult struct {
-	ID            uint   `gorm:"primaryKey" json:"id"`
-	TenantID      uint   `gorm:"index" json:"tenant_id"`
+	ID uint `gorm:"primaryKey" json:"id"`
+	// 复合索引 (tenant_id, created_at)：GEO 指标/工作日志按租户+时间窗聚合。
+	// 仅有 tenant_id 单列索引时，时间窗过滤后仍需回表 + 排序（v1.0.45 实测）。
+	TenantID      uint   `gorm:"index;index:idx_check_results_tenant_created,priority:1" json:"tenant_id"`
 	TaskID        uint   `gorm:"index" json:"task_id"`
 	PlatformID    uint   `json:"platform_id"`
 	PlatformName  string `gorm:"size:64" json:"platform_name"`
@@ -187,17 +193,23 @@ type CheckResult struct {
 	HitPosition   int    `json:"hit_position"`
 	MentionCount  int    `json:"mention_count"`
 	// 多采样稳定性：LLM 输出具概率性，单次提问可能"碰巧"命中或漏掉。
-	// SampleCount 为该组合实际采样次数（≥1）；SampleHits 为其中命中品牌的次数。
+	// SampleCount 为该组合实际采样次数（≥1，0 表示未调用/未扣费）；SampleHits 为其中命中品牌的次数。
 	// 稳定性 = SampleHits/SampleCount。SampleCount=1 时退化为传统单次判定，口径兼容。
-	SampleCount int       `gorm:"default:1" json:"sample_count"`
-	SampleHits  int       `gorm:"default:0" json:"sample_hits"`
-	CostMs      int64     `json:"cost_ms"`
-	ErrorMsg    string    `gorm:"type:text" json:"error_msg"`
+	//
+	// 🔴 禁止给 SampleCount 加 `default:1`（v1.0.45 修复的真实缺陷）：
+	// GORM 在 Create 时会**省略零值字段**，让数据库填默认值。熔断跳过的记录显式赋
+	// SampleCount=0（未扣费），却被 DB 默认值 1 覆盖 → 工作日志算出「消耗 329 点」
+	// 而实际只扣 149 点，展示口径虚增 202 点、对客户撒谎。
+	// 同理 SampleHits / RefundedPoints 也不加 default，避免同类陷阱。
+	SampleCount int    `json:"sample_count"`
+	SampleHits  int    `json:"sample_hits"`
+	CostMs      int64  `json:"cost_ms"`
+	ErrorMsg    string `gorm:"type:text" json:"error_msg"`
 	// RefundedPoints 该条结果已退还的点数（0 = 未退）。
 	// 调用失败或返回空内容时，已扣的点数会即时退还，避免客户为无效调用付费。
 	// 工作日志据此展示「实际消耗 = SUM(sample_count) - SUM(refunded_points)」。
-	RefundedPoints int       `gorm:"default:0" json:"refunded_points"`
-	CreatedAt      time.Time `json:"created_at"`
+	RefundedPoints int       `json:"refunded_points"`
+	CreatedAt      time.Time `gorm:"index:idx_check_results_tenant_created,priority:2,sort:desc" json:"created_at"`
 }
 
 // Setting 租户级配置，复合主键 (tenant_id, key)
