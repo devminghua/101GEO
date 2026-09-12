@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import OpsReportTab from './OpsReportTab';
+import WorkLogTab from './WorkLogTab';
 import {
   Card, Button, Message, Tag, Space, Typography, Table, Form, Input, Select, Tabs, Spin,
   Switch, Popconfirm, Modal, Empty, Progress, Alert, InputNumber, Statistic, Grid, Skeleton,
@@ -183,7 +184,7 @@ function VisibilityScoreCard({ vs, sampleCount, refreshing }: { vs: any; sampleC
 }
 
 /* ============================================================
- * Tab1 六项指标总览
+ * Tab2 六项指标总览
  * ============================================================ */
 function IntelTab() {
   const [data, setData] = useState<any>(null);
@@ -471,7 +472,7 @@ function IntelTab() {
 }
 
 /* ============================================================
- * Tab2 竞品对比 + 品牌缺口分析
+ * Tab3 竞品对比 + 品牌缺口分析
  * ============================================================ */
 function GapTab() {
   const [data, setData] = useState<any>(null);
@@ -598,7 +599,7 @@ function GapTab() {
 }
 
 /* ============================================================
- * Tab3 优化行动清单
+ * Tab4 优化行动清单
  * ============================================================ */
 function ActionTab() {
   const [list, setList] = useState<any[]>([]);
@@ -1153,7 +1154,7 @@ function ClusterTab() {
 }
 
 /* ============================================================
- * Tab4 品牌事实库（GEO 准确率比对的知识底座）
+ * Tab5 品牌事实库（GEO 准确率比对的知识底座）
  * ============================================================ */
 function FactTab() {
   const [list, setList] = useState<any[]>([]);
@@ -1257,7 +1258,7 @@ function FactTab() {
 }
 
 /* ============================================================
- * Tab5 竞品库 + 风险词库
+ * Tab6 竞品库 + 风险词库
  * ============================================================ */
 function CompRiskTab() {
   const [comps, setComps] = useState<any[]>([]);
@@ -1361,7 +1362,7 @@ function CompRiskTab() {
 }
 
 /* ============================================================
- * Tab6 引用溯源
+ * Tab7 引用溯源
  * ============================================================ */
 function CitationTab() {
   const [list, setList] = useState<any[]>([]);
@@ -1454,7 +1455,7 @@ function CitationTab() {
 }
 
 /* ============================================================
- * Tab7 网站 GEO 审计（v1.0.33 起与「百度分析 → 站点体检」共用同一套四层加权口径）
+ * Tab8 网站 GEO 审计（v1.0.33 起与「百度分析 → 站点体检」共用同一套四层加权口径）
  * ============================================================ */
 const AUDIT_LAYER_COLOR: any = {
   access: '#F53F3F',
@@ -1578,7 +1579,7 @@ function AuditTab() {
 }
 
 /* ============================================================
- * Tab8 AI 可读性文件生成器（llms.txt / Schema.org）
+ * Tab9 AI 可读性文件生成器（llms.txt / Schema.org）
  * ============================================================ */
 function GeneratorTab() {
   const [llms, setLlms] = useState('');
@@ -1719,7 +1720,7 @@ function GeneratorTab() {
 }
 
 /* ============================================================
- * Tab9 阵地地图（19 个 GEO 建设阵地）
+ * Tab10 阵地地图（19 个 GEO 建设阵地）
  * ============================================================ */
 function ChannelTab() {
   const [list, setList] = useState<any[]>([]);
@@ -1784,38 +1785,43 @@ export default function GeoIntel() {
           监测 → 指标 → 缺口 → 行动 → 内容 → 复测 的完整优化闭环
         </Text>
       </Title>
-      <Tabs defaultActiveTab="intel" lazyload>
-        <TabPane key="intel" title="① 指标总览">
+      {/* 工作日志放第一位并默认展开：客户进来第一眼要看到
+          「这软件一直在帮我干活」，而不是先面对一堆待办指标。 */}
+      <Tabs defaultActiveTab="worklog" lazyload>
+        <TabPane key="worklog" title="① 工作日志">
+          <WorkLogTab />
+        </TabPane>
+        <TabPane key="intel" title="② 指标总览">
           <IntelTab />
         </TabPane>
-        <TabPane key="gaps" title="② 竞品与缺口">
+        <TabPane key="gaps" title="③ 竞品与缺口">
           <GapTab />
         </TabPane>
-        <TabPane key="actions" title="③ 行动清单">
+        <TabPane key="actions" title="④ 行动清单">
           <ActionTab />
         </TabPane>
-        <TabPane key="facts" title="④ 品牌事实库">
+        <TabPane key="facts" title="⑤ 品牌事实库">
           <FactTab />
         </TabPane>
-        <TabPane key="clusters" title="⑤ 话题簇">
+        <TabPane key="clusters" title="⑥ 话题簇">
           <ClusterTab />
         </TabPane>
-        <TabPane key="comprisk" title="⑥ 竞品与风险词">
+        <TabPane key="comprisk" title="⑦ 竞品与风险词">
           <CompRiskTab />
         </TabPane>
-        <TabPane key="citations" title="⑦ 引用溯源">
+        <TabPane key="citations" title="⑧ 引用溯源">
           <CitationTab />
         </TabPane>
-        <TabPane key="audit" title="⑧ 网站审计">
+        <TabPane key="audit" title="⑨ 网站审计">
           <AuditTab />
         </TabPane>
-        <TabPane key="gen" title="⑨ AI 可读性文件">
+        <TabPane key="gen" title="⑩ AI 可读性文件">
           <GeneratorTab />
         </TabPane>
-        <TabPane key="channels" title="⑩ 阵地地图">
+        <TabPane key="channels" title="⑪ 阵地地图">
           <ChannelTab />
         </TabPane>
-        <TabPane key="ops" title="⑪ 巡检与报告">
+        <TabPane key="ops" title="⑫ 巡检与报告">
           <OpsReportTab />
         </TabPane>
       </Tabs>

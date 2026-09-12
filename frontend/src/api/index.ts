@@ -273,6 +273,21 @@ export const api = {
   growthCheckin: () => request<{ points: number; streak: number }>('/growth/checkin', { method: 'POST', body: '{}' }),
   geoIntel: (days = 7) => request(`/geo/intel?days=${days}`),
   geoGaps: (days = 7) => request(`/geo/gaps?days=${days}`),
+  // 工作日志：系统自动/人工动作的统一时间线 + 工作节奏（上次/下次自动巡检）
+  geoWorkLog: (days = 7) =>
+    request<{
+      events: Array<{
+        time: string; date: string; kind: string; icon: string; auto: boolean;
+        title: string; detail: string; cost: number; status: 'success' | 'partial' | 'failed';
+      }>;
+      pace: {
+        auto_enabled: boolean; interval_min: number; window_text: string;
+        last_auto_at: string; next_auto_at: string; today_count: number; week_count: number;
+        running: boolean; platforms: number; keywords: number; points: number;
+        ready: boolean; ready_hint: string;
+      };
+      days: number;
+    }>(`/geo/worklog?days=${days}`),
   geoCompare: (beforeDays = 30, afterDays = 7) => request(`/geo/compare?before_days=${beforeDays}&after_days=${afterDays}`),
   listActions: (params = '') => request(`/geo/actions?${params}`),
   generateActions: () => request('/geo/actions/generate', { method: 'POST', body: '{}' }),

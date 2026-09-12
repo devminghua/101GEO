@@ -256,6 +256,8 @@ func main() {
 		// 六项核心指标 & 缺口分析
 		api.GET("/geo/intel", handlers.GeoIntel)
 		api.GET("/geo/gaps", handlers.GeoGaps)
+		// 工作日志：把巡检/行动/复测/内容/审计等自动动作归一成时间线，让客户看懂系统干了什么
+		api.GET("/geo/worklog", handlers.WorkLog)
 		// 效果归因：前后期对比
 		api.GET("/geo/compare", handlers.CompareGeoIntel)
 		// 优化行动清单
@@ -520,11 +522,8 @@ func main() {
 	handlers.SeedBaiduIndustryRank()
 
 	// 定时自动巡检：定时器驱动，对所有启用分站执行
-	if cfg.CronEnabled {
-		minutes := cfg.CronMinutes
-		if minutes < 1 {
-			minutes = 60
-		}
+	if config.AutoCheckEnabled() {
+		minutes := config.AutoCheckMinutes()
 		go func() {
 			ticker := time.NewTicker(time.Duration(minutes) * time.Minute)
 			defer ticker.Stop()
@@ -617,16 +616,21 @@ func openBrowser(url string) error {
 	return cmd.Start()
 }
 
-// runAutoCheck 8:00-22:00（**北京时间**）时段内，为所有启用分站各触发一轮自动巡检。
+// runAutoCheck 在自动巡检时段（**北京时间** [AutoCheckStartHour, AutoCheckEndHour)）
+// 内，为所有启用分站各触发一轮自动巡检。
 //
 // 时段判断必须用 biztime（北京时间）：容器镜像默认时区是 UTC，
 // 若直接 time.Now().Hour() 取到的是 UTC 小时，会让「8-22 点」实际落在
 // 北京时间 16:00 ~ 次日 06:00 —— 客户白天（尤其 9-16 点）完全不巡检，
 // 深夜反而频繁巡检。详见 services/biztime 包注释。
+//
+// 时段常量取自 config（唯一权威来源），与「工作日志」页面展示的承诺时段同源，
+// 避免页面写 8-22、实际跑成别的区间。
 func runAutoCheck() {
 	hour := biztime.Hour()
-	if hour < 8 || hour >= 22 {
-		log.Printf("[cron] 非巡检时段（北京时间 8-22 点，当前 %d 点），跳过", hour)
+	if hour < config.AutoCheckStartHour || hour >= config.AutoCheckEndHour {
+		log.Printf("[cron] 非巡检时段（北京时间 %d-%d 点，当前 %d 点），跳过",
+			config.AutoCheckStartHour, config.AutoCheckEndHour, hour)
 		return
 	}
 	var tenants []models.Tenant

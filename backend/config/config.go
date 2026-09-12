@@ -14,8 +14,37 @@ import (
 )
 
 // Version 产品版本号：每次更新记录一次版本号（老板规则，2026-09-07 起）。
-// 当前 1.0.41。发版时改这里，客户端与 SaaS 端登录页/侧栏会自动显示。
-const Version = "1.0.41"
+// 当前 1.0.42。发版时改这里，客户端与 SaaS 端登录页/侧栏会自动显示。
+const Version = "1.0.42"
+
+/* ---------------------------------------------------------------------------
+ * 自动巡检调度参数（**全站唯一权威来源**）
+ *
+ * 背景：巡检的实际节奏有两处需要知道——后台常驻 goroutine（main.go 真正触发巡检）
+ * 与「工作日志」页面（要告诉客户「下次大概什么时候自动干活」）。
+ * 若两处各写一份默认值/时段判断，改配置时就必然有一处不同步
+ * （v1.0.38 AI 平台归属、v1.0.39 平台可用性都吃过这个亏）。
+ * 因此这里集中定义，双方都调这里的函数。
+ * ------------------------------------------------------------------------- */
+const (
+	autoCheckDefaultMinutes = 60 // 默认巡检间隔（分钟）
+	// 自动巡检时段（**北京时间**，闭开区间 [start, end)）。
+	// 意义：深夜不打扰、不烧点卡，只在客户可能关注的白天执行。
+	AutoCheckStartHour = 8
+	AutoCheckEndHour   = 22
+)
+
+// AutoCheckEnabled 是否启用定时自动巡检（GEO_CRON_ENABLED）
+func AutoCheckEnabled() bool { return getEnvBool("GEO_CRON_ENABLED", true) }
+
+// AutoCheckMinutes 自动巡检间隔分钟数（GEO_CRON_MINUTES），下限 1
+func AutoCheckMinutes() int {
+	m := getEnvInt("GEO_CRON_MINUTES", autoCheckDefaultMinutes)
+	if m < 1 {
+		m = autoCheckDefaultMinutes
+	}
+	return m
+}
 
 type Config struct {
 	Port         string // 后端监听端口
@@ -25,8 +54,9 @@ type Config struct {
 	DataDir      string // 数据根目录（数据库 + uploads 等，与工作目录解耦）
 	UploadsDir   string // 上传目录（Logo/头像/创作图片等）
 	DefaultBrand string // 默认品牌词
-	CronEnabled  bool   // 是否启用定时自动巡检
-	CronMinutes  int    // 自动巡检间隔（分钟）
+	// 注意：自动巡检开关与间隔**不在结构体里**，统一走包级函数
+	// AutoCheckEnabled() / AutoCheckMinutes()（见文件顶部说明），
+	// 避免出现「结构体字段」与「函数」两套真相。
 	JWTSecret    string // JWT 签名密钥
 	SecretKey    string // 密码/敏感字段可逆加密密钥
 	WxAppID      string // 微信小程序 AppID（miniapp 登录用）
@@ -104,8 +134,6 @@ func loadConfig() *Config {
 		DataDir:      dataDir,
 		UploadsDir:   uploadsDir,
 		DefaultBrand: getEnv("GEO_DEFAULT_BRAND", ""),
-		CronEnabled:  getEnvBool("GEO_CRON_ENABLED", true),
-		CronMinutes:  getEnvInt("GEO_CRON_MINUTES", 60),
 		JWTSecret:    getEnv("GEO_JWT_SECRET", ""),
 		SecretKey:    getEnv("GEO_SECRET_KEY", ""),
 		WxAppID:      getEnv("GEO_WX_APPID", ""),
@@ -121,7 +149,7 @@ func loadConfig() *Config {
 		}
 	}
 
-	log.Printf("[config] port=%s db=%s uploads=%s cronEnabled=%v cronMinutes=%d jwtMode=%s", c.Port, c.DBDriver, c.UploadsDir, c.CronEnabled, c.CronMinutes, map[bool]string{true: "custom", false: "default"}[c.JWTSecret != ""])
+	log.Printf("[config] port=%s db=%s uploads=%s cronEnabled=%v cronMinutes=%d jwtMode=%s", c.Port, c.DBDriver, c.UploadsDir, AutoCheckEnabled(), AutoCheckMinutes(), map[bool]string{true: "custom", false: "default"}[c.JWTSecret != ""])
 
 	// 安全校验：服务器/容器模式（非单机版）禁止使用默认弱密钥，防止弱密钥上线被伪造 JWT / 解密敏感数据。
 	// 单机版（GEO_LICENSE_MODE=true）允许默认，但打包时 .env 已注入强随机密钥。
