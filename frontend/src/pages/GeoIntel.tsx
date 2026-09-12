@@ -354,7 +354,21 @@ function IntelTab() {
                     </div>
                   </div>
                   {data.competitor_sov > data.brand_sov && (
-                    <Tag color="red" icon={<IconExclamationCircle />}>竞品声量高于品牌，建议优先处理缺口</Tag>
+                    // 用可换行的提示条而非 Tag：Arco Tag 是 inline-flex + 固定 height:24px +
+                    // 内容 white-space:nowrap，天生无法折行；本卡片位于 minmax(200px,1fr) 网格中，
+                    // 最窄档位内容区仅约 160px，而这句 18 字提示实测宽 238px（超出 40px）会顶破卡片。
+                    // 语义上这是提示正文而非状态标签，故改用可换行块级提示条（minWidth:0 允许 flex 收缩）。
+                    <div
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 4,
+                        marginTop: 2, padding: '4px 8px', borderRadius: 6,
+                        background: 'rgb(var(--red-1))', color: 'rgb(var(--red-6))',
+                        fontSize: 12, lineHeight: '18px',
+                      }}
+                    >
+                      <IconExclamationCircle style={{ flex: '0 0 auto', marginTop: 2 }} />
+                      <span style={{ minWidth: 0, wordBreak: 'break-word' }}>竞品声量高于品牌，建议优先处理缺口</span>
+                    </div>
                   )}
                 </Card>
               </div>

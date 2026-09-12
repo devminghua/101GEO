@@ -38,6 +38,14 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.40", Date: "2026-09-12", Title: "修复 GEO 智能中心声量卡提示文案溢出",
+		Items: items(
+			"fix", "修复「GEO 智能中心 → 品牌声量 vs 竞品声量」卡片的文字溢出问题：该卡片位于自适应网格中（最窄 200px），而「竞品声量高于品牌，建议优先处理缺口」这句提示原先用 Tag 组件承载，Arco Tag 是 inline-flex + 固定 height:24px + 内容 white-space:nowrap，天生无法折行，实测该提示宽 238px、内容区仅 198px，超出约 40px 顶破卡片",
+			"improve", "该提示改为可换行的提示条（块级 + wordBreak:break-word + minWidth:0 允许 flex 收缩），语句较长时自动折行；语义上也更准确——这是一句解释性提示，并非状态标签，不应使用 Tag 承载长句",
+			"improve", "排查全页其余 42 处 Tag：均为表格状态列、计数徽章等短标签，且处于固定列宽或带 flexWrap 的容器内，无同类溢出风险",
+		),
+	},
+	{
 		Version: "1.0.39", Date: "2026-09-12", Title: "平台可用性判定口径统一（补齐本地自托管平台）",
 		Items: items(
 			"fix", "修复「话题簇聚类」的平台可用性判定漏判：原先手写「已启用 && API Key 非空」，会把本地自托管平台（Ollama 等无需 Key 的服务）误判为不可用，出现「AI 平台页显示可用、点聚类却说没有可用平台」的矛盾；现统一复用 `ai_platform.Usable`",
