@@ -20,8 +20,14 @@ import (
 var DB *gorm.DB
 
 // DaySQL 返回"按天分组"的 SQL 表达式（PostgreSQL）。
+//
+// 必须显式转成**北京时间**再取日期：created_at 是 timestamptz，
+// 而数据库会话时区是 UTC，直接 to_char(col,'YYYY-MM-DD') 会按 UTC 日切，
+// 导致北京时间 0-8 点的记录被归到前一天，
+// 与 Go 侧 biztime.Day() 生成的日期键（补空天、趋势序列）对不上。
+// 详见 services/biztime 包注释。
 func DaySQL(col string) string {
-	return "to_char(" + col + ", 'YYYY-MM-DD')"
+	return "to_char(" + col + " AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD')"
 }
 
 // TrueCond 返回布尔字段为真的条件表达式（PostgreSQL）。

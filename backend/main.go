@@ -22,6 +22,7 @@ import (
 	"geo-tool/handlers"
 	super_h "geo-tool/handlers/super"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 	"geo-tool/services/geo"
 	"geo-tool/services/notify"
 )
@@ -539,21 +540,23 @@ func main() {
 	}
 
 	// 每日告警推送：每小时检查一次，到推送时刻且当日未推过则推送（到期预警 + 点数不足）
+	// 注意传 biztime.Now()：告警的「推送时刻」与「当日去重」都是业务时间，
+	// 容器时区为 UTC，若传 time.Now() 会让「设在几点推」实际偏移 8 小时。
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
 		for range ticker.C {
-			if notify.RunDailyIfDue(time.Now()) {
+			if notify.RunDailyIfDue(biztime.Now()) {
 				log.Println("[notify] 每日告警已推送")
 			}
 		}
 	}()
 
-	// 百度指数行业排行：每日定时更新（每天 06:05 触发一次）
+	// 百度指数行业排行：每日定时更新（每天 06:05 触发一次，**北京时间**）
 	go func() {
 		for {
-			now := time.Now()
-			next := time.Date(now.Year(), now.Month(), now.Day(), 6, 5, 0, 0, now.Location())
+			now := biztime.Now()
+			next := time.Date(now.Year(), now.Month(), now.Day(), 6, 5, 0, 0, biztime.Zone())
 			if now.After(next) {
 				next = next.AddDate(0, 0, 1)
 			}
@@ -614,15 +617,21 @@ func openBrowser(url string) error {
 	return cmd.Start()
 }
 
-// runAutoCheck 8:00-22:00 时段内，为所有启用分站各触发一轮自动巡检
+// runAutoCheck 8:00-22:00（**北京时间**）时段内，为所有启用分站各触发一轮自动巡检。
+//
+// 时段判断必须用 biztime（北京时间）：容器镜像默认时区是 UTC，
+// 若直接 time.Now().Hour() 取到的是 UTC 小时，会让「8-22 点」实际落在
+// 北京时间 16:00 ~ 次日 06:00 —— 客户白天（尤其 9-16 点）完全不巡检，
+// 深夜反而频繁巡检。详见 services/biztime 包注释。
 func runAutoCheck() {
-	hour := time.Now().Hour()
+	hour := biztime.Hour()
 	if hour < 8 || hour >= 22 {
-		log.Println("[cron] 非巡检时段（8-22 点），跳过")
+		log.Printf("[cron] 非巡检时段（北京时间 8-22 点，当前 %d 点），跳过", hour)
 		return
 	}
 	var tenants []models.Tenant
 	database.DB.Where("status = ?", 1).Find(&tenants)
+	log.Printf("[cron] 开始自动巡检：%d 个启用分站（北京时间 %d 点）", len(tenants), hour)
 	for _, t := range tenants {
 		geo.RunTenantTask(t.ID, "auto")
 	}

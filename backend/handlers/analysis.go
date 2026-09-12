@@ -13,6 +13,7 @@ import (
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 // Analysis 专业分析数据结构
@@ -74,7 +75,7 @@ type TrendPoint struct {
 
 // buildAnalysis 对查询结果做多维聚合分析
 func buildAnalysis(results []models.CheckResult, days int, since time.Time) *Analysis {
-	a := &Analysis{Days: days, Period: fmt.Sprintf("%s ~ %s", since.Format("2006-01-02"), time.Now().Format("2006-01-02"))}
+	a := &Analysis{Days: days, Period: fmt.Sprintf("%s ~ %s", since.Format("2006-01-02"), biztime.Today())}
 
 	totals := AnalysisTotals{}
 	platformMap := map[string]*PlatformStat{}
@@ -281,7 +282,7 @@ func queryResultsInRange(c *gin.Context, defaultDays int) ([]models.CheckResult,
 			days = n
 		}
 	}
-	since := time.Now().AddDate(0, 0, -days)
+	since := biztime.Since(days)
 	q := database.DB.Where("tenant_id = ? AND created_at >= ?", tid, since)
 	if v := c.Query("platform_name"); v != "" {
 		q = q.Where("platform_name = ?", v)
@@ -304,7 +305,7 @@ func ExportReport(c *gin.Context) {
 	results, days, since := queryResultsInRange(c, 7)
 	a := buildAnalysis(results, days, since)
 	format := c.DefaultQuery("format", "md")
-	date := time.Now().Format("20060102")
+	date := biztime.DateCompact()
 	var ctype, fname string
 	var data []byte
 	switch format {
@@ -330,7 +331,7 @@ func ExportReport(c *gin.Context) {
 func buildMarkdown(a *Analysis) string {
 	var b strings.Builder
 	b.WriteString("# GEO 优化报告\n\n")
-	b.WriteString(fmt.Sprintf("> 生成时间：%s\n\n", time.Now().Format("2006-01-02 15:04")))
+	b.WriteString(fmt.Sprintf("> 生成时间：%s\n\n", biztime.DateTime()))
 	b.WriteString(fmt.Sprintf("> 统计周期：%s\n\n", a.Period))
 
 	t := a.Totals
@@ -394,7 +395,7 @@ ul{padding-left:20px}
 .footer{margin-top:40px;color:#c9cdd4;font-size:12px;text-align:center}
 </style></head><body>`)
 	b.WriteString(fmt.Sprintf("<h1>GEO 优化报告</h1><p class=\"meta\">生成时间：%s</p><p class=\"meta\">统计周期：%s</p>",
-		time.Now().Format("2006-01-02 15:04"), a.Period))
+		biztime.DateTime(), a.Period))
 	b.WriteString(`<div class="kpis">`)
 	kpis := []struct {
 		v string
@@ -458,7 +459,7 @@ func buildDocx(a *Analysis) []byte {
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`)
 	// 标题
 	body.WriteString(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t xml:space="preserve">GEO 优化报告</w:t></w:r></w:p>`)
-	body.WriteString(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:color w:val="888888"/></w:rPr><w:t xml:space="preserve">` + xmlEscape(a.Period+"　|　生成时间 "+time.Now().Format("2006-01-02 15:04")) + `</w:t></w:r></w:p>`)
+	body.WriteString(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:color w:val="888888"/></w:rPr><w:t xml:space="preserve">` + xmlEscape(a.Period+"　|　生成时间 "+biztime.DateTime()) + `</w:t></w:r></w:p>`)
 
 	addHeading(&body, "一、核心指标")
 	t := a.Totals

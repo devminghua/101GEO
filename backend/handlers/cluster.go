@@ -15,6 +15,7 @@ import (
 	"geo-tool/models"
 	"geo-tool/services/ai"
 	"geo-tool/services/ai_platform"
+	"geo-tool/services/biztime"
 	"geo-tool/services/points"
 )
 
@@ -89,7 +90,7 @@ type ClusterStat struct {
 func ListClusters(c *gin.Context) {
 	tid := TenantID(c)
 	days := parseDay(c.DefaultQuery("days", "30"))
-	since := time.Now().AddDate(0, 0, -days)
+	since := biztime.Since(days)
 
 	var clusters []models.KeywordCluster
 	database.DB.Where("tenant_id = ?", tid).Order("sort_order asc, id asc").Find(&clusters)

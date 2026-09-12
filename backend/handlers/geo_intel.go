@@ -15,6 +15,7 @@ import (
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 // ============================================================
@@ -181,7 +182,7 @@ func ListCitations(c *gin.Context) {
 func CitationDomains(c *gin.Context) {
 	tid := TenantID(c)
 	days := parseDay(c.DefaultQuery("days", "30"))
-	since := time.Now().AddDate(0, 0, -days)
+	since := biztime.Since(days)
 	rows := []struct {
 		Domain string `json:"domain"`
 		Cnt    int64  `json:"cnt"`
@@ -212,7 +213,7 @@ type sourceGapResp struct {
 func SourceGaps(c *gin.Context) {
 	tid := TenantID(c)
 	days := parseDay(c.DefaultQuery("days", "30"))
-	since := time.Now().AddDate(0, 0, -days)
+	since := biztime.Since(days)
 
 	var comps []models.Competitor
 	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&comps)
@@ -352,7 +353,7 @@ func computeGeoIndicator(tid uint, results []models.CheckResult, since time.Time
 		}
 	}
 
-	ind := &geoIndicator{Days: days, Period: fmt.Sprintf("%s ~ %s", since.Format("2006-01-02"), time.Now().Format("2006-01-02"))}
+	ind := &geoIndicator{Days: days, Period: fmt.Sprintf("%s ~ %s", since.Format("2006-01-02"), biztime.Today())}
 	pm := map[string]*geoPlatform{}
 	dayMap := map[string]*TrendPoint{}
 
@@ -1052,7 +1053,7 @@ func LoopSummary(c *gin.Context) {
 	database.DB.Model(&models.OptTask{}).Where("tenant_id = ? AND verify_status = ?", tid, "improved").Count(&improved)
 
 	// 监测：近 7 天是否有巡检数据
-	since := time.Now().AddDate(0, 0, -7)
+	since := biztime.Since(7)
 	var recent int64
 	database.DB.Model(&models.CheckResult{}).Where("tenant_id = ? AND created_at >= ?", tid, since).Count(&recent)
 

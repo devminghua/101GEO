@@ -3,10 +3,10 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"geo-tool/services/biztime"
 	"geo-tool/services/notify"
 )
 
@@ -27,7 +27,8 @@ func NotifyTestService(c *gin.Context) {
 // 不实际推送，返回此刻汇总的告警文本（到期预警 + 点数不足），供设置页预览。
 func NotifyPreviewService(c *gin.Context) {
 	cfg := notify.LoadConfig()
-	msg := notify.BuildDailyMessage(cfg, time.Now())
+	// 预览要展示「此刻」的业务时间口径（与真实推送一致）
+	msg := notify.BuildDailyMessage(cfg, biztime.Now())
 	if msg == "" {
 		msg = "当前无告警：没有 " + strconv.Itoa(cfg.ExpiryDays) + " 天内到期的客户，也没有余额 ≤ " + strconv.Itoa(cfg.PointsFloor) + " 点的分站。"
 	}

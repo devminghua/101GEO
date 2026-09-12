@@ -10,15 +10,18 @@ import (
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 // DashboardSummary 仪表盘汇总：今日 / 累计指标（当前租户）
 func DashboardSummary(c *gin.Context) {
 	tid := TenantID(c)
 	db := database.DB
-	// 本地时区今日零点（Truncate(24h) 是按 UTC 天截断，东八区会错位到早上 8 点）
-	now := time.Now()
-	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	// 今日零点必须取**北京时间**零点：容器时区为 UTC，
+	// 用 time.Now() 得到的「本地零点」实际是 UTC 零点（= 北京时间 8 点），
+	// 会让「今日巡检次数」等当日指标在北京时间 8 点才清零。
+	now := biztime.Now()
+	midnight := biztime.DayStart(now)
 
 	// 今日指标（取最近一次运行中的最新任务聚合结果）
 	var todayChecked, todayHit, todayMiss, todayErr, todayCoverage int64
@@ -73,7 +76,7 @@ func DashboardTrend(c *gin.Context) {
 			days = n
 		}
 	}
-	since := time.Now().AddDate(0, 0, -days+1)
+	since := biztime.Since(days-1)
 	type row struct {
 		Day   string
 		Hit   int64
@@ -92,7 +95,7 @@ func DashboardTrend(c *gin.Context) {
 		byDay[r.Day] = r
 	}
 	for i := days - 1; i >= 0; i-- {
-		d := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
+		d := biztime.Day(-i)
 		r, ok := byDay[d]
 		if !ok {
 			r.Day = d
@@ -216,7 +219,7 @@ func DashboardOverview(c *gin.Context) {
 	var trendRows []trendRow
 	db.Model(&models.CheckResult{}).
 		Select("platform_name as platform, " + dayExpr() + " as day, sum(case when hit then 1 else 0 end) as hit, count(*) as total").
-		Where("tenant_id = ? AND created_at >= ?", tid, time.Now().AddDate(0, 0, -29)).
+		Where("tenant_id = ? AND created_at >= ?", tid, biztime.Since(29)).
 		Group("platform_name, " + dayExpr() + "").
 		Scan(&trendRows)
 	trendMap := map[string]map[string]trendRow{}
@@ -241,7 +244,7 @@ func DashboardOverview(c *gin.Context) {
 		var lastDay, prevDay string
 		var has bool
 		for i := 29; i >= 0; i-- {
-			d := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
+			d := biztime.Day(-i)
 			if mm != nil {
 				if r, ok := mm[d]; ok && r.Total > 0 {
 					seq = append(seq, rateOf(r))
@@ -345,7 +348,7 @@ func DashboardOverview(c *gin.Context) {
 			sum(case when coalesce(mention_count,0) > 0 then mention_count else 0 end) as exp,
 			count(distinct platform_name) as plat_cnt,
 			count(distinct question) as kw_cnt`).
-		Where("tenant_id = ? AND created_at >= ?", tid, time.Now().AddDate(0, 0, -29)).
+		Where("tenant_id = ? AND created_at >= ?", tid, biztime.Since(29)).
 		Group(dayExpr()).Scan(&dayRows)
 	dayHit := map[string]int64{}
 	dayTotal := map[string]int64{}
@@ -364,7 +367,7 @@ func DashboardOverview(c *gin.Context) {
 	fillDay := func(pick func(dayHit, dayTotal, dayTop3, dayExp, dayPlat, dayKw int64) (float64, bool)) []float64 {
 		seq := make([]float64, 0, 30)
 		for i := 29; i >= 0; i-- {
-			d := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
+			d := biztime.Day(-i)
 			v, ok := pick(dayHit[d], dayTotal[d], dayTop3[d], dayExp[d], dayPlat[d], dayKw[d])
 			if !ok || v < 0 {
 				v = 0
@@ -524,6 +527,7 @@ func DashboardOverview(c *gin.Context) {
 		"scene_dist":     sceneDist,
 		"kw_rank_top":    kwRankTop,
 		"rank_dist":      rankDist,
-		"generated_at":   time.Now().In(time.FixedZone("CST", 8*3600)).Format("2006-01-02 15:04:05"),
+		// 收口到 biztime（原为本地 CST 硬编码，属于第二套时区实现）
+		"generated_at":   biztime.DateTimeSec(),
 	}})
 }

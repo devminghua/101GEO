@@ -16,6 +16,7 @@ import (
 	"geo-tool/models"
 	"geo-tool/services/ai"
 	"geo-tool/services/ai_platform"
+	"geo-tool/services/biztime"
 	"geo-tool/services/points"
 )
 
@@ -113,7 +114,7 @@ func buildAssistantContext(tid uint) *assistantContext {
 	}
 
 	// 近 7 天数据（与仪表盘默认口径一致）
-	since := time.Now().AddDate(0, 0, -7)
+	since := biztime.Since(7)
 	var results []models.CheckResult
 	database.DB.Where("tenant_id = ? AND created_at >= ?", tid, since).
 		Order("created_at desc").Find(&results)

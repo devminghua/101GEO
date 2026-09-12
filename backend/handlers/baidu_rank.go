@@ -3,12 +3,12 @@ package handlers
 import (
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 // baiduIndustry 行业定义（代码 / 中文名 / 英文名）
@@ -58,7 +58,7 @@ func SeedBaiduIndustryRank() {
 	if cnt > 0 {
 		return
 	}
-	today := time.Now().Format("2006-01-02")
+	today := biztime.Today()
 	for _, ind := range baiduIndustries {
 		rows, ok := baiduSeedData[ind.Code]
 		if !ok {
@@ -114,7 +114,8 @@ func IndustryRank(c *gin.Context) {
 		"period": period, "metric": metric,
 		"industries": grouped,
 		"metrics":    []gin.H{{"key": "brand", "label": "品牌指数"}, {"key": "search", "label": "品牌搜索指数"}, {"key": "news", "label": "品牌资讯指数"}, {"key": "interact", "label": "品牌互动指数"}},
-		"updated_at": time.Now().In(time.FixedZone("CST", 8*3600)).Format("2006-01-02 15:04:05"),
+		// 收口到 biztime（原为本地 CST 硬编码，属于第二套时区实现）
+		"updated_at": biztime.DateTimeSec(),
 	}})
 }
 
@@ -151,7 +152,7 @@ func IndustryRankRefresh(c *gin.Context) {
 	if req.Metric == "" {
 		req.Metric = "brand"
 	}
-	today := time.Now().Format("2006-01-02")
+	today := biztime.Today()
 	// 名称映射（code -> 中文/英文）
 	nameMap := map[string]baiduIndustry{}
 	for _, ind := range baiduIndustries {

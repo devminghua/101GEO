@@ -8,6 +8,7 @@ import (
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 // Overview 总后台 SaaS 运营概览：
@@ -18,8 +19,10 @@ func Overview(c *gin.Context) {
 	var newTenants7d, newTenants30d int64
 	var pointsLeft, pointsUsedTotal, pointsUsedToday, pointsUsed7d int64
 
-	now := time.Now()
-	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	// 统计口径统一走业务时区（北京时间）：容器时区为 UTC，
+	// 若用 time.Now() 会让「今日」在北京时间 8 点才切换。
+	now := biztime.Now()
+	midnight := biztime.DayStart(now)
 	sevenDaysAgo := midnight.AddDate(0, 0, -6)
 	thirtyDaysAgo := midnight.AddDate(0, 0, -29)
 
@@ -66,7 +69,7 @@ func Overview(c *gin.Context) {
 		Group("" + dayExpr() + "").Scan(&newRows)
 	byDay := map[string]*dayRow{}
 	for i := 6; i >= 0; i-- {
-		d := midnight.AddDate(0, 0, -i).Format("2006-01-02")
+		d := biztime.Day(-i)
 		byDay[d] = &dayRow{Day: d}
 	}
 	for _, r := range usedRows {
@@ -81,7 +84,7 @@ func Overview(c *gin.Context) {
 	}
 	days := make([]dayRow, 0, 7)
 	for i := 6; i >= 0; i-- {
-		d := midnight.AddDate(0, 0, -i).Format("2006-01-02")
+		d := biztime.Day(-i)
 		days = append(days, *byDay[d])
 	}
 

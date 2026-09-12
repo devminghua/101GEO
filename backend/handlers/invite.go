@@ -8,6 +8,7 @@ import (
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 // settleInvite 被邀请人注册成功后结算奖励：给邀请人加积分并记录邀请关系。
@@ -130,7 +131,7 @@ func GrowthSummary(c *gin.Context) {
 	// 连续签到天数（从今天往前推）
 	streak := 0
 	for i := 0; ; i++ {
-		day := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
+		day := biztime.Day(-i)
 		var c int64
 		database.DB.Model(&models.CheckinRecord{}).Where("tenant_id = ? AND day = ?", tid, day).Count(&c)
 		if c == 0 {
@@ -143,12 +144,12 @@ func GrowthSummary(c *gin.Context) {
 	}
 
 	// 今日是否已签到
-	today := time.Now().Format("2006-01-02")
+	today := biztime.Today()
 	var todayCount int64
 	database.DB.Model(&models.CheckinRecord{}).Where("tenant_id = ? AND day = ?", tid, today).Count(&todayCount)
 
 	// 本月签到记录
-	monthPrefix := time.Now().Format("2006-01")
+	monthPrefix := biztime.Month()
 	var checkins []models.CheckinRecord
 	database.DB.Where("tenant_id = ? AND day LIKE ?", tid, monthPrefix+"%").Order("day desc").Find(&checkins)
 
@@ -187,7 +188,7 @@ func Checkin(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "总后台账号无签到"})
 		return
 	}
-	today := time.Now().Format("2006-01-02")
+	today := biztime.Today()
 	var todayCount int64
 	database.DB.Model(&models.CheckinRecord{}).Where("tenant_id = ? AND day = ?", tid, today).Count(&todayCount)
 	if todayCount > 0 {
@@ -197,7 +198,7 @@ func Checkin(c *gin.Context) {
 	// 连续签到天数（昨天往前）
 	streak := 0
 	for i := 1; ; i++ {
-		day := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
+		day := biztime.Day(-i)
 		var n int64
 		database.DB.Model(&models.CheckinRecord{}).Where("tenant_id = ? AND day = ?", tid, day).Count(&n)
 		if n == 0 {

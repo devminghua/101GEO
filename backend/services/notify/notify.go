@@ -210,7 +210,11 @@ func BuildDailyMessage(cfg Config, now time.Time) string {
 // lastPushDay 进程内去重（当日已推过不再推）
 var lastPushDay string
 
-// RunDailyIfDue 每日到点推送一次；返回是否执行了推送
+// RunDailyIfDue 每日到点推送一次；返回是否执行了推送。
+//
+// now 必须是**业务时区（北京时间）**的时间：推送时刻（cfg.PushHour）与
+// 「当日去重」都是业务语义。调用方传 biztime.Now()；若传 time.Now()，
+// 在 UTC 容器里会让「设为 9 点推」实际变成北京时间 17 点推。
 func RunDailyIfDue(now time.Time) bool {
 	cfg := LoadConfig()
 	if !cfg.Enabled {

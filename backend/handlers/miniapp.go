@@ -16,6 +16,7 @@ import (
 	"geo-tool/database"
 	"geo-tool/models"
 	"geo-tool/services/auth"
+	"geo-tool/services/biztime"
 	"geo-tool/services/crypto"
 )
 
@@ -128,7 +129,7 @@ func MiniappBind(c *gin.Context) {
 // 一次返回六项指标 + 近 7 天趋势 + 竞品声量 + 未读站内信 + 最近巡检时间。
 func MiniappHome(c *gin.Context) {
 	tid := TenantID(c)
-	since := time.Now().AddDate(0, 0, -6)
+	since := biztime.Since(6)
 
 	var results []models.CheckResult
 	database.DB.Where("tenant_id = ? AND created_at >= ?", tid, since).Find(&results)
@@ -229,7 +230,7 @@ func MiniappHome(c *gin.Context) {
 	// 近 7 天趋势（补空天）
 	trend := make([]float64, 0, 7)
 	for i := 6; i >= 0; i-- {
-		d := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
+		d := biztime.Day(-i)
 		td := dayMap[d]
 		if td == nil || td.Total == 0 {
 			trend = append(trend, 0)

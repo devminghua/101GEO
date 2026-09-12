@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 // UsageOverview 客户端「Token 用量」看板数据：GET /api/usage/overview?days=7
@@ -22,7 +22,7 @@ func UsageOverview(c *gin.Context) {
 			days = atoiQ(v)
 		}
 	}
-	since := time.Now().AddDate(0, 0, -days)
+	since := biztime.Since(days)
 
 	type aggRow struct {
 		Tokens  int64 `json:"tokens"`

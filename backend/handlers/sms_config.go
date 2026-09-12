@@ -5,11 +5,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"geo-tool/config"
+	"geo-tool/services/biztime"
 	"geo-tool/services/crypto"
 	"geo-tool/services/sms"
 )
@@ -287,7 +287,7 @@ func SaveSmsConfig(c *gin.Context) {
 		}
 	}
 	if changed {
-		upsertGlobalSetting(settingAgreementUpdate, time.Now().Format("2006-01-02"))
+		upsertGlobalSetting(settingAgreementUpdate, biztime.Today())
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已保存"})
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 /* ================================================================
@@ -113,7 +114,7 @@ func Precheck(a *models.DyAccount, f Frequency, now time.Time, lastActionAt *tim
 
 // NextCooldown 计算账号下次冷却截止时间（达上限自动冷却）
 func NextCooldown(account *models.DyAccount, f Frequency) {
-	account.CooldownUntil = ptrTime(CooldownNextDayStart(f, time.Now()))
+	account.CooldownUntil = ptrTime(CooldownNextDayStart(f, biztime.Now()))
 	account.Status = models.AccountCooldown
 }
 

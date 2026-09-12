@@ -1,10 +1,10 @@
 package content
 
 import (
-	"time"
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 /* ================================================================
@@ -67,7 +67,7 @@ func Analysis(tid uint) (*AnalysisResp, error) {
 	var articles []models.CtnArticle
 	database.DB.Where("tenant_id = ?", tid).Find(&articles)
 
-	cut := time.Now().AddDate(0, 0, -30)
+	cut := biztime.Since(30)
 	var monitors []models.CtnMonitor
 	database.DB.Where("tenant_id = ? AND created_at >= ?", tid, cut).Find(&monitors)
 
@@ -171,7 +171,7 @@ func Analysis(tid uint) (*AnalysisResp, error) {
 	// 近 30 天趋势
 	dayIdx := map[string]*TrendItem{}
 	for d := 0; d < 30; d++ {
-		day := time.Now().AddDate(0, 0, -d).Format("2006-01-02")
+		day := biztime.Day(-d)
 		ti := &TrendItem{Day: day}
 		dayIdx[day] = ti
 		resp.Trend = append(resp.Trend, *ti)
@@ -195,7 +195,7 @@ func Analysis(tid uint) (*AnalysisResp, error) {
 		}
 	}
 	for d := 0; d < 30; d++ {
-		day := time.Now().AddDate(0, 0, -d).Format("2006-01-02")
+		day := biztime.Day(-d)
 		resp.Trend[d] = *dayIdx[day]
 	}
 

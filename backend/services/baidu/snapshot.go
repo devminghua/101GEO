@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"gorm.io/gorm"
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 /* ================================================================
@@ -37,7 +37,7 @@ func SaveSnapshot(tid uint, keyword, domain string, bestRank, occurrences int) {
 		return
 	}
 	db := database.DB
-	date := time.Now().Format("2006-01-02")
+	date := biztime.Today()
 	var snap models.BaiduRankSnapshot
 	err := db.Where("tenant_id = ? AND keyword = ? AND site_domain = ? AND date = ?",
 		tid, strings.TrimSpace(keyword), strings.TrimSpace(domain), date).First(&snap).Error
@@ -83,7 +83,7 @@ func QueryRankHistory(tid uint, keyword string, days int) []RankPoint {
 	if days > 365 {
 		days = 365
 	}
-	from := time.Now().AddDate(0, 0, -(days - 1)).Format("2006-01-02")
+	from := biztime.Day(-(days - 1))
 	var snaps []models.BaiduRankSnapshot
 	database.DB.Where("tenant_id = ? AND keyword = ? AND date >= ?",
 		tid, strings.TrimSpace(keyword), from).Find(&snaps)

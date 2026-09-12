@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 	"geo-tool/services/pay"
 )
 
@@ -87,14 +87,14 @@ func GenerateReport(c *gin.Context) {
 			days = n
 		}
 	}
-	since := time.Now().AddDate(0, 0, -days)
+	since := biztime.Since(days)
 
 	var results []models.CheckResult
 	database.DB.Where("tenant_id = ? AND created_at >= ?", tid, since).Find(&results)
 
 	var b strings.Builder
 	b.WriteString("# GEO 优化报告\n\n")
-	b.WriteString(fmt.Sprintf("> 统计周期：%s ~ %s\n\n", since.Format("2006-01-02"), time.Now().Format("2006-01-02")))
+	b.WriteString(fmt.Sprintf("> 统计周期：%s ~ %s\n\n", since.Format("2006-01-02"), biztime.Today()))
 
 	total, hit, miss, errs := len(results), 0, 0, 0
 	platformHits := map[string]int{}
@@ -193,7 +193,7 @@ func ReportData(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{
 		"days":         a.Days,
 		"period":       a.Period,
-		"generated_at": time.Now().Format("2006-01-02 15:04:05"),
+		"generated_at": biztime.DateTimeSec(),
 		"kpi":          a.Totals,
 		"trend":        a.Trend,
 		"rank_dist":    a.RankDist,

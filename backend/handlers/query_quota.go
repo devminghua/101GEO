@@ -3,12 +3,12 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 )
 
 // 每日查询配额：跨小红书/抖音/百度统一计数，分站每日上限由 SaaS 端设置（默认 3 次，高级版本可解锁更多）。
@@ -27,7 +27,10 @@ func CheckQueryQuota(c *gin.Context) (allowed bool, used int, limit int) {
 	if limit <= 0 {
 		return true, 0, 0 // 0 或负数 = 不限量
 	}
-	day := time.Now().Format("2006-01-02")
+	// 业务日期用北京时间（biztime）：容器时区为 UTC，若用 time.Now() 会让配额在
+	// **北京时间早上 8 点**才重置，而给客户看的提示写的是「明天 0 点自动重置」，
+	// 行为与文案不符（详见 services/biztime 包注释）。
+	day := biztime.Today()
 	var quota models.QueryQuota
 	database.DB.Where("tenant_id = ? AND day = ? AND module = ?", tid, day, quotaModuleTotal).First(&quota)
 	used = quota.Count
@@ -61,7 +64,8 @@ func QueryQuotaInfo(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"limit": 0, "used": 0, "remain": -1}})
 		return
 	}
-	day := time.Now().Format("2006-01-02")
+	// 与 CheckQueryQuota 用同一业务日期口径（北京时间），否则「已用次数」会错位
+	day := biztime.Today()
 	var quota models.QueryQuota
 	database.DB.Where("tenant_id = ? AND day = ? AND module = ?", tid, day, quotaModuleTotal).First(&quota)
 	limit := tenant.DailyQueryLimit

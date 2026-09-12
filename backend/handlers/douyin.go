@@ -11,6 +11,7 @@ import (
 	"geo-tool/database"
 	"geo-tool/models"
 	svcdouyin "geo-tool/services/douyin"
+	"geo-tool/services/biztime"
 	"geo-tool/services/social"
 )
 
@@ -163,7 +164,7 @@ func DouyinListAccounts(c *gin.Context) {
 	var list []models.DyAccount
 	database.DB.Where("tenant_id = ?", tid).Order("id asc").Find(&list)
 	f := svcdouyin.LoadFrequency(tid)
-	refreshAccountsState(list, f, time.Now())
+	refreshAccountsState(list, f, biztime.Now())
 	dyOK(c, list)
 }
 
@@ -198,7 +199,7 @@ func DouyinCreateAccount(c *gin.Context) {
 	acct := models.DyAccount{
 		TenantID: tid, Nickname: req.Nickname, Region: req.Region,
 		DailyLimit: req.DailyLimit, Status: status,
-		TodayDate: time.Now().Format("2006-01-02"), PeerIDs: req.PeerIDs,
+		TodayDate: biztime.Today(), PeerIDs: req.PeerIDs,
 	}
 	database.DB.Create(&acct)
 	dyOK(c, acct)
@@ -226,7 +227,7 @@ func DouyinUpdateAccount(c *gin.Context) {
 		return
 	}
 	f := svcdouyin.LoadFrequency(tid)
-	refreshOneAccountState(&acct, f, time.Now())
+	refreshOneAccountState(&acct, f, biztime.Now())
 
 	if req.Nickname != nil {
 		n := strings.TrimSpace(*req.Nickname)
@@ -281,7 +282,7 @@ func DouyinRefreshAccount(c *gin.Context) {
 		return
 	}
 	f := svcdouyin.LoadFrequency(tid)
-	refreshOneAccountState(&acct, f, time.Now())
+	refreshOneAccountState(&acct, f, biztime.Now())
 	dyOK(c, acct)
 }
 
@@ -518,7 +519,7 @@ func DouyinAnalysis(c *gin.Context) {
 			"estimate_videos": estN,
 		},
 		"top_videos": top,
-		"weekly":     buildWeeklyDistribution(videos, time.Now()),
+			"weekly":     buildWeeklyDistribution(videos, biztime.Now()),
 		"note":       "同步数据为尽力而为抓取，失败降级为结构化估算；实时数据请以抖音官方口径为准（estimate 数据严禁冒充真实数据）",
 	})
 }
@@ -948,7 +949,8 @@ func DouyinPrecheck(c *gin.Context) {
 		return
 	}
 	f := svcdouyin.LoadFrequency(tid)
-	now := time.Now()
+	// 活跃时段/冷却判定是业务时间，必须用北京时间（容器时区为 UTC）
+	now := biztime.Now()
 	pre := svcdouyin.Precheck(&acct, f, now, lastGreetTime(tid, acct.ID))
 	data := gin.H{
 		"can": pre.Can, "reason": pre.Reason,
@@ -999,7 +1001,8 @@ func DouyinGreet(c *gin.Context) {
 	}
 
 	f := svcdouyin.LoadFrequency(tid)
-	now := time.Now()
+	// 打招呼时刻、活跃时段与「同日去重」都是业务时间，必须用北京时间
+	now := biztime.Now()
 
 	// 同日陌生人去重
 	if f.RepeatOn && (lead.State == models.LeadStateGreeted || lead.State == models.LeadStateReplied) {

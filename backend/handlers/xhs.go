@@ -12,6 +12,7 @@ import (
 	"geo-tool/database"
 	"geo-tool/models"
 	svcxhs "geo-tool/services/xhs"
+	"geo-tool/services/biztime"
 	"geo-tool/services/social"
 )
 
@@ -135,7 +136,7 @@ func XhsListAccounts(c *gin.Context) {
 	var list []models.XhsAccount
 	database.DB.Where("tenant_id = ?", tid).Order("id asc").Find(&list)
 	f := svcxhs.LoadFrequency(tid)
-	refreshXhsAccountsState(list, f, time.Now())
+	refreshXhsAccountsState(list, f, biztime.Now())
 	dyOK(c, list)
 }
 
@@ -170,7 +171,7 @@ func XhsCreateAccount(c *gin.Context) {
 	acct := models.XhsAccount{
 		TenantID: tid, Nickname: req.Nickname, Region: req.Region,
 		DailyLimit: req.DailyLimit, Status: status,
-		TodayDate: time.Now().Format("2006-01-02"), PeerIDs: req.PeerIDs,
+		TodayDate: biztime.Today(), PeerIDs: req.PeerIDs,
 	}
 	database.DB.Create(&acct)
 	dyOK(c, acct)
@@ -198,7 +199,7 @@ func XhsUpdateAccount(c *gin.Context) {
 		return
 	}
 	f := svcxhs.LoadFrequency(tid)
-	refreshOneXhsAccountState(&acct, f, time.Now())
+	refreshOneXhsAccountState(&acct, f, biztime.Now())
 
 	if req.Nickname != nil {
 		n := strings.TrimSpace(*req.Nickname)
@@ -251,7 +252,7 @@ func XhsRefreshAccount(c *gin.Context) {
 		return
 	}
 	f := svcxhs.LoadFrequency(tid)
-	refreshOneXhsAccountState(&acct, f, time.Now())
+	refreshOneXhsAccountState(&acct, f, biztime.Now())
 	dyOK(c, acct)
 }
 
@@ -453,7 +454,7 @@ func XhsAnalysis(c *gin.Context) {
 			"estimate_notes":     estN,
 		},
 		"top_notes": top,
-		"weekly":    buildXhsWeeklyDistribution(notes, time.Now()),
+		"weekly":    buildXhsWeeklyDistribution(notes, biztime.Now()),
 		"note":      "同步数据为尽力而为抓取，失败降级为结构化估算，估算数据（estimate）严禁冒充真实数据；互动率为折算参考值，请以小红书官方口径为准",
 	})
 }
@@ -937,7 +938,8 @@ func XhsPrecheck(c *gin.Context) {
 		return
 	}
 	f := svcxhs.LoadFrequency(tid)
-	now := time.Now()
+	// 活跃时段/冷却判定是业务时间，必须用北京时间（容器时区为 UTC）
+	now := biztime.Now()
 	pre := svcxhs.Precheck(&acct, f, now, xhsLastGreetTime(tid, acct.ID))
 	data := gin.H{
 		"can": pre.Can, "reason": pre.Reason,
@@ -989,7 +991,8 @@ func XhsGreet(c *gin.Context) {
 	}
 
 	f := svcxhs.LoadFrequency(tid)
-	now := time.Now()
+	// 打招呼时刻、活跃时段与「同日去重」都是业务时间，必须用北京时间
+	now := biztime.Now()
 
 	// 同日陌生人去重
 	if f.RepeatOn && (lead.State == models.LeadStateGreeted || lead.State == models.LeadStateReplied) {
@@ -1087,7 +1090,7 @@ func XhsValueStats(c *gin.Context) {
 	}
 
 	// 近7天日期序列（含今天，缺省补 0）
-	now := time.Now()
+	now := biztime.Now()
 	week := make([]gin.H, 0, 7)
 	for i := 6; i >= 0; i-- {
 		d := now.AddDate(0, 0, -i)

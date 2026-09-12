@@ -16,6 +16,7 @@ import (
 	"geo-tool/config"
 	"geo-tool/database"
 	"geo-tool/models"
+	"geo-tool/services/biztime"
 	"geo-tool/services/card"
 	"geo-tool/services/crypto"
 )
@@ -172,7 +173,7 @@ func randomPassword(n int) string {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
 		// 熵源异常时退回时间戳兜底，避免返回空密码
-		return "lg" + time.Now().Format("20060102")
+		return "lg" + biztime.DateCompact()
 	}
 	for i := range b {
 		b[i] = chars[int(b[i])%len(chars)]
