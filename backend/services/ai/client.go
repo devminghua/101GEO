@@ -117,7 +117,16 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
-// Ask 发送一次对话请求，返回回答文本
+// Ask 发送一次对话请求，返回回答文本。
+//
+// 实现上复用 doChat，以获得统一能力（口径唯一原则）：
+//   - 空响应自动重试：部分中转/非官方模型会偶发返回空壳，重试可显著提升成功率
+//   - 统一鉴权头 setAuth（此前本函数手写鉴权分支，与 doChat 重复且易漏平台）
+//   - 统一 usage 落库（此前绕过了 token 统计）
+//
+// 关于 maxTokens=2000：并非越大越好，但 800 对推理模型偏小——思维链会占用
+// 输出预算，若调用方忘记 DisableThinking，正文会被挤空（实测 DeepSeek-V4 在巡检
+// 场景空响应 89 次）。巡检类调用请配合 DisableThinking()；额度按真实输出计费。
 func (c *Client) Ask(ctx context.Context, question string) (string, error) {
 	url := c.BaseURL + "/chat/completions"
 	payload := chatRequest{
@@ -126,53 +135,12 @@ func (c *Client) Ask(ctx context.Context, question string) (string, error) {
 			{Role: "system", Content: "你是负责回答用户问题的AI助手。请直接、客观、简洁地回答用户问题，不要提及你是AI模型。"},
 			{Role: "user", Content: question},
 		},
-		MaxTokens: 800,
+		MaxTokens: 2000,
 		// temperature 固定 1：Kimi k2 系列仅允许 1，其余平台 1 也是标准默认值，全局安全
 		Temperature: 1,
 		Thinking:    c.Thinking,
 	}
-	body, _ := json.Marshal(payload)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if c.APIKey != "" {
-		// 兼容两种鉴权头：绝大多数平台用 Bearer，部分（如腾讯混元/文心）用 Api-Key
-		if strings.HasPrefix(c.BaseURL, "https://api.hunyuan") || strings.Contains(c.BaseURL, "qianfan") ||
-			strings.Contains(c.BaseURL, "bigmodel") {
-			req.Header.Set("Authorization", strings.TrimSpace(c.APIKey))
-		} else {
-			req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(c.APIKey))
-		}
-	}
-
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("请求失败: %v", err)
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("读取响应失败: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, truncate(string(data), 300))
-	}
-
-	var cr chatResponse
-	if err := json.Unmarshal(data, &cr); err != nil {
-		return "", fmt.Errorf("解析响应失败: %v", err)
-	}
-	if cr.Error != nil {
-		return "", fmt.Errorf("API错误: %s", cr.Error.Message)
-	}
-	if len(cr.Choices) == 0 || cr.Choices[0].Message.Content == "" {
-		return "", fmt.Errorf("响应为空")
-	}
-	return cr.Choices[0].Message.Content, nil
+	return c.doChat(ctx, url, payload)
 }
 
 func truncate(s string, n int) string {

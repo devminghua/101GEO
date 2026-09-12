@@ -193,7 +193,11 @@ type CheckResult struct {
 	SampleHits  int       `gorm:"default:0" json:"sample_hits"`
 	CostMs      int64     `json:"cost_ms"`
 	ErrorMsg    string    `gorm:"type:text" json:"error_msg"`
-	CreatedAt   time.Time `json:"created_at"`
+	// RefundedPoints 该条结果已退还的点数（0 = 未退）。
+	// 调用失败或返回空内容时，已扣的点数会即时退还，避免客户为无效调用付费。
+	// 工作日志据此展示「实际消耗 = SUM(sample_count) - SUM(refunded_points)」。
+	RefundedPoints int       `gorm:"default:0" json:"refunded_points"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // Setting 租户级配置，复合主键 (tenant_id, key)

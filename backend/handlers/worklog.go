@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -106,6 +107,154 @@ func WorkLog(c *gin.Context) {
  * ① 巡检：一次巡检 = 一条事件
  * ------------------------------------------------------------------------- */
 
+// taskFailStat 单个任务的失败原因汇总（用于生成客户可读的失败说明）
+type taskFailStat struct {
+	Failed     int              // 失败组合数
+	Cost       int64            // 失败消耗的点卡（已退还）
+	ByWhy      map[string]int   // 原因 -> 次数
+	ByPlatform map[string]int64 // 平台 -> 失败点数（所有原因）
+	Sample     string           // 一条代表性原始错误（供排查）
+
+	// Critical 需客户处理的失败（欠费/Key 失效）按平台分布。
+	//
+	// 为什么要单独统计：这类故障必须点名平台，客户才知道该去哪个平台充值/换 Key。
+	// 若按「失败点数最多的平台」点名会指错——实测任务 #468 中 DeepSeek 失败点数
+	// 最多（117，原因是空响应，属我方参数问题，已修），而真正欠费的是豆包（93）。
+	// 按总失败点名会让客户跑去 DeepSeek 充值，问题依旧。
+	Critical map[string]int64
+}
+
+// topPlatform 返回「需客户处理的故障」点数最多的平台名（空 = 无此类故障）。
+func (fs *taskFailStat) topPlatform() string {
+	best, bestN := "", int64(0)
+	for name, n := range fs.Critical {
+		if n > bestN {
+			best, bestN = name, n
+		}
+	}
+	return best
+}
+
+// needActionWhy 该原因是否属于「需要客户去处理」的确定性故障。
+// 限流/超时属临时问题会自动恢复，空响应属系统侧问题，都不该让客户白忙。
+func needActionWhy(why string) bool {
+	return why == whyArrears || why == whyBadKey
+}
+
+// 失败原因分类常量。客户关心的不是「HTTP 403」而是「该找谁解决」。
+const (
+	whyArrears  = "arrears"  // 平台账户欠费/额度耗尽 —— 需客户或平台方充值
+	whyBadKey   = "badkey"   // Key 无效/无权限 —— 需客户更新 Key
+	whyRate     = "rate"     // 限流 —— 稍后自动恢复
+	whyTimeout  = "timeout"  // 超时/网络 —— 稍后自动恢复
+	whyEmpty    = "empty"    // 空响应 —— 模型或参数问题
+	whyBalance  = "balance"  // 我方点卡不足 —— 需客户充值点卡
+	whyBreaker  = "breaker"  // 平台熔断跳过
+	whyUnknown  = "unknown"  // 未识别
+)
+
+// classifyFailReason 把平台原始 error_msg 归到一个客户能理解的原因类别。
+// 判定顺序按「越确定越优先」：欠费/Key 属确定性故障，先判；
+// 限流/超时属临时问题后判，避免被宽泛关键字误吞。
+func classifyFailReason(msg string) string {
+	m := strings.ToLower(msg)
+	switch {
+	// 点卡不足优先判定：其文案「点卡余额不足，请联系总后台充值」同时含「余额不足」，
+	// 若不先判会被下面的平台欠费规则误吞，导致把「我方点卡」说成「平台欠费」。
+	case strings.Contains(m, "点卡"):
+		return whyBalance
+	case strings.Contains(m, "overdue") || strings.Contains(m, "欠费") ||
+		strings.Contains(m, "insufficient balance") || strings.Contains(m, "quota exceeded") ||
+		strings.Contains(m, "额度"):
+		return whyArrears
+	case strings.Contains(m, "401") || strings.Contains(m, "authentication") ||
+		strings.Contains(m, "api key") || strings.Contains(m, "unauthorized"):
+		return whyBadKey
+	case strings.Contains(m, "429") || strings.Contains(m, "速率") || strings.Contains(m, "rate limit") ||
+		strings.Contains(m, "访问量过大") || strings.Contains(m, "频率"):
+		return whyRate
+	case strings.Contains(m, "timeout") || strings.Contains(m, "deadline") ||
+		strings.Contains(m, "超时") || strings.Contains(m, "connection"):
+		return whyTimeout
+	case strings.Contains(m, "响应为空") || strings.Contains(m, "空响应"):
+		return whyEmpty
+	case strings.Contains(m, "熔断"):
+		return whyBreaker
+	}
+	return whyUnknown
+}
+
+// whyText 原因 -> 客户可读文案（含「该做什么」）
+var whyText = map[string]string{
+	whyArrears: "AI 平台账户欠费或额度耗尽（需为该平台充值/续费）",
+	whyBadKey:  "AI 平台 Key 无效或无权限（请到 AI 平台页更新 Key）",
+	whyRate:    "AI 平台限流（稍后自动恢复，可调大请求间隔）",
+	whyTimeout: "调用超时或网络不通（稍后自动恢复）",
+	whyEmpty:   "AI 平台返回空内容（模型或参数问题）",
+	whyBalance: "点卡余额不足（请充值点卡）",
+	whyBreaker: "平台连续失败已熔断，本轮跳过（修复后自动恢复）",
+	whyUnknown: "未知错误",
+}
+
+// failedBrief 成功/部分完成时的一行补充说明：点明失败次数与主因。
+// 退款说明由调用方统一追加（见 refundedByTask），此处不重复。
+func failedBrief(fs *taskFailStat) string {
+	if fs == nil || fs.Failed == 0 {
+		return ""
+	}
+	main := topWhy(fs)
+	s := strconv.Itoa(fs.Failed) + " 次调用失败"
+	if main != "" {
+		s += "，主要为" + whyText[main]
+	}
+	return s
+}
+
+// failedReasonText 完全失败时的详情：给出排名前二的原因与建议动作。
+// 退款说明不在此处拼（由调用方按 refundedByTask 统一追加），避免同一句话出现两次。
+func failedReasonText(fs *taskFailStat) string {
+	if fs == nil || fs.Failed == 0 {
+		return "本轮未取得有效结果，且未记录到具体错误原因"
+	}
+	parts := make([]string, 0, 2)
+	for _, w := range topWhys(fs, 2) {
+		parts = append(parts, whyText[w])
+	}
+	s := strconv.Itoa(fs.Failed) + " 次调用全部失败：" + strings.Join(parts, "；")
+	// 只需客户处理的故障才点名平台（有 Critical 数据即说明存在欠费/Key 类问题）
+	if p := fs.topPlatform(); p != "" {
+		s += "（问题平台：" + p + "）"
+	}
+	return s
+}
+
+// topWhy 返回失败次数最多的原因 key（无数据返回空串）
+func topWhy(fs *taskFailStat) string {
+	ws := topWhys(fs, 1)
+	if len(ws) == 0 {
+		return ""
+	}
+	return ws[0]
+}
+
+// topWhys 返回按失败次数降序的前 n 个原因 key
+func topWhys(fs *taskFailStat, n int) []string {
+	type kv struct {
+		k string
+		v int
+	}
+	list := make([]kv, 0, len(fs.ByWhy))
+	for k, v := range fs.ByWhy {
+		list = append(list, kv{k, v})
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].v > list[j].v })
+	out := make([]string, 0, n)
+	for i := 0; i < len(list) && i < n; i++ {
+		out = append(out, list[i].k)
+	}
+	return out
+}
+
 func workLogPatrols(tid uint, since time.Time) []workLogEvent {
 	var tasks []models.CheckTask
 	database.DB.Where("tenant_id = ? AND created_at >= ?", tid, since).
@@ -113,24 +262,85 @@ func workLogPatrols(tid uint, since time.Time) []workLogEvent {
 
 	// 实际扣点：巡检按「平台 × 关键词」组合调用，但开启多采样后每个组合会问
 	// SampleCount 次、每次都扣 1 点。因此不能拿 total_queries（组合数）当消耗，
-	// 否则展示的消耗会低于客户账单。一次 GROUP BY 取回各任务真实采样次数总和。
-	costByTask := map[uint]int64{}
+	// 否则展示的消耗会低于客户账单。
+	//
+	// 🔴 同时必须扣掉「已退还」的点数（v1.0.44）：调用失败或空响应时点数已即时退还，
+	// 若只统计 SUM(sample_count) 会让客户看到「消耗 274 点」却不知道 222 点已退回，
+	// 等于对账单撒谎。净消耗 = SUM(sample_count) - SUM(refunded_points)。
+	actualCost := map[uint]int64{} // 净消耗（客户真实支出）
+	refundedByTask := map[uint]int64{}
 	if len(tasks) > 0 {
 		ids := make([]uint, 0, len(tasks))
 		for _, t := range tasks {
 			ids = append(ids, t.ID)
 		}
 		type row struct {
-			TaskID uint
-			Cost   int64
+			TaskID   uint
+			Cost     int64
+			Refunded int64
 		}
 		var rows []row
 		database.DB.Model(&models.CheckResult{}).
-			Select("task_id, SUM(sample_count) AS cost").
+			Select("task_id, SUM(sample_count) AS cost, SUM(refunded_points) AS refunded").
 			Where("tenant_id = ? AND task_id IN ?", tid, ids).
 			Group("task_id").Scan(&rows)
 		for _, r := range rows {
-			costByTask[r.TaskID] = r.Cost
+			actualCost[r.TaskID] = r.Cost - r.Refunded
+			refundedByTask[r.TaskID] = r.Refunded
+		}
+	}
+
+	// 失败原因归类：一次取回各任务的失败明细，Go 侧归类。
+	// 为什么不在 SQL 里分类：error_msg 是平台原始文案（各家中英文混杂、带 request id），
+	// SQL LIKE 匹配易漏；且需要「取前 N 条代表性原因」给客户展示，Go 侧处理更直观。
+	failStats := map[uint]*taskFailStat{}
+	if len(tasks) > 0 {
+		ids := make([]uint, 0, len(tasks))
+		for _, t := range tasks {
+			ids = append(ids, t.ID)
+		}
+		type failRow struct {
+			TaskID       uint
+			PlatformName string
+			ErrorMsg     string
+			Cost         int64
+		}
+		var frows []failRow
+		database.DB.Model(&models.CheckResult{}).
+			Select("task_id, platform_name, error_msg, sample_count AS cost").
+			Where("tenant_id = ? AND task_id IN ? AND error_msg <> ''", tid, ids).
+			Scan(&frows)
+		for _, r := range frows {
+			fs := failStats[r.TaskID]
+			if fs == nil {
+				fs = &taskFailStat{
+					ByWhy:      map[string]int{},
+					ByPlatform: map[string]int64{},
+					Critical:   map[string]int64{},
+				}
+				failStats[r.TaskID] = fs
+			}
+			why := classifyFailReason(r.ErrorMsg)
+			fs.Failed++
+			fs.Cost += r.Cost
+			fs.ByWhy[why]++
+			fs.ByPlatform[r.PlatformName] += r.Cost
+			// 只把「需客户处理」的故障按平台记账，用于点名问题平台
+			if needActionWhy(why) {
+				fs.Critical[r.PlatformName] += r.Cost
+			}
+			if fs.Sample == "" {
+				fs.Sample = r.ErrorMsg
+			}
+		}
+		// 运维可见性：把代表性原始错误打到服务端日志。
+		// 客户侧只看到归好类的「人话」，但排查时需要平台原文（含 request id / 错误码），
+		// 若只存在内存里、下一次请求就丢了，出问题只能靠翻 check_results 表。
+		for taskID, fs := range failStats {
+			if fs.Sample != "" {
+				log.Printf("[worklog] 任务#%d 失败 %d 次（净退 %d 点），主因=%s，样例错误：%s",
+					taskID, fs.Failed, fs.Cost, topWhy(fs), truncateRunes(fs.Sample, 200))
+			}
 		}
 	}
 
@@ -162,19 +372,24 @@ func workLogPatrols(tid uint, since time.Time) []workLogEvent {
 			ev.Status = "partial"
 		case "failed":
 			ev.Title = who + "未完成"
-			// 最常见原因是「没有可用平台 / 没有启用关键词 / 点卡不足」，值得点出来
+			// 🔴 失败原因必须分类展示（v1.0.44 修正）：
+			// 原文案「AI 平台返回异常或点卡不足」把「平台故障」与「余额不足」写成一个句子，
+			// 客户看完既不知道是谁的问题、也不知道该做什么（找平台？充钱？）。
+			// 现按 check_results.error_msg 的真实原因归类，给出可执行的下一步。
 			if t.TotalQueries == 0 {
+				// 没有可执行项目：属配置问题，与平台无关
 				ev.Detail = "本轮没有可执行的项目（未配置可用 AI 平台或未启用关键词）"
 			} else {
-				ev.Detail = "AI 平台返回异常或点卡不足，本轮未取得有效结果"
+				ev.Detail = failedReasonText(failStats[t.ID])
 			}
 			ev.Status = "failed"
 		default: // success / partial
 			ev.Title = who + " " + strconv.Itoa(int(t.TotalQueries)) + " 次提问"
 			ev.Detail = "命中 " + strconv.Itoa(int(t.HitCount)) + " 次，覆盖率 " +
 				strconv.Itoa(int(t.Coverage)) + "%"
-			if t.ErrorCount > 0 {
-				ev.Detail += "（" + strconv.Itoa(int(t.ErrorCount)) + " 次调用失败）"
+			// 失败原因细分：区分「平台故障（已退款）」与「正常未命中」
+			if fs, ok := failStats[t.ID]; ok && fs.Failed > 0 {
+				ev.Detail += "，" + failedBrief(fs)
 			}
 			if t.Status == "partial" {
 				ev.Status = "partial"
@@ -182,11 +397,15 @@ func workLogPatrols(tid uint, since time.Time) []workLogEvent {
 				ev.Status = "success"
 			}
 		}
-		// 优先用实测采样次数（等于真实扣点数）；查不到（如结果被清理）再回落到组合数
-		if c, ok := costByTask[t.ID]; ok {
+		// 消耗展示为「净消耗」（已扣除退还部分）。查不到结果（如被清理）再回落到组合数。
+		if c, ok := actualCost[t.ID]; ok {
 			ev.Cost = c
 		} else {
 			ev.Cost = int64(t.TotalQueries)
+		}
+		// 有退款时在详情里点明，让客户知道失败那部分没白花钱
+		if rf := refundedByTask[t.ID]; rf > 0 && t.Status != "running" {
+			ev.Detail += "（已退还 " + strconv.FormatInt(rf, 10) + " 点）"
 		}
 		out = append(out, ev)
 	}

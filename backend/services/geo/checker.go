@@ -35,13 +35,21 @@ type platformGate struct {
 	interval time.Duration
 }
 
-// do 在门内执行 f：拿锁排队 → 补足间隔 → 记录时间 → 执行请求
-func (g *platformGate) do(f func()) {
+// do 在门内执行 f：拿锁排队 → 补足间隔 → 记录时间 → 执行请求。
+//
+// 补间隔的等待必须可被取消（ctx）：Kimi 等平台建议间隔可达 20000ms，
+// 若整轮已超时仍傻等，会让任务在超时后又空转很久，超时保护形同虚设。
+// ctx 取消时直接跳过 f（调用方随后会发现 err 未更新、无需再发请求）。
+func (g *platformGate) do(ctx context.Context, f func()) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if !g.lastAt.IsZero() && g.interval > 0 {
 		if wait := time.Until(g.lastAt.Add(g.interval)); wait > 0 {
-			time.Sleep(wait)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(wait):
+			}
 		}
 	}
 	g.lastAt = time.Now()
@@ -50,6 +58,64 @@ func (g *platformGate) do(f func()) {
 
 // minPlatformInterval 平台未配置 interval_ms 时的默认同平台间隔
 const minPlatformInterval = 800 * time.Millisecond
+
+// askTimeout 单次 AI 调用超时。
+// 巡检依赖多个平台，单次调用卡死会拖垮整轮；配合 maxTaskDuration 双重兜底。
+const askTimeout = 110 * time.Second
+
+// maxTaskDuration 单轮巡检整体上限：超过即强制收尾（已完成部分照常入库）。
+//
+// 为什么是 55 分钟：自动巡检默认每 60 分钟一轮，须留出收尾时间，
+// 避免上一轮未结束就撞上下一轮 cron（新轮次会因「已有 running 任务」被跳过）。
+// 历史教训：任务 #468 跑了 69 分钟仍未结束，最终靠容器重启的僵尸回收才标记 failed，
+// 客户全程等待无果；且历史上 13 个任务耗时超过该阈值，最长 9.8 小时。
+const maxTaskDuration = 55 * time.Minute
+
+// platformFailThreshold 单平台连续失败熔断阈值：
+// 连续失败达到该次数即判定该平台本轮不可用，跳过其剩余全部组合。
+//
+// 为什么需要：实测任务 #468（2026-09-12）中豆包账户欠费（AccountOverdueError），
+// 系统仍继续向它逐个关键词追问 93 次；智谱连续 429 限流也不停。
+// 这类是**确定性故障**（欠费 / Key 失效 / 额度耗尽），重试必然继续失败，
+// 只会白白扣掉客户的点卡并拖长任务时长（该任务因此跑了 69 分钟）。
+// 取 5 而非 1，是为容忍偶发网络抖动导致的单次失败。
+const platformFailThreshold = 5
+
+// platformBreaker 单平台熔断器：统计连续失败次数，达到阈值后置为已熔断。
+// 任一组合成功后立即清零（说明平台恢复可用，属临时抖动而非确定性故障）。
+type platformBreaker struct {
+	mu        sync.Mutex
+	failCount map[uint]int  // platformID -> 连续失败次数
+	tripped   map[uint]bool // platformID -> 是否已熔断
+}
+
+func newPlatformBreaker() *platformBreaker {
+	return &platformBreaker{failCount: map[uint]int{}, tripped: map[uint]bool{}}
+}
+
+// tripped 该平台是否已熔断（熔断后不再发起任何调用，也不扣费）
+func (b *platformBreaker) trippedNow(platformID uint) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.tripped[platformID]
+}
+
+// record 记录一次调用结果，返回「本次是否触发了熔断」（用于日志）
+func (b *platformBreaker) record(platformID uint, ok bool) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if ok {
+		// 成功即恢复：清零连续失败计数
+		b.failCount[platformID] = 0
+		return false
+	}
+	b.failCount[platformID]++
+	if !b.tripped[platformID] && b.failCount[platformID] >= platformFailThreshold {
+		b.tripped[platformID] = true
+		return true
+	}
+	return false
+}
 
 // RecoverStaleTasks 服务启动时回收僵尸任务：
 // 上一次进程退出/崩溃时仍处于 running 的任务永远不会结束，会永久阻塞该租户发起新巡检。
@@ -131,6 +197,11 @@ func execute(tenantID uint, task *models.CheckTask) {
 	var wg sync.WaitGroup
 	hitCount, missCount, errCount := 0, 0, 0
 	hitPlatforms := map[string]bool{}
+	// skippedCount 因平台熔断而跳过的组合数；refundedCount 累计退还的点数（用于日志对账）
+	skippedCount := 0
+	var refundedCount int64
+	// breaker 单平台连续失败熔断器（见 platformFailThreshold 注释）
+	breaker := newPlatformBreaker()
 
 	// 每个平台一个节流门：同平台串行 + 最小间隔，避免并发轰炸触发 429
 	gates := make(map[uint]*platformGate, len(platforms))
@@ -143,11 +214,30 @@ func execute(tenantID uint, task *models.CheckTask) {
 	}
 
 	sem := make(chan struct{}, 8)
+	// taskCtx 整轮任务的生命周期：超时保护触发时取消，通知所有在途请求尽快退出。
+	//
+	// 🔴 超时保护必须真正生效（任务 #468 教训）：
+	// 旧实现只在「全部组合都启动完」之后才进入 select 等待，而组合启动本身是
+	// 阻塞式的（信号量满则卡在 `sem <-`），一旦有请求长时间不返回，
+	// 主循环就永远走不到超时判断——历史 13 个任务因此超时失控、最长跑 9.8 小时。
+	// 现在改为：任务级 context 贯穿所有调用，超时后 cancel() 直接中断在途请求。
+	taskCtx, taskCancel := context.WithTimeout(context.Background(), maxTaskDuration)
+	defer taskCancel()
 
+	// 启动组合：每个 goroutine 监听 taskCtx，超时后不再取号、不再发起新调用
+	launched := 0
 	for _, p := range platforms {
 		for _, k := range keywords {
+			// 已超时则不再启动新组合（避免无意义地继续扣费/调用）
+			select {
+			case <-taskCtx.Done():
+				log.Printf("[geo] 任务#%d 已超时，停止启动剩余组合（已启动 %d/%d）",
+					task.ID, launched, total)
+				goto waitDone
+			case sem <- struct{}{}:
+			}
+			launched++
 			wg.Add(1)
-			sem <- struct{}{}
 			go func(p models.AiPlatform, k models.GeoKeyword) {
 				defer wg.Done()
 				defer func() { <-sem }()
@@ -157,22 +247,39 @@ func execute(tenantID uint, task *models.CheckTask) {
 					KeywordID: k.ID, Question: k.Question, BrandKeywords: k.BrandKeywords,
 				}
 
+				// 熔断前置检查：该平台已判定不可用则直接跳过，**不扣费、不调用**。
+				// 这是「扣费 + 外部调用」铁律的体现——确定不可能成功的调用不该收费。
+				if breaker.trippedNow(p.ID) {
+					res.ErrorMsg = "平台已熔断（连续失败达阈值），本轮跳过"
+					res.Hit = false
+					res.HitPosition = -1
+					res.SampleCount = 0
+					mu.Lock()
+					skippedCount++
+					db.Create(&res)
+					mu.Unlock()
+					return
+				}
+
 				qStart := time.Now()
-				// 每次 AI 调用前扣 1 点点卡，余额不足则记为失败
+				// 每次 AI 调用前扣 1 点点卡，余额不足则记为失败（未扣费，故无需退款）
 				if derr := points.DeductOne(tenantID, "GEO 智能巡检"); derr != nil {
 					res.ErrorMsg = derr.Error()
 					res.Hit = false
 					res.HitPosition = -1
+					res.SampleCount = 0
 					res.CostMs = time.Since(qStart).Milliseconds()
 					mu.Lock()
 					errCount++
-					mu.Unlock()
-					mu.Lock()
 					db.Create(&res)
 					mu.Unlock()
 					return
 				}
 				client := ai.NewClient(p.BaseURL, p.APIKey, p.Model).WithMeta(tenantID, p.Name, "巡检")
+				// 巡检是「品牌是否被提及」的判定任务，不需要推理；关闭思维链避免
+				// 推理模型把 max_tokens 全烧在 reasoning_content 上导致正文为空
+				// （实测 DeepSeek-V4 空响应 89 次即此原因）。
+				client.DisableThinking()
 				// 单组合采样次数：1~5。>1 时同一问题问多次，用命中比例衡量「稳定可见度」，
 				// 规避 LLM 输出概率性造成的单次误判（问一次没提到 ≠ 品牌不可见）。
 				rounds := p.SampleCount
@@ -192,32 +299,55 @@ func execute(tenantID uint, task *models.CheckTask) {
 				bestAnswer := ""
 				bestPos := -1
 				bestMentions := 0
+				// refunded 记录本轮**已扣但未取得有效结果**的点数，收尾时统一退还。
+				// 三种情形需退款：
+				//   ① 抽样调用直接报错（err != nil）——该次调用没拿到任何回答
+				//   ② 取到回答但正文为空——平台返回了空壳，判定无意义
+				// 不退款的情形：调用成功且拿到非空回答（哪怕品牌未命中，
+				// 那也是一次有效的「未被提及」结论，客户拿到了信息）。
+				refunded := 0
 				q := strings.ToLower(strings.TrimSpace(k.BrandKeywords))
 				if q == "" {
 					q = strings.ToLower(strings.TrimSpace(defaultBrand))
 				}
 
 				for round := 0; round < rounds; round++ {
+					// 熔断可能在本组合采样途中被其他组合触发，此时立即停止追加
 					if round > 0 {
+						if breaker.trippedNow(p.ID) {
+							break
+						}
 						if derr := points.DeductOne(tenantID, "GEO 智能巡检"); derr != nil {
 							break // 余额不足，停止追加采样
 						}
 						paid++
 					}
 					var curAnswer string
-					gates[p.ID].do(func() {
+					gates[p.ID].do(taskCtx, func() {
 						for attempt := 0; ; attempt++ {
-							ctx, cancel := context.WithTimeout(context.Background(), 110*time.Second)
+							// 单次超时 askTimeout；同时继承 taskCtx，
+							// 使整轮超时（maxTaskDuration）能立即中断本次请求。
+							ctx, cancel := context.WithTimeout(taskCtx, askTimeout)
 							curAnswer, err = client.Ask(ctx, k.Question)
 							cancel()
 							if err == nil || attempt >= len(backoffs) || !strings.Contains(err.Error(), "429") {
 								break
 							}
-							time.Sleep(backoffs[attempt])
+							// 退避等待也要可被取消，否则整轮超时后仍会空转 20 秒
+							select {
+							case <-taskCtx.Done():
+								return
+							case <-time.After(backoffs[attempt]):
+							}
 						}
 					})
 					if err != nil {
-						break // 本次采样失败，保留已有结果
+						refunded++ // 本次调用失败，该点退还
+						break      // 本次采样失败，保留已有结果
+					}
+					if strings.TrimSpace(curAnswer) == "" {
+						refunded++ // 平台返回空壳，判定无意义，该点退还
+						break
 					}
 					if round == 0 {
 						answer = curAnswer
@@ -237,6 +367,7 @@ func execute(tenantID uint, task *models.CheckTask) {
 				res.SampleCount = paid
 				res.SampleHits = sampleHits
 				res.CostMs = time.Since(qStart).Milliseconds()
+				res.RefundedPoints = refunded
 
 				if answer == "" && err != nil {
 					res.ErrorMsg = err.Error()
@@ -282,6 +413,27 @@ func execute(tenantID uint, task *models.CheckTask) {
 				db.Create(&res)
 				mu.Unlock()
 
+				// 退还「已扣但未取得有效结果」的点数。
+				// 铁律：先校验依赖可用 → 再扣费 → 失败退款。此处是巡检端的退款闭环，
+				// 与 AI 助手 / 获客工具解析保持一致（此前巡检缺失，导致客户为失败调用付费）。
+				if refunded > 0 {
+					if rerr := points.Recharge(tenantID, int64(refunded),
+						"GEO 智能巡检调用失败退款"); rerr != nil {
+						log.Printf("[geo] 任务#%d 退款 %d 点失败: %v", task.ID, refunded, rerr)
+					} else {
+						mu.Lock()
+						refundedCount += int64(refunded)
+						mu.Unlock()
+					}
+				}
+
+				// 熔断记账：本次是否取得有效结果。成功即清零该平台连续失败计数。
+				effective := res.ErrorMsg == "" && res.SampleCount > 0
+				if breaker.record(p.ID, effective) {
+					log.Printf("[geo] 任务#%d 平台「%s」连续失败 %d 次，触发熔断，本轮跳过其剩余组合",
+						task.ID, p.Name, platformFailThreshold)
+				}
+
 				// 引用溯源须在落库拿到 ID 后执行（Citation 依赖 ResultID）
 				if res.ID > 0 && strings.Contains(showAnswer, "http") {
 					saveCitations(res, showAnswer)
@@ -289,31 +441,44 @@ func execute(tenantID uint, task *models.CheckTask) {
 			}(p, k)
 		}
 	}
-	// 整体超时保护：55 分钟强制结束，防止个别请求卡死导致任务无限等待（下一轮 cron 到来前收尾）
+
+waitDone:
+	// 等待全部在途请求结束。taskCtx 到点会自动取消，各次 AI 调用随之返回，
+	// 因此这里不会被无限期拖住；再套一层 select 做最终兜底。
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
-	timedOut := false
+	timedOut := taskCtx.Err() != nil
 	select {
 	case <-done:
-	case <-time.After(55 * time.Minute):
+	case <-time.After(maxTaskDuration):
 		timedOut = true
-		log.Printf("[geo] 租户#%d 任务#%d 执行超过 55 分钟被强制结束（已完成部分照常入库）", tenantID, task.ID)
+		log.Printf("[geo] 租户#%d 任务#%d 执行超过 %v 被强制结束（已完成部分照常入库）",
+			tenantID, task.ID, maxTaskDuration)
 	}
 
 	fin := time.Now()
 	status := "success"
-	if errCount > 0 || timedOut {
+	if errCount > 0 || timedOut || skippedCount > 0 {
 		status = "partial"
 	}
-	if errCount == total {
+	// 全部计划组合都没拿到有效结果（失败 + 熔断跳过）才算 failed。
+	// 注意用 total 而非 launched：若中途超时，未启动的组合同样没产出，
+	// 不应因「没轮到它们失败」就把整体判成 success。
+	if errCount+skippedCount >= total {
 		status = "failed"
+	}
+	// 超时截断时把未完成的组合数并入 error_count，让失败面在数据上可解释
+	unfinished := total - launched
+	if unfinished > 0 {
+		errCount += unfinished
 	}
 	db.Model(task).Updates(map[string]interface{}{
 		"status": status, "hit_count": hitCount, "miss_count": missCount,
 		"error_count": errCount, "coverage": len(hitPlatforms), "finished_at": &fin,
 	})
-	log.Printf("[geo] 租户#%d 任务#%d 完成 命中=%d 未命中=%d 错误=%d 覆盖平台=%d 耗时=%v",
-		tenantID, task.ID, hitCount, missCount, errCount, len(hitPlatforms), time.Since(start))
+	log.Printf("[geo] 租户#%d 任务#%d 完成 状态=%s 命中=%d 未命中=%d 失败=%d 熔断跳过=%d 退款=%d点 覆盖平台=%d 耗时=%v",
+		tenantID, task.ID, status, hitCount, missCount, errCount, skippedCount,
+		refundedCount, len(hitPlatforms), time.Since(start))
 }
 
 // tenantBrand 返回分站默认品牌词：settings.default_brand 优先，回退全局 GEO_DEFAULT_BRAND。

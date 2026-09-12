@@ -123,3 +123,135 @@ func TestVerifyStatusTextCoverage(t *testing.T) {
 		}
 	}
 }
+
+// classifyFailReason 把平台原文归成客户能理解的原因。
+//
+// 为什么必须测：这些用例全部来自任务 #468 的真实 error_msg。
+// 尤其「点卡余额不足」同时含「余额不足」，若判定顺序写反（先判平台欠费），
+// 会把「请充值点卡」误导成「AI 平台账户欠费」——客户会去找错对象。
+func TestClassifyFailReason(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+		desc string
+	}{
+		// 真实样例（任务 #468）
+		{`HTTP 403: {"error":{"code":"AccountOverdueError","message":"The request failed because your account has an overdue bill."}}`, whyArrears, "豆包账户欠费"},
+		{`HTTP 401: {"error":{"code":"AuthenticationError","message":"The API key doesn't exist."}}`, whyBadKey, "Key 失效"},
+		{`HTTP 429: {"error":{"code":"1305","message":"该模型当前访问量过大，请您稍后再试"}}`, whyRate, "限流"},
+		{`请求失败: Post "https://ark.cn-beijing.volces.com/...": context deadline exceeded`, whyTimeout, "超时"},
+		{"响应为空", whyEmpty, "空响应"},
+		// 我方点卡不足：必须与「平台欠费」区分开
+		{"点卡余额不足，请联系总后台充值", whyBalance, "点卡不足（不得误判为平台欠费）"},
+		{"平台已熔断（连续失败达阈值），本轮跳过", whyBreaker, "熔断跳过"},
+		{"某种没见过的错误", whyUnknown, "未识别"},
+	}
+	for _, c := range cases {
+		if got := classifyFailReason(c.in); got != c.want {
+			t.Errorf("%s：classifyFailReason(%q) = %q，期望 %q", c.desc, c.in, got, c.want)
+		}
+	}
+}
+
+// 失败文案必须讲清「什么原因 + 该做什么」，并点名**真正需要客户处理**的平台。
+// 反例（v1.0.43 及之前）：「AI 平台返回异常或点卡不足」——两种原因混在一句，
+// 客户既不知是谁的问题也不知该找谁，等于没给信息。
+//
+// 本用例数据取自任务 #468 真实分布（空响应 109 / 豆包欠费 93），
+// 专门钉住「点名的是欠费的豆包，而不是失败次数最多的 DeepSeek」这一判定。
+func TestFailedReasonText(t *testing.T) {
+	fs := &taskFailStat{
+		Failed: 222,
+		Cost:   222,
+		ByWhy:  map[string]int{whyEmpty: 109, whyArrears: 93},
+		ByPlatform: map[string]int64{
+			"豆包（火山方舟）": 102,
+			"DeepSeek":   117, // 失败点数更多，但全是空响应（我方问题）
+		},
+		Critical: map[string]int64{"豆包（火山方舟）": 93},
+		Sample:   "HTTP 403: AccountOverdueError",
+	}
+
+	got := failedReasonText(fs)
+	// 必须包含失败次数
+	if !strings.Contains(got, "222") {
+		t.Errorf("应包含失败次数，实际 %q", got)
+	}
+	// 必须给出可执行动作（欠费 → 提示充值/续费）
+	if !strings.Contains(got, "充值") && !strings.Contains(got, "续费") {
+		t.Errorf("欠费类失败应给出充值/续费指引，实际 %q", got)
+	}
+	// 关键：应点名真正欠费的平台，而非失败次数更多的那个
+	if !strings.Contains(got, "豆包（火山方舟）") {
+		t.Errorf("应点名欠费平台「豆包（火山方舟）」，实际 %q", got)
+	}
+	if strings.Contains(got, "问题平台：DeepSeek") {
+		t.Errorf("不应把空响应为主的 DeepSeek 报为问题平台，实际 %q", got)
+	}
+	// 不允许再出现两种原因混为一谈的旧文案
+	if strings.Contains(got, "或点卡不足") {
+		t.Errorf("不应出现含糊文案，实际 %q", got)
+	}
+
+	// 空统计不能崩，且要给出兜底说明
+	if s := failedReasonText(nil); s == "" {
+		t.Error("nil 统计不应返回空串")
+	}
+	if s := failedReasonText(&taskFailStat{ByWhy: map[string]int{}}); s == "" {
+		t.Error("无失败明细不应返回空串")
+	}
+
+	// 非「需客户处理」的故障（限流等临时问题）不点名平台，避免误导客户去折腾
+	fsRate := &taskFailStat{
+		Failed:     5,
+		ByWhy:      map[string]int{whyRate: 5},
+		ByPlatform: map[string]int64{"DeepSeek": 5},
+		Critical:   map[string]int64{}, // 限流不计入 Critical
+	}
+	if s := failedReasonText(fsRate); strings.Contains(s, "问题平台") {
+		t.Errorf("临时性故障不应点名平台，实际 %q", s)
+	}
+}
+
+// needActionWhy 只把确定性故障（欠费/Key）划为「需客户处理」。
+// 划错会导致客户被无效指引骚扰（如为限流去换 Key）。
+func TestNeedActionWhy(t *testing.T) {
+	if !needActionWhy(whyArrears) || !needActionWhy(whyBadKey) {
+		t.Error("欠费与 Key 失效应属需客户处理")
+	}
+	for _, w := range []string{whyRate, whyTimeout, whyEmpty, whyBalance, whyBreaker, whyUnknown} {
+		if needActionWhy(w) {
+			t.Errorf("%s 不应被划为需客户处理的确定性故障", w)
+		}
+	}
+}
+
+// topWhys 排序与截断：失败详情只展示前二主因，排序错了会展示次要原因。
+func TestTopWhys(t *testing.T) {
+	fs := &taskFailStat{ByWhy: map[string]int{
+		whyEmpty:   109,
+		whyArrears: 93,
+		whyRate:    10,
+	}}
+	got := topWhys(fs, 2)
+	if len(got) != 2 {
+		t.Fatalf("应返回 2 项，实际 %d", len(got))
+	}
+	if got[0] != whyEmpty || got[1] != whyArrears {
+		t.Errorf("排序错误：期望 [%s %s]，实际 %v", whyEmpty, whyArrears, got)
+	}
+	if first := topWhy(fs); first != whyEmpty {
+		t.Errorf("topWhy 期望 %s，实际 %s", whyEmpty, first)
+	}
+	// 请求数量超过实际种类时不 panic
+	if len(topWhys(fs, 99)) != 3 {
+		t.Errorf("请求超出种类数时应返回全部 3 项")
+	}
+}
+
+// 空统计的 topPlatform 不能 panic（map 为 nil 也安全）
+func TestTopPlatformNilSafe(t *testing.T) {
+	if p := (&taskFailStat{}).topPlatform(); p != "" {
+		t.Errorf("nil map 应返回空串，实际 %q", p)
+	}
+}
