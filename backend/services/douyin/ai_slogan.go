@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"geo-tool/database"
 	"geo-tool/models"
 	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 	"geo-tool/services/points"
 )
 
@@ -21,7 +21,7 @@ var (
 
 /* ================================================================
  * 抖音获客 · AI 话术生成服务
- * 复用统一 AI 客户端（OpenAI 兼容），自动读取第一个 enabled 的 AiPlatform。
+ * 复用统一 AI 客户端（OpenAI 兼容），平台选择委托 services/ai_platform（唯一权威来源）。
  * 合规半自动边界：AI 只生成话术建议，发送仍由人工在官方抖音客户端执行。
  * ================================================================ */
 
@@ -42,19 +42,11 @@ type GenerateResult struct {
 	SourcedFrom string   `json:"sourced_from"`
 }
 
-// FindFirstEnabledPlatform 获取第一个 enabled 的 AI 平台（全局优先，回退租户自配）。
+// FindFirstEnabledPlatform 获取第一个可用的 AI 平台。
+// 实现委托给 services/ai_platform（唯一权威来源）：**只用分站自己的平台**，
+// 不继承总后台全局平台（老板 2026-09-12 定的统一规则）。
 func FindFirstEnabledPlatform(tenantID uint) *models.AiPlatform {
-	var p models.AiPlatform
-	err := database.DB.Where("tenant_id = ? AND enabled = ?", 0, true).
-		Order("sort_order ASC, id ASC").First(&p).Error
-	if err != nil {
-		err = database.DB.Where("tenant_id = ? AND enabled = ?", tenantID, true).
-			Order("sort_order ASC, id ASC").First(&p).Error
-		if err != nil {
-			return nil
-		}
-	}
-	return &p
+	return ai_platform.FirstUsable(tenantID)
 }
 
 // GenerateSlogans 调用 AI 生成 1-3 条开场话术并返回结构化列表。
@@ -63,11 +55,13 @@ func GenerateSlogans(ctx context.Context, tenantID uint, req GenerateReq) (*Gene
 	if platform == nil {
 		return nil, errNoPlatform
 	}
-	if err := points.DeductOne(tenantID, "抖音话术生成"); err != nil {
-		return nil, err
-	}
+	// 参数校验放在扣点之前：缺昵称属于可预判的入参错误，
+	// 先扣费再报错会让客户白花 token（同 2026-09-12 AI 助手计费修正的原则）。
 	if strings.TrimSpace(req.Nickname) == "" {
 		return nil, errNoNickname
+	}
+	if err := points.DeductOne(tenantID, "抖音话术生成"); err != nil {
+		return nil, err
 	}
 	count := req.Count
 	if count < 1 || count > 3 {

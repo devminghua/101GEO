@@ -13,22 +13,23 @@ import (
 	"geo-tool/database"
 	"geo-tool/models"
 	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 	"geo-tool/services/crypto"
 )
 
-// EffectivePlatforms 返回指定租户「实际使用」的平台列表：
-// 全局平台（tenant_id=0）+ 应用分站覆盖层（Key / 启用状态）。
-// tid=0（super）时直接返回全局平台。
+// EffectivePlatforms 返回指定租户「实际使用」的平台列表。
+//
+// 实现已委托给 services/ai_platform（**唯一权威来源**），本函数仅作 HTTP 层的薄封装。
+//
+// 归属规则（老板 2026-09-12 定）：全部走**分站自己的 Key**。
+//   - tid != 0：只返回分站自有平台，不继承总后台全局平台。
+//   - tid == 0：返回全局平台池。
+//
+// 历史备注：本函数旧注释写的是「全局平台 + 分站覆盖层合并」，但旧实现其实是分站独立，
+// 而同一时期创作中心走「全局优先」、巡检走「合并覆盖层」——三套并存导致同一分站不同功能
+// 从不同账号扣 API 费用。本次重构后所有功能共用本实现，注释与行为已对齐（详见 ai_platform 包注释）。
 func EffectivePlatforms(tid uint) []models.AiPlatform {
-	if tid == 0 {
-		var global []models.AiPlatform
-		database.DB.Where("tenant_id = ?", 0).Order("sort_order asc, id asc").Find(&global)
-		return global
-	}
-	// 分站：完全独立，只返回分站自有平台（不继承总后台全局平台，客户自己配置 Key）
-	var own []models.AiPlatform
-	database.DB.Where("tenant_id = ?", tid).Order("sort_order asc, id asc").Find(&own)
-	return own
+	return ai_platform.OwnPlatforms(tid)
 }
 
 // ListPlatforms 平台列表（当前租户）；API Key 密文解密后返回，便于前端回显与编辑。

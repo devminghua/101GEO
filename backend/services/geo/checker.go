@@ -13,6 +13,7 @@ import (
 	"geo-tool/database"
 	"geo-tool/models"
 	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 	"geo-tool/services/points"
 )
 
@@ -92,34 +93,18 @@ func execute(tenantID uint, task *models.CheckTask) {
 	db := database.DB
 	start := time.Now()
 
-	// 平台 = 全局平台(tenant_id=0) + 分站覆盖层合并，仅取启用平台
+	// 平台 = 该租户**自有**的启用平台，统一委托 services/ai_platform（唯一权威来源）。
+	//
+	// 重构前这里是「全局平台打底 + 分站覆盖层合并」（TenantPlatformOverride），
+	// 导致未配置平台的分站也能用总后台 Key 跑巡检，与「AI 助手」的
+	// 「未配置就提示请先配置」行为割裂；且覆盖层表从未有任何接口/UI 暴露（实测 0 行数据）。
+	// 老板 2026-09-12 拍板统一为「全部走分站自己的 Key」，故此处改为复用统一实现。
 	var platforms []models.AiPlatform
-	db.Where("tenant_id = ?", 0).Order("sort_order asc, id asc").Find(&platforms)
-	if tenantID != 0 {
-		var ovs []models.TenantPlatformOverride
-		db.Where("tenant_id = ?", tenantID).Find(&ovs)
-		ovMap := map[uint]models.TenantPlatformOverride{}
-		for _, o := range ovs {
-			ovMap[o.PlatformID] = o
-		}
-		for i := range platforms {
-			if o, ok := ovMap[platforms[i].ID]; ok {
-				if o.APIKey != "" {
-					platforms[i].APIKey = o.APIKey
-				}
-				if o.Enabled != nil {
-					platforms[i].Enabled = *o.Enabled
-				}
-			}
+	for _, p := range ai_platform.OwnPlatforms(tenantID) {
+		if ai_platform.Usable(&p) {
+			platforms = append(platforms, p)
 		}
 	}
-	enabledPlats := platforms[:0]
-	for _, p := range platforms {
-		if p.Enabled {
-			enabledPlats = append(enabledPlats, p)
-		}
-	}
-	platforms = enabledPlats
 
 	var keywords []models.GeoKeyword
 	db.Where("tenant_id = ? AND enabled = ?", tenantID, true).Find(&keywords)

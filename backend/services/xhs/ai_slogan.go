@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"geo-tool/database"
 	"geo-tool/models"
 	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 	"geo-tool/services/points"
 )
 
@@ -23,7 +23,7 @@ var (
  * 小红书获客 · AI 话术生成服务
  *
  * 复用统一 AI 客户端（backend/services/ai/client.go，OpenAI 兼容），
- * 自动读取当前租户第一个 enabled 的 AiPlatform（baseURL/apiKey/model），
+ * 平台选择委托 services/ai_platform（**唯一权威来源**），
  * 无可用平台时返回明确错误"请先配置 AI 平台"。
  *
  * 生成要求：1-3 条真人化、个性化、口语化、不带广告语的开场话术，
@@ -50,20 +50,11 @@ type GenerateResult struct {
 	SourcedFrom string   `json:"sourced_from"` // 固定 ai，标识话术由 AI 生成
 }
 
-// FindFirstEnabledPlatform 获取第一个 enabled 的 AI 平台。
-// 平台已收归总后台统一管理：优先取 tenant_id=0 的全局平台；全局平台不存在时回退当前租户自配平台。
+// FindFirstEnabledPlatform 获取第一个可用的 AI 平台。
+// 实现委托给 services/ai_platform（唯一权威来源）：**只用分站自己的平台**，
+// 不继承总后台全局平台（老板 2026-09-12 定的统一规则）。
 func FindFirstEnabledPlatform(tenantID uint) *models.AiPlatform {
-	var p models.AiPlatform
-	err := database.DB.Where("tenant_id = ? AND enabled = ?", 0, true).
-		Order("sort_order ASC, id ASC").First(&p).Error
-	if err != nil {
-		err = database.DB.Where("tenant_id = ? AND enabled = ?", tenantID, true).
-			Order("sort_order ASC, id ASC").First(&p).Error
-		if err != nil {
-			return nil
-		}
-	}
-	return &p
+	return ai_platform.FirstUsable(tenantID)
 }
 
 // GenerateSlogans 调用 AI 生成 1-3 条开场话术并返回结构化列表
@@ -72,11 +63,13 @@ func GenerateSlogans(ctx context.Context, tenantID uint, req GenerateReq) (*Gene
 	if platform == nil {
 		return nil, errNoPlatform
 	}
-	if err := points.DeductOne(tenantID, "小红书话术生成"); err != nil {
-		return nil, err
-	}
+	// 参数校验放在扣点之前：缺昵称属于可预判的入参错误，
+	// 先扣费再报错会让客户白花 token（同 2026-09-12 AI 助手计费修正的原则）。
 	if strings.TrimSpace(req.Nickname) == "" {
 		return nil, errNoNickname
+	}
+	if err := points.DeductOne(tenantID, "小红书话术生成"); err != nil {
+		return nil, err
 	}
 	count := req.Count
 	if count < 1 || count > 3 {

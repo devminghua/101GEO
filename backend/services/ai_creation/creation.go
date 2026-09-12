@@ -10,16 +10,15 @@ import (
 	"geo-tool/database"
 	"geo-tool/models"
 	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 	"geo-tool/services/points"
-
-	"gorm.io/gorm"
 )
 
 /* ================================================================
  * 智能创作中心 · AI 生成服务
  *
  * 所有 AI 能力统一走 backend/services/ai/client.go 的 OpenAI 兼容客户端，
- * 自动读取当前租户第一个 enabled 的 AiPlatform（baseURL/apiKey/model），
+ * 平台选择统一委托给 services/ai_platform（**唯一权威来源**），
  * 无可用平台时返回明确错误"请先配置 AI 平台"（与小红书 xhs/ai_slogan 同范式）。
  *
  * 覆盖：AI 助手对话、角色设定、文案写作、抖音脚本、小红书文案、
@@ -53,42 +52,22 @@ type GenResult struct {
 }
 
 // FirstEnabledPlatform 获取第一个“可用”的 AI 平台。
-// 平台已收归总后台统一管理：优先取 tenant_id=0 的全局平台；
-// 全局平台不存在时，回退取当前租户自配平台（分站历史数据兼容）。
-// 可用 = enabled 且 base_url 非空；api_key 为空时仅放行自托管本地服务（如 Ollama/localhost），
-// 否则跳过（避免拿空 key 去打厂商接口返回 401，直接提示“请先配置 AI 平台”）。
+//
+// 保留此函数名仅为兼容既有调用点（话术生成、文章生成等），实现已委托给
+// services/ai_platform（唯一权威来源），**不再有自己的一套查询逻辑**。
+//
+// 平台归属规则（老板 2026-09-12 定）：全部走**分站自己的 Key**。
+// 分站只用自己的平台，不继承总后台全局平台；总后台（tenant_id=0）用全局平台。
+// 历史实现是「全局优先、分站兜底」，会导致分站用「创作中心」时从总后台账号扣费，
+// 与「AI 助手」走分站账号的行为不一致，已于本次重构统一。
 func FirstEnabledPlatform(tenantID uint) *models.AiPlatform {
-	if p := firstUsable(database.DB.Where("tenant_id = ? AND enabled = ?", 0, true)); p != nil {
-		return p
-	}
-	if p := firstUsable(database.DB.Where("tenant_id = ? AND enabled = ?", tenantID, true)); p != nil {
-		return p
-	}
-	return nil
+	return ai_platform.FirstUsable(tenantID)
 }
 
-// firstUsable 在给定查询条件下取第一个可用平台
-func firstUsable(q *gorm.DB) *models.AiPlatform {
-	var list []models.AiPlatform
-	q.Order("sort_order ASC, id ASC").Find(&list)
-	for i := range list {
-		p := &list[i]
-		if strings.TrimSpace(p.BaseURL) == "" {
-			continue
-		}
-		if strings.TrimSpace(p.APIKey) == "" && !isLocalBaseURL(p.BaseURL) {
-			continue
-		}
-		return p
-	}
-	return nil
-}
-
-// isLocalBaseURL 判断是否为免密钥的自托管本地服务
+// isLocalBaseURL 判断是否为免密钥的自托管本地服务。
+// 实现已委托给 ai_platform 内部统一判定，此处保留以兼容包内既有引用。
 func isLocalBaseURL(u string) bool {
-	l := strings.ToLower(u)
-	return strings.Contains(l, "localhost") || strings.Contains(l, "127.0.0.1") ||
-		strings.Contains(l, "0.0.0.0") || strings.Contains(l, "::1")
+	return ai_platform.IsLocalBaseURL(u)
 }
 
 // GetSetting 读取租户级 KV 配置

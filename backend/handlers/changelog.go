@@ -38,6 +38,26 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.39", Date: "2026-09-12", Title: "平台可用性判定口径统一（补齐本地自托管平台）",
+		Items: items(
+			"fix", "修复「话题簇聚类」的平台可用性判定漏判：原先手写「已启用 && API Key 非空」，会把本地自托管平台（Ollama 等无需 Key 的服务）误判为不可用，出现「AI 平台页显示可用、点聚类却说没有可用平台」的矛盾；现统一复用 `ai_platform.Usable`",
+			"fix", "修复「AI 平台健康度体检」同样的判定缺陷：未配置 Key 的本地自托管平台原先被直接标记为「未配置 API Key」而不做连通性探测，现改为正常发起探测，与巡检、AI 助手、话题簇的判定口径完全一致",
+			"improve", "收敛同类实现：全站「平台是否可用」的判定收敛到 `ai_platform.Usable` 一个函数，后续如需调整规则（例如新增对其他本地服务标识的支持）只需改一处，避免各功能再次分叉（延续站点审计口径统一、GEO 指标口径统一、AI 平台归属统一的同一原则）",
+		),
+	},
+	{
+		Version: "1.0.38", Date: "2026-09-12", Title: "AI 平台归属统一（全部走分站自己的 Key）",
+		Items: items(
+			"fix", "修复同一个分站的不同 AI 功能会从两个不同账号扣费的问题：重构前系统内并存三套互相冲突的平台选择策略——「AI 助手 / 话题簇」只用分站自有平台、「创作中心 / 抖音话术 / 小红书话术 / 文章生成」优先用总后台全局平台、「GEO 巡检」全局平台打底再叠分站覆盖层。实测分站 linkcrm 用 AI 助手走自己的 Key（sk-0f535…），用创作中心却走总后台 Key（sk-87b63…）",
+			"fix", "修复「GEO 配置自检」误报：该检查原先按「分站优先、未配置则继承全局」判定，会告诉客户「AI 平台已就绪」，但实际功能因分站不继承全局平台而全部不可用；现已与实际取平台逻辑对齐，不再给出错误结论",
+			"improve", "新增唯一权威平台选择模块 `services/ai_platform`：`OwnPlatforms` / `FirstUsable` / `PickPreferred` / `Usable`，所有需要取 AI 平台的代码统一调用这里，从代码层面杜绝策略再次分叉（延续站点审计口径统一、GEO 指标口径统一的同一原则）",
+			"improve", "清理三处重复实现：`ai_creation.FirstEnabledPlatform`、`douyin.FindFirstEnabledPlatform`、`xhs.FindFirstEnabledPlatform` 三份逐字重复的查询逻辑收敛为一处；两份判定不一致的本地服务识别函数（`isLocalBaseURL` 与 `isLocalURL`）统一为 `ai_platform.IsLocalBaseURL` 并补齐 `::1` 判定；移除无调用方的死代码 `handlers.isLocalURL`",
+			"improve", "移除从未启用的「分站平台覆盖层」机制（`TenantPlatformOverride`）：该表无任何接口与 UI 暴露、线上实测 0 行数据，仅被巡检读取，属未完成的半成品能力；表结构保留不删，避免破坏性迁移",
+			"improve", "顺带修复抖音/小红书话术生成的扣费顺序：原先「先扣点卡、后校验昵称」，客户漏填昵称会被白扣 token；现改为参数校验通过后才扣费（同 AI 助手计费修正的原则）",
+			"improve", "统一规则：分站只使用自己配置的 AI 平台，不继承总后台全局平台——客户自备 Key、自付 API 费用，用量与账单在自己账号内一目了然，平台方零 API 成本与欠费风险",
+		),
+	},
+	{
 		Version: "1.0.37", Date: "2026-09-12", Title: "AI 助手计费修正（先校验后扣费 + 失败自动退款）",
 		Items: items(
 			"fix", "修复 AI 数据分析助手的扣费顺序错误：原先「先扣点卡、后校验 AI 平台」，导致未配置 AI 平台的分站提问时点卡被扣掉，却只返回一句「还没有可用的 AI 平台」，客户白花 token 且拿不到任何分析",

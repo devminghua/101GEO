@@ -14,6 +14,7 @@ import (
 	"geo-tool/database"
 	"geo-tool/models"
 	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 	"geo-tool/services/points"
 )
 
@@ -397,7 +398,11 @@ func GenClusters(c *gin.Context) {
 	platforms := EffectivePlatforms(tid)
 	var chosen *models.AiPlatform
 	for i := range platforms {
-		if !platforms[i].Enabled || strings.TrimSpace(platforms[i].APIKey) == "" {
+		// 可用性判定统一走 ai_platform.Usable（唯一权威来源）：
+		// 已启用 && base_url 非空 && （有 Key || 本地自托管服务）。
+		// 原来手写「Enabled && APIKey != ""」会把本地自托管平台（Ollama 等无 Key）误判为不可用，
+		// 与巡检/AI 助手/AI 平台页的判定口径不一致。
+		if !ai_platform.Usable(&platforms[i]) {
 			continue
 		}
 		if req.PlatformID > 0 {

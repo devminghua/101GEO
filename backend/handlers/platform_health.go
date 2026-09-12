@@ -11,6 +11,7 @@ import (
 
 	"geo-tool/models"
 	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 )
 
 // PlatformHealth 单个平台的健康度
@@ -61,7 +62,7 @@ func probePlatform(p models.AiPlatform) PlatformHealth {
 		h.Status = "disabled"
 		return h
 	}
-	if strings.TrimSpace(p.APIKey) == "" {
+	if strings.TrimSpace(p.APIKey) == "" && !ai_platform.IsLocalBaseURL(p.BaseURL) {
 		h.Status = "no_key"
 		h.Error = "未配置 API Key"
 		return h

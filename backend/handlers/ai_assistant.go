@@ -15,6 +15,7 @@ import (
 	"geo-tool/database"
 	"geo-tool/models"
 	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 	"geo-tool/services/points"
 )
 
@@ -464,45 +465,16 @@ func AssistantChat(c *gin.Context) {
 
 // assistantClient 构造 AI 客户端：**优先 DeepSeek**（老板指定），
 // 不可用时回落到本租户第一个可用平台，保证助手不会被单一平台故障卡死。
+//
+// 平台归属与筛选统一委托 services/ai_platform（唯一权威来源）：
+// 只用分站自己的平台（不继承总后台全局平台），避免与创作中心/巡检出现两套取 Key 逻辑。
 func assistantClient(tid uint) (*ai.Client, error) {
-	platforms := EffectivePlatforms(tid)
-
-	var deepseek, fallback *models.AiPlatform
-	for i := range platforms {
-		p := &platforms[i]
-		if !p.Enabled || strings.TrimSpace(p.BaseURL) == "" {
-			continue
-		}
-		if strings.TrimSpace(p.APIKey) == "" && !isLocalURL(p.BaseURL) {
-			continue
-		}
-		name := strings.ToLower(p.Name)
-		if strings.Contains(name, "deepseek") || strings.Contains(strings.ToLower(p.Model), "deepseek") {
-			if deepseek == nil {
-				deepseek = p
-			}
-			continue
-		}
-		if fallback == nil {
-			fallback = p
-		}
-	}
-	chosen := deepseek
-	if chosen == nil {
-		chosen = fallback
-	}
+	chosen := ai_platform.PickPreferred(tid, "deepseek")
 	if chosen == nil {
 		return nil, fmt.Errorf("还没有可用的 AI 平台，请先在「AI 平台」中配置并启用")
 	}
 	return ai.NewClient(chosen.BaseURL, chosen.APIKey, chosen.Model).
 		WithMeta(tid, chosen.Name, "AI 数据分析助手"), nil
-}
-
-// isLocalURL 免密钥的自托管服务判断（与 ai_creation 同规则）
-func isLocalURL(u string) bool {
-	l := strings.ToLower(u)
-	return strings.Contains(l, "localhost") || strings.Contains(l, "127.0.0.1") ||
-		strings.Contains(l, "0.0.0.0")
 }
 
 // ensureAssistantSession 取或建会话（按租户隔离）
