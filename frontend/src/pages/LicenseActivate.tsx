@@ -77,7 +77,7 @@ export default function LicenseActivate({
                 <Typography.Text copyable code>{result.super_password}</Typography.Text>
               </div>
               <div style={{ color: '#86909c', marginTop: 6 }}>
-                请妥善保存，登录后可在「系统设置」中修改密码。
+                请妥善保存，登录后点击右上角「退出登录」下拉菜单中的「修改密码」即可修改。
               </div>
             </div>
             <Button type="primary" long size="large" style={{ marginTop: 20 }} onClick={() => { window.location.hash = '#/login'; window.location.reload(); }}>

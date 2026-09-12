@@ -6,21 +6,25 @@ import { useNavigate } from 'react-router-dom';
 import { Message } from '@arco-design/web-react';
 import {
   IconUser, IconGift, IconStar,
-  IconPalette, IconRefresh, IconExport,
+  IconPalette, IconRefresh, IconExport, IconLock,
 } from '@arco-design/web-react/icon';
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from '../theme';
 
 interface Props {
   user: any;
   onLogout: () => void;
+  /** 打开「修改密码」弹窗（弹窗与接口由 App.tsx 统一持有，此处仅触发） */
+  onChangePassword?: () => void;
   collapsed?: boolean;
 }
 
 const POPOVER_W = 240; // 用户菜单宽度
 
-export default function UserMenu({ user, onLogout, collapsed = false }: Props) {
+export default function UserMenu({ user, onLogout, onChangePassword, collapsed = false }: Props) {
   const navigate = useNavigate();
   const isSuper = user?.role === 'super';
+  // AI 优化员为受限账号：后端 ChangePassword 直接拒绝，前端不展示入口（与 Settings 权限说明一致）
+  const isOperator = user?.role === 'operator';
   const [open, setOpen] = useState(false);
   // 外观（浅色/深色）：初值从 localStorage 读，切换时同步写 DOM 属性 + 持久化
   const [themeMode, setThemeModeState] = useState<ThemeMode>(getThemeMode);
@@ -220,6 +224,19 @@ export default function UserMenu({ user, onLogout, collapsed = false }: Props) {
           >
             <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>检查更新</span>
           </Row>
+
+          {/* 修改密码：复用 App.tsx 的弹窗与 /auth/change-password，不另写一套 */}
+          {onChangePassword && !isOperator && (
+            <Row
+              icon={<IconLock style={{ fontSize: 16 }} />}
+              onClick={() => {
+                setOpen(false);
+                onChangePassword();
+              }}
+            >
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>修改密码</span>
+            </Row>
+          )}
 
           <Divider />
 

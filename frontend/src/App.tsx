@@ -723,7 +723,14 @@ export default function App() {
                   <IconNotification style={{ fontSize: 18 }} />
                 </span>
                 {/* 右上角用户菜单：纯文字 + 点击下拉 */}
-                <UserMenu user={user} onLogout={logout} />
+                <UserMenu
+                  user={user}
+                  onLogout={logout}
+                  onChangePassword={() => {
+                    pwdForm.resetFields();
+                    setPwdVisible(true);
+                  }}
+                />
               </span>
             )}
             <Modal
