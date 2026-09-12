@@ -66,6 +66,7 @@ import HelpDoc from './pages/HelpDoc';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
 import NotificationPopover from './components/NotificationPopover';
+import AiAssistant from './components/AiAssistant';
 import { getStoredUser, clearAuth, api } from './api';
 import { hasFeature } from './features';
 
@@ -921,6 +922,10 @@ export default function App() {
         onUnreadChange={(n) => setUnread(n)}
       />
       {!isSuper && !isChannel && <FloatingService phone={sysInfo?.service_phone} qr={sysInfo?.service_wechat_qr} />}
+      {/* AI 数据分析助手：右侧悬浮（有客服球时上移错开），仅客户端展示 */}
+      {!isSuper && !isChannel && (
+        <AiAssistant bottomOffset={sysInfo?.service_phone || sysInfo?.service_wechat_qr ? 92 : 24} />
+      )}
     </Layout>
   );
 }

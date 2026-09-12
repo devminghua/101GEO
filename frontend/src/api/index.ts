@@ -640,4 +640,24 @@ export const api = {
     request('/super/help/docs', { method: 'POST', body: JSON.stringify(body) }),
   superHelpDeleteDoc: (id: number) =>
     request(`/super/help/docs/${id}`, { method: 'DELETE' }),
+
+  // AI 数据分析助手（右侧悬浮对话框）：注入本租户真实 GEO 数据，由 DeepSeek 解读效果并给建议
+  assistantSnapshot: () =>
+    request<{
+      brand: string; period: string; score: number; grade: string; grade_label: string;
+      grade_color: string; delta: number; confidence: string; sample_count: number;
+      dims: { name: string; score: number; weight: number }[];
+      brand_rate: number; top3_rate: number; citation_rate: number; has_data: boolean;
+    }>('/assistant/snapshot'),
+  assistantQuickAsks: () =>
+    request<{ key: string; icon: string; title: string; question: string }[]>('/assistant/quick-asks'),
+  assistantChat: (body: { session_id?: number; content: string }) =>
+    request<{ session_id: number; reply: string; platform: string; model: string; snapshot: any }>(
+      '/assistant/chat', { method: 'POST', body: JSON.stringify(body) }),
+  assistantSessions: () =>
+    request<{ id: number; title: string; message_count: number; updated_at: string }[]>('/assistant/sessions'),
+  assistantMessages: (id: number) =>
+    request<{ session: any; messages: { id: number; role: string; content: string }[] }>(`/assistant/sessions/${id}/messages`),
+  assistantDeleteSession: (id: number) =>
+    request(`/assistant/sessions/${id}`, { method: 'DELETE' }),
 };

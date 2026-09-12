@@ -271,6 +271,14 @@ func main() {
 		api.GET("/geo/llms", handlers.GenerateLLMS)
 		api.GET("/geo/schema", handlers.GenerateSchema)
 
+		// AI 数据分析助手（右侧悬浮对话框）：注入本租户真实 GEO 数据，由 DeepSeek 解读优化效果并给改进建议
+		api.GET("/assistant/snapshot", handlers.AssistantSnapshot)
+		api.GET("/assistant/quick-asks", handlers.AssistantQuickAsks)
+		api.POST("/assistant/chat", handlers.AssistantChat)
+		api.GET("/assistant/sessions", handlers.AssistantSessions)
+		api.GET("/assistant/sessions/:id/messages", handlers.AssistantMessages)
+		api.DELETE("/assistant/sessions/:id", handlers.AssistantDeleteSession)
+
 		/* ---- 抖音获客（quank） ---- */
 		// 1) 账号管理
 		api.GET("/douyin/accounts", handlers.DouyinListAccounts)

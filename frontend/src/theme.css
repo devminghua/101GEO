@@ -255,3 +255,19 @@ body,
 .help-doc-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
 .help-doc-content table th, .help-doc-content table td { border: 1px solid var(--color-border-2); padding: 8px 12px; }
 .help-doc-content .bili-video iframe { background: #000; }
+
+/* ---------- 8. AI 数据分析助手：逐字输出光标（与创作中心同款心跳效果） ---------- */
+.ai-assistant-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: #4f46e5;
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  animation: ai-assistant-beat 0.9s ease-in-out infinite;
+}
+@keyframes ai-assistant-beat {
+  0%, 100% { opacity: 0.2; transform: scaleY(0.55); }
+  50% { opacity: 1; transform: scaleY(1); }
+}

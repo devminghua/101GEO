@@ -322,11 +322,18 @@ type geoPlatform struct {
 	RiskRate      float64 `json:"risk_rate"`
 }
 
-// GeoIntel 六项核心指标聚合
+// GeoIntel 六项核心指标聚合（HTTP 入口，薄封装）
 func GeoIntel(c *gin.Context) {
 	results, days, since := queryResultsInRange(c, 7)
-	tid := TenantID(c)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": computeGeoIndicator(TenantID(c), results, since, days)})
+}
 
+// computeGeoIndicator 六项核心指标聚合的**唯一权威实现**。
+//
+// 为什么抽成纯函数：AI 数据分析助手需要把同样的指标喂给大模型做解读。
+// 若助手另写一套算法，就会出现「仪表盘显示 A、AI 说 B」的口径分叉——
+// 这正是 v1.0.33 站点审计两套口径并存踩过的坑。此处统一为单一来源。
+func computeGeoIndicator(tid uint, results []models.CheckResult, since time.Time, days int) *geoIndicator {
 	// 加载事实库 / 风险词 / 竞品（启用态）
 	var facts []models.FactItem
 	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&facts)
@@ -578,7 +585,7 @@ func GeoIntel(c *gin.Context) {
 	)
 	ind.SampleCount = success
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": ind})
+	return ind
 }
 
 // ---------- 缺口分析 ----------
@@ -606,10 +613,15 @@ type compSOV struct {
 	Questions     []string `json:"questions"`
 }
 
-// GeoGaps 竞品对比 + 品牌缺口分析
+// GeoGaps 竞品对比 + 品牌缺口分析（HTTP 入口，薄封装）
 func GeoGaps(c *gin.Context) {
 	results, _, _ := queryResultsInRange(c, 7)
-	tid := TenantID(c)
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": computeGapResp(TenantID(c), results)})
+}
+
+// computeGapResp 缺口/竞品分析的**唯一权威实现**（「差距诊断」页与 AI 助手共用，
+// 避免助手另算一套导致"页面说 A、AI 说 B"）。
+func computeGapResp(tid uint, results []models.CheckResult) *gapResp {
 	var comps []models.Competitor
 	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Find(&comps)
 
@@ -729,7 +741,7 @@ func GeoGaps(c *gin.Context) {
 	}
 	sort.Slice(resp.CompetitorSOV, func(i, j int) bool { return resp.CompetitorSOV[i].Mentions > resp.CompetitorSOV[j].Mentions })
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
+	return resp
 }
 
 // ---------- 效果归因：前后期对比 ----------
