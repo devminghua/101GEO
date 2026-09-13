@@ -699,13 +699,14 @@ export default function App() {
               return (
                 <SubMenu key={m.key} title={<span>{m.icon} {m.label}</span>}>
                   {visible.map((c: any) => c.children ? (
-                    <SubMenu key={c.key} title={c.label}>
+                    <SubMenu key={c.key} title={<span className="geo-menu-icon-ph" aria-hidden />}>
                       {c.children.map((s: any) => (
-                        <MenuItem key={s.key}>{s.label}</MenuItem>
+                        <MenuItem key={s.key}><span className="geo-menu-icon-ph" aria-hidden />{s.label}</MenuItem>
                       ))}
                     </SubMenu>
                   ) : (
-                    <MenuItem key={c.key}>{c.label}</MenuItem>
+                    /* 子菜单文字与父级栏目文字对齐：父级有图标，子项补同宽占位（v1.0.59） */
+                    <MenuItem key={c.key}><span className="geo-menu-icon-ph" aria-hidden />{c.label}</MenuItem>
                   ))}
                 </SubMenu>
               );

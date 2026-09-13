@@ -161,6 +161,14 @@ body[arco-theme='dark'] .arco-menu-light .arco-menu-inner {
   background: transparent;
 }
 
+/* 侧栏子菜单占位：父级栏目带图标（实测约 13.8px 宽含间隙），子菜单项补同宽占位让文字对齐 */
+.geo-menu-icon-ph {
+  display: inline-block;
+  width: 10px;
+  margin-right: 4px;
+  flex: none;
+}
+
 /* 深色下 Arco 分页器按钮 */
 body[arco-theme='dark'] .arco-pagination-item {
   background: var(--color-bg-3);
