@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Card, Table, Statistic, Space, Tag, TableColumnProps,
+  Card, Table, Statistic, Space, Tag, TableColumnProps, Tabs,
   Button, Modal, Form, Select, Input, Message, Typography, Empty, Slider,
 } from '@arco-design/web-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import UsageDashboard from './UsageDashboard';
 
 interface PointRecord {
   id: number;
@@ -163,6 +165,9 @@ export default function Points() {
   const [balance, setBalance] = useState(0);
   const [records, setRecords] = useState<PointRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  // 页签：充值兑换 / Token 用量（v1.0.57 集成，?tab=usage 直达用量看板）
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get('tab') === 'usage' ? 'usage' : 'recharge');
 
   // 扫码充值 Modal 状态
   const [rechargeVisible, setRechargeVisible] = useState(false);
@@ -392,6 +397,15 @@ export default function Points() {
   return (
     <div>
       <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>充值中心</div>
+      <Tabs activeTab={tab} onChange={setTab} type="line" style={{ marginBottom: 16 }}>
+        <Tabs.TabPane key="recharge" title="充值兑换" />
+        <Tabs.TabPane key="usage" title="Token 用量" />
+      </Tabs>
+
+      {tab === 'usage' ? (
+        <UsageDashboard />
+      ) : (
+      <div>
       <Card style={{ marginBottom: 16 }}>
         <Space size="large" align="start">
           <Statistic title="Token 余额" value={balance} groupSeparator suffix="token" />
@@ -416,6 +430,8 @@ export default function Points() {
           pagination={{ pageSize: 10, showTotal: true }}
         />
       </Card>
+      </div>
+      )}
 
       {/* 扫码充值 Modal：选渠道 -> 选套餐 -> 下单 -> 展示二维码 -> 轮询到账 */}
       <Modal

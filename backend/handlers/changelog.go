@@ -38,6 +38,12 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.57", Date: "2026-09-13", Title: "Token 用量集成到充值中心",
+		Items: items(
+			"improve", "**Token 用量并入充值中心**：充值中心页面改为两个页签——「充值兑换」（余额/兑换/邀约奖励/流水）与「Token 用量」（消耗看板/趋势/平台分布/调用记录），账户相关功能一个入口全搞定；侧栏不再单独显示「Token 用量」菜单",
+		),
+	},
+	{
 		Version: "1.0.56", Date: "2026-09-13", Title: "GEO 智能下拉调整：智能中心 + AI 平台前置",
 		Items: items(
 			"improve", "**GEO 智能下拉调整**：第一项「GEO 智能」更名为「智能中心」（避免与父菜单重名），「AI 平台」调整到第二位，配置类入口更靠前",

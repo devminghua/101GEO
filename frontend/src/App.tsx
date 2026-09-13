@@ -14,7 +14,6 @@ import {
   IconBulb,
   IconLock,
   IconNotification,
-  IconThunderbolt,
   IconGift,
   IconTool,
   IconCustomerService,
@@ -28,7 +27,6 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Keywords from './pages/Keywords';
 import Platforms from './pages/Platforms';
-import UsageDashboard from './pages/UsageDashboard';
 import Tasks from './pages/Tasks';
 import ContentPublish from './pages/ContentPublish';
 import Report from './pages/Report';
@@ -413,8 +411,7 @@ export default function App() {
           { key: '/xhs', label: '小红书获客', feature: 'xhs' },
         ] },
         { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
-        // Token 用量看板：统计本分站 AI 调用真实消耗
-        { key: '/usage', label: 'Token 用量', icon: <IconThunderbolt /> },
+        // Token 用量已集成到充值中心页签（v1.0.57），不再独立挂菜单
         // 使用指南：SaaS 后台编辑的帮助文档（图文 + B 站视频），下拉「分类 → 文档」
         { key: '/help', label: '使用指南', icon: <IconBook />, children: helpTree.length > 0 ? helpTree.map((c: any) => ({
           key: `/help?cat=${c.id}`, label: c.name,
@@ -893,7 +890,8 @@ export default function App() {
                 <Route path="/points" element={<Points />} />
                 {/* 消息中心：站内信全部内容（登录后弹窗的「查看全部消息」落点） */}
                 <Route path="/notifications" element={<Notifications />} />
-                <Route path="/usage" element={<UsageDashboard />} />
+                {/* Token 用量已集成到充值中心页签：旧链接重定向兼容 */}
+                <Route path="/usage" element={<Navigate to="/points?tab=usage" replace />} />
                 <Route
                   path="/tasks"
                   element={hasFeature(user.features, 'tasks') ? <Tasks /> : <NoAccess feature="巡检任务" />}
@@ -1027,7 +1025,6 @@ function menuTitle(key: string): string {
     '/dashboard': '仪表盘',
     '/points': '充值中心',
     '/notifications': '消息中心',
-    '/usage': 'Token 用量',
     '/keywords': '关键词监控',
     '/platforms': 'AI 平台',
     '/super/platforms': 'AI 平台',
