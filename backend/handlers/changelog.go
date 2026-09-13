@@ -38,6 +38,12 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.60", Date: "2026-09-13", Title: "关键词分析页移除默认示例词",
+		Items: items(
+			"improve", "**关键词分析页清理**：输入框不再预填「深圳高端婚恋交友」，示例提示同步移除该字样（改为「如：深圳婚介所推荐」）",
+		),
+	},
+	{
 		Version: "1.0.59", Date: "2026-09-13", Title: "侧栏下拉子菜单文字与栏目对齐",
 		Items: items(
 			"improve", "**侧栏下拉子菜单对齐**：父级栏目带图标、子菜单项没有，导致展开后子项文字比栏目文字偏左。现在子菜单项补上与图标同宽的占位，展开后文字与栏目名称完全对齐，视觉更整齐",

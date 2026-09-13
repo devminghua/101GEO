@@ -333,7 +333,7 @@ function buildMock(keyword: string, depth: number, seed: number): MockResult {
 /* ==================== 页面主组件 ==================== */
 export default function BaiduKeywords() {
   const [rootTab, setRootTab] = useState('analyze'); // 根 Tab：analyze / config
-  const [keywordInput, setKeywordInput] = useState('深圳高端婚恋交友');
+  const [keywordInput, setKeywordInput] = useState('');
   // 抓取深度固定 3（老板 2026-09-03 拍板）：深度是百度反爬命中率的主要变量，
   // 每多 1 页就多 1 次 HTTP 请求。前端已去掉「抓取页数」控件，后端 Normalize 也会强制收敛到 3。
   const [depth] = useState(3);
@@ -756,7 +756,7 @@ export default function BaiduKeywords() {
                 <Input
                   value={keywordInput}
                   onChange={setKeywordInput}
-                  placeholder="如：深圳高端婚恋交友, 深圳婚介所推荐"
+                  placeholder="如：深圳婚介所推荐"
                   prefix={<IconSearch style={{ color: '#86909C' }} />}
                   size="large"
                   style={{ borderRadius: 10 }}
@@ -1325,7 +1325,7 @@ export default function BaiduKeywords() {
             <Input
               value={keywordModal?.keyword || ''}
               onChange={(v) => setKeywordModal((p) => (p ? { ...p, keyword: v } : p))}
-              placeholder="如 深圳高端婚恋交友"
+              placeholder="如 深圳婚介所推荐"
             />
           </Form.Item>
           <Form.Item label="关联网站" required>
