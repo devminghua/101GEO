@@ -194,7 +194,7 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
           >
             <span style={{ flex: 1, fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>邀约奖励</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, color: 'var(--color-text-3)', fontSize: 11, whiteSpace: 'nowrap' }}>
-              <span style={{ marginRight: 2 }}>500 token/人</span>
+              <span style={{ marginRight: 2 }}>2000 token/人</span>
               <Chevron />
             </span>
           </Row>

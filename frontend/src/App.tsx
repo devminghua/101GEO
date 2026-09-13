@@ -752,14 +752,6 @@ export default function App() {
               : menuTitle(selectedKey)}
           </div>
           <Space>
-            {!isSuper && !isChannel && !!user && (user.remain_days ?? -1) >= 0 && (
-              <Tag
-                size="small"
-                color={(user.remain_days ?? -1) <= 0 ? 'red' : (user.remain_days ?? 999) <= 7 ? 'orangered' : (user.remain_days ?? 999) <= 30 ? 'orange' : 'green'}
-              >
-                {(user.remain_days ?? -1) <= 0 ? '服务已到期' : `剩 ${user.remain_days} 天${(user.remain_days ?? 0) <= 7 ? ' · 即将到期' : ''}`}
-              </Tag>
-            )}
             {isSuper || isChannel ? (
               <>
                 {isSuper && <Tag color="gold" size="small">总后台管理员</Tag>}
