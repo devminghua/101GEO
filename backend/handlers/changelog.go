@@ -38,6 +38,12 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.58", Date: "2026-09-13", Title: "排名监控页面自适应优化",
+		Items: items(
+			"improve", "**排名监控页面自适应**：宽屏（≥840px）用表格展示，窄屏自动切换为卡片流（每个监控词一张卡，排名/趋势/网站信息竖排），手机与平板也能清晰查看；页头在窄屏下自动换行，刷新按钮不被挤掉",
+		),
+	},
+	{
 		Version: "1.0.57", Date: "2026-09-13", Title: "Token 用量集成到充值中心",
 		Items: items(
 			"improve", "**Token 用量并入充值中心**：充值中心页面改为两个页签——「充值兑换」（余额/兑换/邀约奖励/流水）与「Token 用量」（消耗看板/趋势/平台分布/调用记录），账户相关功能一个入口全搞定；侧栏不再单独显示「Token 用量」菜单",
