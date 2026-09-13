@@ -15,8 +15,9 @@ interface Props {
   onUnreadChange: (n: number) => void;
 }
 
-// 相对时间：1 分钟内「刚刚」，否则 N 分钟/小时/天前，超过 7 天显示日期
-function relTime(iso: string): string {
+// 相对时间：1 分钟内「刚刚」，否则 N 分钟/小时/天前，超过 7 天显示日期。
+// 导出供消息中心内页（pages/Notifications.tsx）复用，保持时间展示口径唯一。
+export function relTime(iso: string): string {
   if (!iso) return '';
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return '';

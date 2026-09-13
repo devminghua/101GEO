@@ -66,8 +66,10 @@ import HelpDoc from './pages/HelpDoc';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
 import NotificationPopover from './components/NotificationPopover';
+import NoticePopup from './components/NoticePopup';
+import Notifications from './pages/Notifications';
 import AiAssistant from './components/AiAssistant';
-import { getStoredUser, clearAuth, api } from './api';
+import { getStoredUser, clearAuth, api, NotificationItem } from './api';
 import { hasFeature } from './features';
 
 const { Sider, Header, Content } = Layout;
@@ -135,6 +137,51 @@ export default function App() {
   const notifRef = useRef<HTMLSpanElement>(null);
   const [notifPos, setNotifPos] = useState({ left: 0, top: 0 });
   const [working, setWorking] = useState(false);
+
+  // 登录后自动弹窗：展示后台最新推送的一条未读站内信（老板需求 2026-09-13）。
+  // 仅客户端（非 super，与铃铛轮询口径一致）；同一条消息每次浏览器会话只弹一次。
+  const [noticePopup, setNoticePopup] = useState<NotificationItem | null>(null);
+  useEffect(() => {
+    if (!user || user.role === 'super') return;
+    let alive = true;
+    (async () => {
+      try {
+        const list: any = await api.listNotifications(20);
+        if (!alive || !Array.isArray(list)) return;
+        // 列表按时间倒序，第一个未读即「最新一条未读推送」
+        const latest = list.find((n: any) => !n.read);
+        if (!latest) return;
+        // 同一会话已弹过的不再弹（记录最近 20 条已弹 id）
+        const seenKey = 'notice_popup_seen';
+        const seenArr = (sessionStorage.getItem(seenKey) || '').split(',').filter(Boolean).map(Number);
+        if (seenArr.includes(latest.id)) return;
+        sessionStorage.setItem(seenKey, [...seenArr, latest.id].slice(-20).join(','));
+        setNoticePopup(latest);
+      } catch {
+        /* 拉取失败不打扰用户 */
+      }
+    })();
+    return () => { alive = false; };
+  }, [user?.id, user?.role]);
+
+  // 关闭弹窗：标记该条已读；goAll=true 时跳转消息中心内页查看全部
+  const dismissNotice = async (goAll: boolean) => {
+    const n = noticePopup;
+    setNoticePopup(null);
+    if (!n) {
+      if (goAll) navigate('/notifications');
+      return;
+    }
+    if (!n.read) {
+      setUnread((u) => Math.max(0, u - 1));
+      try {
+        await api.readNotification(n.id);
+      } catch {
+        /* 静默失败：未读数下次轮询会纠正 */
+      }
+    }
+    if (goAll) navigate('/notifications');
+  };
 
   // 站内信未读数轮询（仅客户端非 super）
   useEffect(() => {
@@ -359,6 +406,8 @@ export default function App() {
         { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
         // 充值中心：独立菜单入口（窄屏/侧栏折叠时 Token 卡片隐藏，这里保证充值入口始终可见）
         { key: '/points', label: '充值中心', icon: <IconQrcode /> },
+        // 消息中心：站内信全部内容（登录弹窗与顶栏铃铛的「查看全部」落点）
+        { key: '/notifications', label: '消息中心', icon: <IconNotification /> },
         // Token 用量看板：统计本分站 AI 调用真实消耗
         { key: '/usage', label: 'Token 用量', icon: <IconThunderbolt /> },
         // 使用指南：SaaS 后台编辑的帮助文档（图文 + B 站视频），下拉「分类 → 文档」
@@ -835,6 +884,8 @@ export default function App() {
                 />
                 {/* 点卡中心：查询余额与流水（AI 按次扣点） */}
                 <Route path="/points" element={<Points />} />
+                {/* 消息中心：站内信全部内容（登录后弹窗的「查看全部消息」落点） */}
+                <Route path="/notifications" element={<Notifications />} />
                 <Route path="/usage" element={<UsageDashboard />} />
                 <Route
                   path="/tasks"
@@ -928,6 +979,8 @@ export default function App() {
         onClose={() => setNotifOpen(false)}
         onUnreadChange={(n) => setUnread(n)}
       />
+      {/* 登录后自动弹窗：后台最新推送的站内信（客户端） */}
+      <NoticePopup notice={noticePopup} onClose={(markRead) => dismissNotice(false)} onViewAll={() => dismissNotice(true)} />
       {!isSuper && !isChannel && <FloatingService phone={sysInfo?.service_phone} qr={sysInfo?.service_wechat_qr} />}
       {/* AI 数据分析助手：右侧悬浮（有客服球时上移错开），仅客户端展示 */}
       {!isSuper && !isChannel && (
@@ -954,6 +1007,7 @@ function menuTitle(key: string): string {
   const map: Record<string, string> = {
     '/dashboard': '仪表盘',
     '/points': '充值中心',
+    '/notifications': '消息中心',
     '/usage': 'Token 用量',
     '/keywords': '关键词监控',
     '/platforms': 'AI 平台',
