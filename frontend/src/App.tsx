@@ -640,7 +640,7 @@ export default function App() {
             title="前往点卡中心"
           >
             <div style={{ fontSize: 13, fontWeight: 500, opacity: 0.92, letterSpacing: 0.5 }}>
-              Token 余额
+              Token
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', marginTop: 6, marginBottom: 14, lineHeight: 1 }}>
               {(() => {
@@ -653,7 +653,6 @@ export default function App() {
                   </span>
                 );
               })()}
-              <span style={{ fontSize: 14, fontWeight: 500, opacity: 0.9, marginLeft: 5 }}>Token</span>
             </div>
             <div
               onClick={(e) => {
@@ -676,7 +675,7 @@ export default function App() {
               onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255, 255, 255, 0.18)')}
             >
               <span style={{ fontSize: 18, lineHeight: 1, marginTop: -1 }}>⊕</span>
-              <span>充值</span>
+              <span>兑换</span>
             </div>
           </div>
         )}

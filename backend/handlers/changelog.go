@@ -38,6 +38,12 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.52", Date: "2026-09-13", Title: "侧栏 Token 卡片文案优化",
+		Items: items(
+			"improve", "**侧栏 Token 卡片文案精简**：标题「Token 余额」改为「Token」，余额数字后不再重复显示单位，底部按钮「充值」改为「兑换」，卡片更简洁（点击仍进入兑换中心）",
+		),
+	},
+	{
 		Version: "1.0.51", Date: "2026-09-13", Title: "短视频查询独立配额：每日 10 次，超限联系官方解锁",
 		Items: items(
 			"feat", "**短视频查询独立配额**：抖音/小红书/快手三平台的查询动作（同行导入、数据刷新、批量更新、线索解析等）改为独立计数，**每天最多 10 次**（共用额度池），与百度模块配额分开计算、互不影响",
