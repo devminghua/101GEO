@@ -2,11 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Layout, Menu, Button, Tag, Dropdown, Space, Modal, Form, Input, Message, Card } from '@arco-design/web-react';
 import {
   IconDashboard,
-  IconCommand,
   IconApps,
-  IconPlayCircle,
-  IconFile,
-  IconDriveFile,
   IconStorage,
   IconUserGroup,
   IconExport,
@@ -17,7 +13,6 @@ import {
   IconCommon,
   IconBulb,
   IconLock,
-  IconQrcode,
   IconNotification,
   IconThunderbolt,
   IconGift,
@@ -391,12 +386,17 @@ export default function App() {
       ]
     : [
         { key: '/dashboard', label: '仪表盘', icon: <IconDashboard />, feature: 'dashboard' },
-        { key: '/geo-intel', label: 'GEO 智能', icon: <IconBulb />, feature: 'geo_intel' },
-        { key: '/keywords', label: '关键词监控', icon: <IconCommand />, feature: 'keywords' },
-        { key: '/platforms', label: 'AI 平台', icon: <IconCommon />, feature: 'platforms' },
-        { key: '/tasks', label: '巡检任务', icon: <IconPlayCircle />, feature: 'tasks' },
-        { key: '/content', label: '内容投放', icon: <IconDriveFile />, feature: 'content' },
-        { key: '/report', label: '生成报告', icon: <IconDriveFile />, feature: 'report' },
+        // GEO 智能中心：GEO 智能 + 关键词监控 + AI 平台 + 巡检任务 + 内容投放 + 生成报告
+        // （2026-09-13 老板拍板：五项归纳为 GEO 智能下拉，侧栏瘦身）
+        // 父组不挂 feature（常显），各子项保留各自 feature 权限控制
+        { key: '/geo-center', label: 'GEO 智能', icon: <IconBulb />, children: [
+          { key: '/geo-intel', label: 'GEO 智能', feature: 'geo_intel' },
+          { key: '/keywords', label: '关键词监控', feature: 'keywords' },
+          { key: '/platforms', label: 'AI 平台', feature: 'platforms' },
+          { key: '/tasks', label: '巡检任务', feature: 'tasks' },
+          { key: '/content', label: '内容投放', feature: 'content' },
+          { key: '/report', label: '生成报告', feature: 'report' },
+        ] },
         { key: '/baidu', label: '百度优化', icon: <IconSearch />, feature: 'baidu', children: [
           { key: '/baidu-keywords', label: '关键词分析' },
           { key: '/baidu-rank-monitor', label: '排名监控' },
@@ -691,17 +691,24 @@ export default function App() {
             </MenuItem>
           )}
           {menus.map((m: any) => m.children ? (
-            <SubMenu key={m.key} title={<span>{m.icon} {m.label}</span>}>
-              {m.children.map((c: any) => c.children ? (
-                <SubMenu key={c.key} title={c.label}>
-                  {c.children.map((s: any) => (
-                    <MenuItem key={s.key}>{s.label}</MenuItem>
+            /* 子菜单先按 feature 过滤；全部无权限时整个父组隐藏（避免空下拉） */
+            (() => {
+              const visible = m.children.filter((c: any) => c.feature === undefined || hasFeature(user.features, c.feature));
+              if (visible.length === 0) return null;
+              return (
+                <SubMenu key={m.key} title={<span>{m.icon} {m.label}</span>}>
+                  {visible.map((c: any) => c.children ? (
+                    <SubMenu key={c.key} title={c.label}>
+                      {c.children.map((s: any) => (
+                        <MenuItem key={s.key}>{s.label}</MenuItem>
+                      ))}
+                    </SubMenu>
+                  ) : (
+                    <MenuItem key={c.key}>{c.label}</MenuItem>
                   ))}
                 </SubMenu>
-              ) : (
-                <MenuItem key={c.key}>{c.label}</MenuItem>
-              ))}
-            </SubMenu>
+              );
+            })()
           ) : (
             <MenuItem key={m.key}>
               {m.icon} {m.label}
