@@ -11,21 +11,24 @@ import (
 	"geo-tool/services/biztime"
 )
 
-// settleInvite 被邀请人注册成功后结算奖励：给邀请人加积分并记录邀请关系。
+// settleInvite 被邀请人注册成功后结算奖励（2026-09-13 老板拍板规则）：
+//   - 邀请人：+2000 token + 服务延长 1 个月（上不封顶）
+//   - 被邀请人：注册成功自动充值 2000 token（由 register.go 根据返回值发放）
 // 防刷：一个手机号全局只能被邀请一次（Phone 唯一索引）；邀请人不能是自己。
-func settleInvite(refCode string, inviteeID uint, phone string) {
+// 返回是否首次结算成功（false=无效邀请码/重复/自邀，被邀请人不发新人奖励）。
+func settleInvite(refCode string, inviteeID uint, phone string) bool {
 	var inviter models.Tenant
 	if err := database.DB.Where("code = ? AND status = ?", refCode, 1).First(&inviter).Error; err != nil {
-		return // 邀请码无效
+		return false // 邀请码无效
 	}
 	if inviter.ID == inviteeID {
-		return // 不能邀请自己
+		return false // 不能邀请自己
 	}
 	// 手机号防刷：已存在该手机号的邀请记录则不重复奖励
 	var dup int64
 	database.DB.Model(&models.InviteRecord{}).Where("phone = ?", phone).Count(&dup)
 	if dup > 0 {
-		return
+		return false
 	}
 	reward := inviteRewardPoints()
 	now := time.Now()
@@ -35,21 +38,39 @@ func settleInvite(refCode string, inviteeID uint, phone string) {
 		Phone: phone, Status: 1, RewardPoints: reward, RewardedAt: &now,
 	}).Error; err != nil {
 		tx.Rollback()
-		return
+		return false
 	}
-	tx.Model(&inviter).Update("points", inviter.Points+reward)
+	// 邀请人 +2000 token
+	newBal := inviter.Points + reward
+	tx.Model(&inviter).Update("points", newBal)
 	tx.Create(&models.PointRecord{
 		TenantID: inviter.ID, Amount: reward, Type: "recharge",
-		Remark: "邀约奖励（新客户注册）", BalanceAfter: inviter.Points + reward,
+		Remark: "邀约奖励（邀请新客户注册）", BalanceAfter: newBal,
 	})
+	// 邀请人服务延长 1 个月：给分站 admin 账号的 ExpireAt 顺延 30 天（上不封顶）。
+	// 取最新创建的 admin（Order id desc）：分站可能存在多个 admin（如测试账号），
+	// 应延到实际运营账号上（v1.0.53 实测：First 按主键升序取到了 demo 测试账号）。
+	var admin models.User
+	if err := tx.Where("tenant_id = ? AND role = ?", inviter.ID, "admin").Order("id desc").First(&admin).Error; err == nil {
+		base := time.Now()
+		if admin.ExpireAt != nil && admin.ExpireAt.After(base) {
+			base = *admin.ExpireAt
+		}
+		newExpire := base.AddDate(0, 1, 0)
+		tx.Model(&admin).Updates(map[string]interface{}{
+			"expire_at":   newExpire,
+			"open_months": admin.OpenMonths + 1,
+		})
+	}
 	tx.Commit()
+	return true
 }
 
-// inviteRewardPoints 每次成功邀约的奖励积分（默认 500，可全局设置 invite_reward_points 覆盖）
+// inviteRewardPoints 每次成功邀约的奖励 token（默认 2000，可全局设置 invite_reward_points 覆盖）
 func inviteRewardPoints() int64 {
-	v := int64(intSetting("invite_reward_points", 500))
+	v := int64(intSetting("invite_reward_points", 2000))
 	if v <= 0 {
-		return 500
+		return 2000
 	}
 	return v
 }

@@ -17,6 +17,7 @@ import (
 	"geo-tool/services/auth"
 	"geo-tool/services/crypto"
 	"geo-tool/services/identicon"
+	"geo-tool/services/points"
 	"geo-tool/services/sms"
 )
 
@@ -241,9 +242,12 @@ func Register(c *gin.Context) {
 	}
 	tx.Commit()
 
-	// 邀约奖励：被邀请人注册成功，给邀请人发奖励（防刷：手机号唯一索引）
-	if req.Ref != "" {
-		settleInvite(req.Ref, t.ID, req.Phone)
+	// 邀约奖励（2026-09-13 老板规则）：
+	//   邀请人 +2000 token + 延长 1 个月使用；被邀请人注册成功自动充值 2000 token。
+	// settleInvite 返回是否首次结算成功（防刷：手机号唯一、无效邀请码/自邀不发放）
+	if req.Ref != "" && settleInvite(req.Ref, t.ID, req.Phone) {
+		inviteeBonus := int64(2000)
+		points.Recharge(t.ID, inviteeBonus, "邀约奖励（新人注册礼）")
 	}
 
 	// 注册成功 → 自动生成 NFT 数字头像（基于 username hash 的 5×5 对称 SVG）。

@@ -148,7 +148,7 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
         code: (values.code || '').trim(),
         password: values.password,
         company_name: (values.company_name || '').trim(),
-        ref: refCode,
+        ref: refCode || (values.ref || '').trim(),
         agreed,
       });
       setAuth(data);
@@ -301,6 +301,14 @@ export default function Register({ onSuccess }: { onSuccess: () => void }) {
             rules={[{ required: true, message: '请填写公司/机构名称' }]}
           >
             <Input prefix={<IconUser />} placeholder="将作为您的分站名称" size="large" maxLength={64} />
+          </Form.Item>
+
+          <Form.Item
+            label="邀请码（选填）"
+            field="ref"
+            initialValue={refCode}
+          >
+            <Input prefix={<IconIdcard />} placeholder="受邀注册请填写邀请码，双方各得 2000 token" size="large" maxLength={32} />
           </Form.Item>
 
           {agreement.enabled && (

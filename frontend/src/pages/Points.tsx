@@ -28,6 +28,101 @@ interface RechargeOrder {
 const POLL_INTERVAL = 3000; // 支付状态轮询间隔（毫秒）
 const ORDER_EXPIRE_MS = 30 * 60 * 1000; // 订单过期 30 分钟
 
+/* ================================================================
+ * 邀约奖励卡（2026-09-13 老板规则）：
+ *   - 邀请 1 人注册 → 本人 +2000 token + 服务延长 1 个月（上不封顶）
+ *   - 被邀请人注册成功 → 自动充值 2000 token
+ * 数据源 /api/invite/summary；邀请链接 = 注册页 + ?ref=邀请码
+ * ================================================================ */
+function InviteCard() {
+  const [data, setData] = useState<any>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    api
+      .inviteSummary()
+      .then((d: any) => setData(d))
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const inviteLink = `${window.location.origin}/#/register?ref=${data?.invite_code || ''}`;
+
+  const copyLink = async () => {
+    if (!data?.invite_code) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      Message.success('邀请链接已复制，发给客户注册即可');
+    } catch {
+      Message.warning('复制失败，请手动复制');
+    }
+  };
+
+  return (
+    <Card style={{ marginBottom: 16, background: 'linear-gradient(135deg, #FDF6FF 0%, #FFF9F0 100%)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
+        {/* 左：规则说明 */}
+        <div style={{ flex: '1 1 320px', minWidth: 260 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 20 }}>🎁</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--geo-text)' }}>邀约奖励</span>
+            <Tag color="magenta" size="small">上不封顶</Tag>
+          </div>
+          <div style={{ color: '#4e5969', fontSize: 13, lineHeight: 2 }}>
+            <div>· 邀请 1 个新客户注册 → <b>本人 +2000 token</b>，服务<b>延长 1 个月使用</b>（上不封顶）</div>
+            <div>· 被邀请的新人注册成功 → <b>自动充值 2000 token</b></div>
+            <div style={{ color: '#86909c', fontSize: 12 }}>
+              注册方式：客户打开你的邀请链接注册，或注册时填写你的邀请码
+            </div>
+          </div>
+        </div>
+        {/* 右：邀请码 + 数据 + 记录 */}
+        <div style={{ flex: '1 1 340px', minWidth: 280 }}>
+          {loaded && !data?.invite_code ? (
+            <div style={{ color: '#86909c', fontSize: 13 }}>暂不可用（总后台账号无邀请码）</div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: 12, color: '#86909c' }}>我的邀请码</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#722ED1', letterSpacing: 1 }}>
+                    {data?.invite_code || '—'}
+                  </div>
+                </div>
+                <div style={{ flex: 1 }} />
+                <Space direction="vertical" size={4} align="end">
+                  <Space size={8}>
+                    <Tag color="green" size="small">已邀请 {data?.total_invited || 0} 人</Tag>
+                    <Tag color="arcoblue" size="small">累计 +{data?.total_reward || 0} token</Tag>
+                  </Space>
+                  <Button type="primary" size="small" icon={<span style={{ fontSize: 14 }}>📋</span>} onClick={copyLink}>
+                    复制邀请链接
+                  </Button>
+                </Space>
+              </div>
+              {(data?.records || []).length > 0 && (
+                <div style={{ marginTop: 10, borderTop: '1px dashed #f0e0f8', paddingTop: 8 }}>
+                  {data.records.slice(0, 5).map((r: any) => (
+                    <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#4e5969', lineHeight: 1.9 }}>
+                      <span>{r.company_name || r.phone}（{r.phone}）</span>
+                      <span>
+                        <Tag size="small" color={r.status === 1 ? 'green' : 'orange'}>
+                          {r.status === 1 ? `已奖励 +${r.reward_points}` : '待注册'}
+                        </Tag>
+                        <span style={{ color: '#a9aeb8', marginLeft: 6 }}>{r.created_at}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 // 套餐版本图标：从猿人到星辰大海（进化主题，对应三档套餐）
 const PLAN_ICONS = ['🦍', '🚀', '🌌'];
 const THUMB_W = 48; // 滑块手柄宽（与登录页滑动解锁一致）
@@ -310,6 +405,8 @@ export default function Points() {
           </Space>
         </Space>
       </Card>
+      {/* 邀约奖励：邀请新客户注册，双向得 2000 token，邀请人还延 1 个月使用（上不封顶） */}
+      <InviteCard />
       <Card title="Token 流水">
         <Table
           rowKey="id"
