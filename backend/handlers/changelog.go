@@ -38,6 +38,12 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.56", Date: "2026-09-13", Title: "GEO 智能下拉调整：智能中心 + AI 平台前置",
+		Items: items(
+			"improve", "**GEO 智能下拉调整**：第一项「GEO 智能」更名为「智能中心」（避免与父菜单重名），「AI 平台」调整到第二位，配置类入口更靠前",
+		),
+	},
+	{
 		Version: "1.0.55", Date: "2026-09-13", Title: "去除重复的剩余天数显示 + 邀约奖励文案同步",
 		Items: items(
 			"improve", "**去除重复的剩余天数**：顶栏「工作状态」旁的旧版天数标签删除，剩余使用天数统一显示在右上角用户名右侧（倒计时徽标），不再重复",

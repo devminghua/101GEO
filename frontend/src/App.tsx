@@ -391,9 +391,9 @@ export default function App() {
         // （2026-09-13 老板拍板：五项归纳为 GEO 智能下拉，侧栏瘦身）
         // 父组不挂 feature（常显），各子项保留各自 feature 权限控制
         { key: '/geo-center', label: 'GEO 智能', icon: <IconBulb />, children: [
-          { key: '/geo-intel', label: 'GEO 智能', feature: 'geo_intel' },
-          { key: '/keywords', label: '关键词监控', feature: 'keywords' },
+          { key: '/geo-intel', label: '智能中心', feature: 'geo_intel' },
           { key: '/platforms', label: 'AI 平台', feature: 'platforms' },
+          { key: '/keywords', label: '关键词监控', feature: 'keywords' },
           { key: '/tasks', label: '巡检任务', feature: 'tasks' },
           { key: '/content', label: '内容投放', feature: 'content' },
           { key: '/report', label: '生成报告', feature: 'report' },
@@ -949,7 +949,7 @@ export default function App() {
                 <Route path="/help" element={<HelpDoc />} />
                 <Route
                   path="/geo-intel"
-                  element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="GEO 智能" />}
+                  element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="智能中心" />}
                 />
                 <Route
                   path="/settings"
@@ -1057,7 +1057,7 @@ function menuTitle(key: string): string {
     '/kuaishou': '快手获客',
     '/xhs': '小红书获客',
     '/creation': '智能创作中心',
-    '/geo-intel': 'GEO 智能',
+    '/geo-intel': '智能中心',
     '/tools/watermark': '获客工具 · 短视频去水印',
     '/tools/video2text': '获客工具 · 视频转文案',
     '/settings': '系统设置',
