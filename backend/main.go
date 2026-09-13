@@ -362,6 +362,34 @@ func main() {
 		// 9) 动作日志
 		api.GET("/xhs/logs", handlers.XhsListActionLogs)
 
+		/* ---- 快手获客（ks） ---- */
+		api.GET("/ks/accounts", handlers.KsListAccounts)
+		api.POST("/ks/accounts", handlers.KsCreateAccount)
+		api.PUT("/ks/accounts/:id", handlers.KsUpdateAccount)
+		api.DELETE("/ks/accounts/:id", handlers.KsDeleteAccount)
+		api.GET("/ks/peers", handlers.KsListPeers)
+		api.POST("/ks/peers/import", handlers.KsImportPeers)
+		api.POST("/ks/peers/:id/refresh", handlers.KsRefreshPeer)
+		api.DELETE("/ks/peers/:id", handlers.KsDeletePeer)
+		api.GET("/ks/videos", handlers.KsListVideos)
+		api.GET("/ks/analysis", handlers.KsAnalysis)
+		api.GET("/ks/leads", handlers.KsListLeads)
+		api.POST("/ks/leads/parse", handlers.KsParseLeads)
+		api.POST("/ks/leads", handlers.KsCreateLead)
+		api.PUT("/ks/leads/:id", handlers.KsUpdateLead)
+		api.DELETE("/ks/leads/:id", handlers.KsDeleteLead)
+		api.GET("/ks/slogans", handlers.KsListSlogans)
+		api.POST("/ks/slogans", handlers.KsCreateSlogan)
+		api.PUT("/ks/slogans/:id", handlers.KsUpdateSlogan)
+		api.DELETE("/ks/slogans/:id", handlers.KsDeleteSlogan)
+		api.POST("/ks/slogans/:id/use", handlers.KsUseSlogan)
+		api.POST("/ks/slogans/ai-generate", handlers.KsGenerateSlogan)
+		api.GET("/ks/settings", handlers.KsGetSettings)
+		api.POST("/ks/settings", handlers.KsSaveSettings)
+		api.POST("/ks/precheck", handlers.KsPrecheck)
+		api.POST("/ks/greet", handlers.KsGreet)
+		api.GET("/ks/logs", handlers.KsListActionLogs)
+
 		/* ---- 智能创作中心（creation） ---- */
 		// 角色设定（内置 ≥6 角色，可增删改查）
 		api.GET("/creation/roles", handlers.ListRoles)

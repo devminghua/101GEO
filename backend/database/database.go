@@ -225,6 +225,13 @@ func migrate() {
 		&models.XhsSlogan{},
 		&models.XhsActionLog{},
 		&models.XhsNotification{},
+		// 快手获客模块
+		&models.KsAccount{},
+		&models.KsPeer{},
+		&models.KsVideo{},
+		&models.KsLead{},
+		&models.KsSlogan{},
+		&models.KsActionLog{},
 		// 智能创作中心模块
 		&models.CreativeRole{},
 		&models.ChatSession{},

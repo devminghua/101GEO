@@ -44,6 +44,7 @@ import VideoWatermark from './pages/tools/VideoWatermark';
 import VideoToText from './pages/tools/VideoToText';
 import DouyinGain from './pages/DouyinGain';
 import XhsGain from './pages/XhsGain';
+import KuaishouGain from './pages/KuaishouGain';
 import CreationCenter from './pages/CreationCenter';
 import GeoIntel from './pages/GeoIntel';
 import Points from './pages/Points';
@@ -405,15 +406,13 @@ export default function App() {
           { key: '/baidu-gaps', label: '差距诊断' },
           { key: '/baidu-industry-rank', label: '行业排行' },
         ] },
-        { key: '/douyin', label: '抖音获客', icon: <IconPlayArrow />, feature: 'douyin' },
-        { key: '/xhs', label: '小红书获客', icon: <IconBook />, feature: 'xhs' },
-        { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
-        // 系统中心：系统设置 + 充值中心 + 消息中心（2026-09-13 老板拍板收纳）
-        { key: '/system-center', label: '系统中心', icon: <IconSettings />, feature: 'settings', children: [
-          { key: '/settings', label: '系统设置' },
-          { key: '/points', label: '充值中心' },
-          { key: '/notifications', label: '消息中心' },
+        // 短视频获客：抖音 + 快手 + 小红书（2026-09-13 老板拍板收纳为一个栏目）
+        { key: '/short-video', label: '短视频获客', icon: <IconPlayArrow />, children: [
+          { key: '/douyin', label: '抖音获客', feature: 'douyin' },
+          { key: '/kuaishou', label: '快手获客', feature: 'kuaishou' },
+          { key: '/xhs', label: '小红书获客', feature: 'xhs' },
         ] },
+        { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
         // Token 用量看板：统计本分站 AI 调用真实消耗
         { key: '/usage', label: 'Token 用量', icon: <IconThunderbolt /> },
         // 使用指南：SaaS 后台编辑的帮助文档（图文 + B 站视频），下拉「分类 → 文档」
@@ -421,6 +420,12 @@ export default function App() {
           key: `/help?cat=${c.id}`, label: c.name,
           children: (c.docs && c.docs.length > 0) ? c.docs.map((d: any) => ({ key: `/help?doc=${d.id}`, label: d.title })) : undefined,
         })) : undefined },
+        // 系统中心：固定最后（2026-09-13 老板拍板：系统中心/充值中心/消息中心收纳且置底）
+        { key: '/system-center', label: '系统中心', icon: <IconSettings />, feature: 'settings', children: [
+          { key: '/settings', label: '系统设置' },
+          { key: '/points', label: '充值中心' },
+          { key: '/notifications', label: '消息中心' },
+        ] },
         // 获客工具：暂时隐藏（待第三方解析 API 接入后恢复）
         // { key: '/tools', label: '获客工具', icon: <IconTool />, feature: 'tools', children: [
         //   { key: '/tools/watermark', label: '短视频去水印' },
@@ -939,6 +944,10 @@ export default function App() {
                   element={hasFeature(user.features, 'douyin') ? <DouyinGain /> : <NoAccess feature="抖音获客" />}
                 />
                 <Route
+                  path="/kuaishou"
+                  element={hasFeature(user.features, 'kuaishou') ? <KuaishouGain /> : <NoAccess feature="快手获客" />}
+                />
+                <Route
                   path="/xhs"
                   element={hasFeature(user.features, 'xhs') ? <XhsGain /> : <NoAccess feature="小红书获客" />}
                 />
@@ -1054,6 +1063,7 @@ function menuTitle(key: string): string {
     '/baidu-gaps': '百度优化 · 差距诊断',
     '/baidu-industry-rank': '百度优化 · 行业排行',
     '/douyin': '抖音获客',
+    '/kuaishou': '快手获客',
     '/xhs': '小红书获客',
     '/creation': '智能创作中心',
     '/geo-intel': 'GEO 智能',

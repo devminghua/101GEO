@@ -14,6 +14,7 @@ export const FEATURES: FeatureDef[] = [
   { key: 'content', label: '内容投放', route: '/content' },
   { key: 'baidu', label: '百度优化', route: '/baidu-keywords' },
   { key: 'douyin', label: '抖音获客', route: '/douyin' },
+  { key: 'kuaishou', label: '快手获客', route: '/kuaishou' },
   { key: 'xhs', label: '小红书获客', route: '/xhs' },
   { key: 'creation', label: '智能创作中心', route: '/creation' },
   { key: 'tools', label: '获客工具', route: '/tools/watermark' },
