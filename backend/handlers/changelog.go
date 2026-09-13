@@ -38,6 +38,12 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.54", Date: "2026-09-13", Title: "右上角用户名旁显示使用天数倒计时",
+		Items: items(
+			"feat", "**使用天数倒计时**：右上角用户名右侧新增剩余使用天数徽标——剩余 7 天内橙色提醒、7 天以上绿色、已到期红色「已到期」；不限有效期时不显示。到期时间由系统按开通/续费/邀约奖励自动计算，续费后立即刷新",
+		),
+	},
+	{
 		Version: "1.0.53", Date: "2026-09-13", Title: "邀约奖励上线：邀请注册双向得 token，邀请人延长使用",
 		Items: items(
 			"feat", "**充值中心新增「邀约奖励」**（余额卡下方第二排）：展示我的专属邀请码、已邀请人数、累计奖励 token、邀请记录与「复制邀请链接」按钮",

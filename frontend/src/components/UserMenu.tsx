@@ -42,6 +42,9 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
   const tenantName: string = user?.tenant_name || username || '未登录';
   // 入口展示名优先用客户名称
   const display: string = tenantName;
+  // 使用天数倒计时（2026-09-13 老板要求）：用户名右侧展示剩余天数。
+  // remain_days 由后端下发：-1=不限有效期，0=已到期，N=剩余 N 天。
+  const remainDays: number = typeof user?.remain_days === 'number' ? user.remain_days : -2;
 
   // 计算弹层位置：右对齐触发入口，向下弹出
   const recalc = () => {
@@ -118,6 +121,24 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
         >
           {display}
         </span>
+        {/* 使用天数倒计时：用户名右侧（不限期不显示；到期红、临期橙、正常绿） */}
+        {remainDays >= 0 && (
+          <span
+            title={remainDays === 0 ? '服务已到期，请及时续费' : `服务剩余 ${remainDays} 天`}
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              lineHeight: '18px',
+              padding: '0 8px',
+              borderRadius: 9,
+              flexShrink: 0,
+              color: remainDays === 0 ? '#fff' : remainDays <= 7 ? '#D25F00' : '#00A28A',
+              background: remainDays === 0 ? '#F53F3F' : remainDays <= 7 ? '#FFF3E0' : '#E8F8F4',
+            }}
+          >
+            {remainDays === 0 ? '已到期' : `${remainDays} 天`}
+          </span>
+        )}
         <span
           style={{
             fontSize: 10,
