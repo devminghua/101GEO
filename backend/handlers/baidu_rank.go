@@ -3,6 +3,7 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -181,4 +182,88 @@ func IndustryRankRefresh(c *gin.Context) {
 	}
 	log.Printf("[baidu-rank] 刷新完成：%d 条记录，日期 %s", inserted, today)
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已更新", "data": gin.H{"inserted": inserted, "stat_date": today}})
+}
+
+// RankOverview 排名监控看板：GET /api/baidu/rank-overview
+// 聚合该租户全部启用监控词的各站点最新排名 + 昨日对比 + 趋势方向。
+// 数据源为每次「关键词分析」自动落库的排名快照（baidu_rank_snapshots）。
+func RankOverview(c *gin.Context) {
+	tid := TenantID(c)
+	var kws []models.BaiduMonitorKeyword
+	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Order("id asc").Find(&kws)
+	if len(kws) == 0 {
+		dyOK(c, gin.H{"items": []gin.H{}, "keywords": 0, "hint": "暂无监控关键词，请先到「关键词分析」页配置"})
+		return
+	}
+
+	// 站点名冗余
+	siteNames := map[uint]string{}
+	var sites []models.BaiduSite
+	database.DB.Where("tenant_id = ?", tid).Find(&sites)
+	for _, s := range sites {
+		siteNames[s.ID] = s.Name
+	}
+
+	type row struct {
+		Keyword    string `json:"keyword"`
+		SiteID     uint   `json:"site_id"`
+		SiteDomain string `json:"site_domain"`
+		SiteName   string `json:"site_name"`
+		LatestRank int    `json:"latest_rank"` // 0=近期未上榜
+		LatestDate string `json:"latest_date"`
+		PrevRank   int    `json:"prev_rank"`
+		PrevDate   string `json:"prev_date"`
+		Trend      string `json:"trend"` // up / down / flat / new / none
+	}
+
+	items := make([]row, 0, len(kws))
+	for _, kw := range kws {
+		domain := strings.TrimSpace(kw.SiteDomain)
+		if domain == "" && kw.SiteID > 0 {
+			domain = sitesDomainOf(tid, kw.SiteID)
+		}
+		if domain == "" {
+			continue
+		}
+		// 该词该域最近两条快照（按日期倒序）
+		var snaps []models.BaiduRankSnapshot
+		database.DB.Where("tenant_id = ? AND keyword = ? AND site_domain = ?", tid, kw.Keyword, domain).
+			Order("date desc").Limit(2).Find(&snaps)
+		r := row{Keyword: kw.Keyword, SiteID: kw.SiteID, SiteDomain: domain, SiteName: siteNames[kw.SiteID]}
+		if len(snaps) == 0 {
+			r.Trend = "none"
+		} else {
+			r.LatestRank = snaps[0].BestRank
+			r.LatestDate = snaps[0].Date
+			if len(snaps) > 1 {
+				r.PrevRank = snaps[1].BestRank
+				r.PrevDate = snaps[1].Date
+			}
+			switch {
+			case r.PrevRank == 0 && r.LatestRank > 0:
+				r.Trend = "new" // 新上榜
+			case r.LatestRank == 0 && r.PrevRank > 0:
+				r.Trend = "down" // 掉榜
+			case r.LatestRank > 0 && r.PrevRank > 0 && r.LatestRank < r.PrevRank:
+				r.Trend = "up"
+			case r.LatestRank > 0 && r.PrevRank > 0 && r.LatestRank > r.PrevRank:
+				r.Trend = "down"
+			case r.LatestRank > 0 && r.PrevRank > 0:
+				r.Trend = "flat"
+			default:
+				r.Trend = "none"
+			}
+		}
+		items = append(items, r)
+	}
+	dyOK(c, gin.H{"items": items, "keywords": len(kws)})
+}
+
+// sitesDomainOf 取站点域名（缓存站点名时顺带查）
+func sitesDomainOf(tid, siteID uint) string {
+	var s models.BaiduSite
+	if err := database.DB.Where("id = ? AND tenant_id = ?", siteID, tid).First(&s).Error; err != nil {
+		return ""
+	}
+	return s.Domain
 }

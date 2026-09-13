@@ -223,6 +223,8 @@ func main() {
 		api.DELETE("/baidu/monitor-keywords/:id", handlers.BaiduDeleteMonitorKeyword)
 		// 排名历史查询（keyword + days）
 		api.GET("/baidu/rank-history", handlers.BaiduRankHistory)
+	api.GET("/baidu/rank-overview", handlers.RankOverview)
+	api.POST("/baidu/index-count", handlers.BaiduIndexCount)
 
 		/* ---- GEO 智能中心（事实库/竞品/引用/指标/缺口/行动/审计） ---- */
 		// 品牌事实库

@@ -41,6 +41,8 @@ import BaiduKeywords from './pages/BaiduKeywords';
 import SiteAudit from './pages/SiteAudit';
 import GapDiagnose from './pages/GapDiagnose';
 import IndustryRank from './pages/IndustryRank';
+import RankMonitor from './pages/RankMonitor';
+import IndexCount from './pages/IndexCount';
 import InvitePage from './pages/InvitePage';
 import GrowthPage from './pages/GrowthPage';
 import VideoWatermark from './pages/tools/VideoWatermark';
@@ -395,8 +397,10 @@ export default function App() {
         { key: '/tasks', label: '巡检任务', icon: <IconPlayCircle />, feature: 'tasks' },
         { key: '/content', label: '内容投放', icon: <IconDriveFile />, feature: 'content' },
         { key: '/report', label: '生成报告', icon: <IconDriveFile />, feature: 'report' },
-        { key: '/baidu', label: '百度分析', icon: <IconSearch />, feature: 'baidu', children: [
+        { key: '/baidu', label: '百度优化', icon: <IconSearch />, feature: 'baidu', children: [
           { key: '/baidu-keywords', label: '关键词分析' },
+          { key: '/baidu-rank-monitor', label: '排名监控' },
+          { key: '/baidu-index-count', label: '收录查询' },
           { key: '/baidu-audit', label: '站点体检' },
           { key: '/baidu-gaps', label: '差距诊断' },
           { key: '/baidu-industry-rank', label: '行业排行' },
@@ -404,10 +408,12 @@ export default function App() {
         { key: '/douyin', label: '抖音获客', icon: <IconPlayArrow />, feature: 'douyin' },
         { key: '/xhs', label: '小红书获客', icon: <IconBook />, feature: 'xhs' },
         { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
-        // 充值中心：独立菜单入口（窄屏/侧栏折叠时 Token 卡片隐藏，这里保证充值入口始终可见）
-        { key: '/points', label: '充值中心', icon: <IconQrcode /> },
-        // 消息中心：站内信全部内容（登录弹窗与顶栏铃铛的「查看全部」落点）
-        { key: '/notifications', label: '消息中心', icon: <IconNotification /> },
+        // 系统中心：系统设置 + 充值中心 + 消息中心（2026-09-13 老板拍板收纳）
+        { key: '/system-center', label: '系统中心', icon: <IconSettings />, feature: 'settings', children: [
+          { key: '/settings', label: '系统设置' },
+          { key: '/points', label: '充值中心' },
+          { key: '/notifications', label: '消息中心' },
+        ] },
         // Token 用量看板：统计本分站 AI 调用真实消耗
         { key: '/usage', label: 'Token 用量', icon: <IconThunderbolt /> },
         // 使用指南：SaaS 后台编辑的帮助文档（图文 + B 站视频），下拉「分类 → 文档」
@@ -415,8 +421,6 @@ export default function App() {
           key: `/help?cat=${c.id}`, label: c.name,
           children: (c.docs && c.docs.length > 0) ? c.docs.map((d: any) => ({ key: `/help?doc=${d.id}`, label: d.title })) : undefined,
         })) : undefined },
-        // 系统设置：品牌/账号/登录日志（从右上角用户菜单剥离为独立菜单项）
-        { key: '/settings', label: '系统设置', icon: <IconSettings />, feature: 'settings' },
         // 获客工具：暂时隐藏（待第三方解析 API 接入后恢复）
         // { key: '/tools', label: '获客工具', icon: <IconTool />, feature: 'tools', children: [
         //   { key: '/tools/watermark', label: '短视频去水印' },
@@ -901,19 +905,27 @@ export default function App() {
                 />
                 <Route
                   path="/baidu-keywords"
-                  element={hasFeature(user.features, 'baidu') ? <BaiduKeywords /> : <NoAccess feature="百度分析" />}
+                  element={hasFeature(user.features, 'baidu') ? <BaiduKeywords /> : <NoAccess feature="百度优化" />}
+                />
+                <Route
+                  path="/baidu-rank-monitor"
+                  element={hasFeature(user.features, 'baidu') ? <RankMonitor /> : <NoAccess feature="百度优化" />}
+                />
+                <Route
+                  path="/baidu-index-count"
+                  element={hasFeature(user.features, 'baidu') ? <IndexCount /> : <NoAccess feature="百度优化" />}
                 />
                 <Route
                   path="/baidu-audit"
-                  element={hasFeature(user.features, 'baidu') ? <SiteAudit /> : <NoAccess feature="百度分析" />}
+                  element={hasFeature(user.features, 'baidu') ? <SiteAudit /> : <NoAccess feature="百度优化" />}
                 />
                 <Route
                   path="/baidu-gaps"
-                  element={hasFeature(user.features, 'baidu') ? <GapDiagnose /> : <NoAccess feature="百度分析" />}
+                  element={hasFeature(user.features, 'baidu') ? <GapDiagnose /> : <NoAccess feature="百度优化" />}
                 />
                 <Route
                   path="/baidu-industry-rank"
-                  element={hasFeature(user.features, 'baidu') ? <IndustryRank /> : <NoAccess feature="百度分析" />}
+                  element={hasFeature(user.features, 'baidu') ? <IndustryRank /> : <NoAccess feature="百度优化" />}
                 />
                 <Route
                   path="/douyin"
@@ -1028,9 +1040,12 @@ function menuTitle(key: string): string {
     '/tasks': '巡检任务',
     '/content': '内容投放',
     '/report': '生成报告',
-    '/baidu-keywords': '百度分析 · 关键词分析',
-    '/baidu-audit': '百度分析 · 站点体检',
-    '/baidu-gaps': '百度分析 · 差距诊断',
+    '/baidu-keywords': '百度优化 · 关键词分析',
+    '/baidu-rank-monitor': '百度优化 · 排名监控',
+    '/baidu-index-count': '百度优化 · 收录查询',
+    '/baidu-audit': '百度优化 · 站点体检',
+    '/baidu-gaps': '百度优化 · 差距诊断',
+    '/baidu-industry-rank': '百度优化 · 行业排行',
     '/douyin': '抖音获客',
     '/xhs': '小红书获客',
     '/creation': '智能创作中心',

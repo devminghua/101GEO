@@ -1455,7 +1455,7 @@ function CitationTab() {
 }
 
 /* ============================================================
- * Tab8 网站 GEO 审计（v1.0.33 起与「百度分析 → 站点体检」共用同一套四层加权口径）
+ * Tab8 网站 GEO 审计（v1.0.33 起与「百度优化 → 站点体检」共用同一套四层加权口径）
  * ============================================================ */
 const AUDIT_LAYER_COLOR: any = {
   access: '#F53F3F',
@@ -1509,7 +1509,7 @@ function AuditTab() {
             <Button type="primary" icon={<IconThunderbolt />} loading={auditing} onClick={run}>开始审计</Button>
           </Space>
           <div style={{ fontSize: 12, color: '#86909C', marginBottom: 12 }}>
-            与「百度分析 → 站点体检」共用同一套评分核心，同一站点两个入口结果完全一致，历史记录也通用。
+            与「百度优化 → 站点体检」共用同一套评分核心，同一站点两个入口结果完全一致，历史记录也通用。
           </div>
           {result && (
             <div>

@@ -367,6 +367,11 @@ export const api = {
 
   // 百度关键词分析 · 客户网站配置（按租户隔离）
   baiduListSites: () => request('/baidu/sites'),
+  // 排名监控看板：聚合全部监控词的最新排名与变化（快照聚合，不消耗查询配额）
+  rankOverview: () => request<{ items: any[]; keywords: number; hint?: string }>('/baidu/rank-overview'),
+  // 收录查询：site:domain 抓取百度收录总数与首页条目（消耗 1 次查询配额）
+  baiduIndexCount: (body: { domain: string }) =>
+    request<{ domain: string; count: number; count_exact: boolean; items: any[]; page_count: number }>('/baidu/index-count', { method: 'POST', body: JSON.stringify(body) }),
   baiduCreateSite: (body: { domain: string; name?: string; enabled?: boolean }) =>
     request('/baidu/sites', { method: 'POST', body: JSON.stringify(body) }),
   baiduUpdateSite: (id: number, body: any) =>

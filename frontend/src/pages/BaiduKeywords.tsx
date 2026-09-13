@@ -722,7 +722,7 @@ export default function BaiduKeywords() {
 
       {/* 根 Tab：分析 / 我的网站·关键词配置 */}
       <Tabs activeTab={rootTab} onChange={setRootTab} style={{ marginBottom: 8 }} type="line" size="large">
-        <TabPane key="analyze" title={<span><IconSearch style={{ marginRight: 6 }} />百度分析</span>} />
+        <TabPane key="analyze" title={<span><IconSearch style={{ marginRight: 6 }} />百度优化</span>} />
         <TabPane key="config" title={<span><IconUserGroup style={{ marginRight: 6 }} />我的网站 / 关键词配置</span>} />
       </Tabs>
 
@@ -733,7 +733,7 @@ export default function BaiduKeywords() {
         <div style={{ minWidth: 0, maxWidth: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ width: 8, height: 26, borderRadius: 4, background: 'linear-gradient(180deg,#165DFF,#14C9C9,#FF7D00)' }} />
-            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>百度分析</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>百度优化</span>
             <Tag color="arcoblue" size="small">Beta</Tag>
           </div>
           <div style={{ color: '#86909C', fontSize: 13, marginTop: 4 }}>
