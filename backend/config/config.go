@@ -15,7 +15,7 @@ import (
 
 // Version 产品版本号：每次更新记录一次版本号（老板规则，2026-09-07 起）。
 // 当前 1.0.42。发版时改这里，客户端与 SaaS 端登录页/侧栏会自动显示。
-const Version = "1.0.46"
+const Version = "1.0.47"
 
 /* ---------------------------------------------------------------------------
  * 自动巡检调度参数（**全站唯一权威来源**）
@@ -68,18 +68,30 @@ type Config struct {
 // fallbackTokenSecret 未配置 GEO_JWT_SECRET 时的兜底：每次启动随机生成，
 // 避免固定弱密钥被攻击者伪造任意身份 JWT（安全审计修复：原为硬编码 "geo-tool-dev-secret"）。
 // 代价：重启后旧登录态失效；生产环境必须显式配置 GEO_JWT_SECRET。
-var fallbackTokenSecret = func() []byte {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err == nil {
-		log.Printf("[config] ⚠️ GEO_JWT_SECRET 未配置：使用随机临时密钥（重启后登录态失效），生产环境必须配置 GEO_JWT_SECRET")
-		return b
-	}
-	return []byte("geo-tool-dev-secret")
-}()
+//
+// 🔴 惰性初始化（v1.0.47 修复）：原为包级 var 在 import 时立即执行，导致
+// **无论是否配置了 GEO_JWT_SECRET 都会打印「未配置」警告**——容器 env 明明
+// 有 64 字密钥，启动日志却在喊没配置，严重误导排查。现在只在真正取用
+// fallback（即 JWTSecret 为空）时才生成随机密钥并告警一次。
+var fallbackTokenSecretOnce sync.Once
+var fallbackTokenSecretBytes []byte
+
+func fallbackTokenSecret() []byte {
+	fallbackTokenSecretOnce.Do(func() {
+		b := make([]byte, 32)
+		if _, err := rand.Read(b); err == nil {
+			log.Printf("[config] ⚠️ GEO_JWT_SECRET 未配置：使用随机临时密钥（重启后登录态失效），生产环境必须配置 GEO_JWT_SECRET")
+			fallbackTokenSecretBytes = b
+			return
+		}
+		fallbackTokenSecretBytes = []byte("geo-tool-dev-secret")
+	})
+	return fallbackTokenSecretBytes
+}
 
 func (c *Config) TokenSecret() []byte {
 	if c.JWTSecret == "" {
-		return fallbackTokenSecret
+		return fallbackTokenSecret()
 	}
 	return []byte(c.JWTSecret)
 }

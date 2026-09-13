@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"geo-tool/config"
 	"geo-tool/database"
@@ -353,17 +354,21 @@ func ExtendUserService(c *gin.Context) {
 // ListExtendRecords 续费流水查询：GET /api/super/extend-records
 // 支持按分站（tenant_id）与月份范围过滤，按时间倒序，供对账。
 func ListExtendRecords(c *gin.Context) {
-	db := database.DB.Model(&models.ExtendRecord{})
-	if v := c.Query("tenant_id"); v != "" {
-		if id, err := strconv.Atoi(v); err == nil && id > 0 {
-			db = db.Where("tenant_id = ?", id)
+	// 过滤条件独立成闭包：列表与聚合两处复用，避免链式污染
+	scoped := func() *gorm.DB {
+		db := database.DB.Model(&models.ExtendRecord{})
+		if v := c.Query("tenant_id"); v != "" {
+			if id, err := strconv.Atoi(v); err == nil && id > 0 {
+				db = db.Where("tenant_id = ?", id)
+			}
 		}
-	}
-	if v := c.Query("month"); v != "" {
-		// month=YYYY-MM：过滤该自然月内的续费（跨数据库兼容，Go 端算月份范围）
-		if t, err := time.Parse("2006-01", v); err == nil {
-			db = db.Where("created_at >= ? AND created_at < ?", t, t.AddDate(0, 1, 0))
+		if v := c.Query("month"); v != "" {
+			// month=YYYY-MM：过滤该自然月内的续费（跨数据库兼容，Go 端算月份范围）
+			if t, err := time.Parse("2006-01", v); err == nil {
+				db = db.Where("created_at >= ? AND created_at < ?", t, t.AddDate(0, 1, 0))
+			}
 		}
+		return db
 	}
 	limit := 200
 	if v := c.Query("limit"); v != "" {
@@ -372,21 +377,24 @@ func ListExtendRecords(c *gin.Context) {
 		}
 	}
 	var records []models.ExtendRecord
-	db.Order("id desc").Limit(limit).Find(&records)
+	scoped().Order("id desc").Limit(limit).Find(&records)
 	if records == nil {
 		records = []models.ExtendRecord{}
 	}
-	// 汇总（当前过滤条件下）：总条数、总月数、总金额（分）
+	// 汇总（当前过滤条件下）：总条数、总月数、总金额（分）。
+	// 🔴 必须独立查询：若复用上面带 Order/Limit 的链，PG 下聚合查询会报
+	// 「column must appear in GROUP BY」，错误被 GORM 吞掉后 sums 全是 0，
+	// 续费对账页合计永远是 0（v1.0.47 修复）。
 	var total int64
 	var sums struct {
-		Months     int64
-		AmountFen  int64
+		Months    int64
+		AmountFen int64
 	}
-	db.Select("coalesce(sum(months),0) as months, coalesce(sum(amount_fen),0) as amount_fen").Scan(&sums)
-	db.Count(&total)
+	scoped().Select("coalesce(sum(months),0) as months, coalesce(sum(amount_fen),0) as amount_fen").Scan(&sums)
+	scoped().Count(&total)
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{
 		"list": records, "total": total,
-		"total_months":   sums.Months,
+		"total_months":    sums.Months,
 		"total_amount_fen": sums.AmountFen,
 	}})
 }
