@@ -310,8 +310,8 @@ func DouyinImportPeers(c *gin.Context) {
 		dyErr(c, http.StatusBadRequest, "未识别到有效的抖音主页链接（支持 douyin.com/user/ 或 v.douyin.com 短链）")
 		return
 	}
-	// 每日查询配额：跨百度/抖音/小红书统一计数
-	if !QuotaGuard(c) {
+	// 短视频查询配额：抖音/小红书/快手共用池，每日 10 次（超限联系官方解锁）
+	if !ShortVideoQuotaGuard(c) {
 		return
 	}
 	db := database.DB
@@ -374,8 +374,8 @@ func DouyinRefreshPeer(c *gin.Context) {
 		dyErr(c, http.StatusNotFound, "同行不存在")
 		return
 	}
-	// 每日查询配额
-	if !QuotaGuard(c) {
+	// 短视频查询配额（每日 10 次）
+	if !ShortVideoQuotaGuard(c) {
 		return
 	}
 	profile, videos := syncPeerData(peer.Link)
@@ -405,8 +405,8 @@ func DouyinRefreshAllPeers(c *gin.Context) {
 		dyOK(c, gin.H{"updated": 0})
 		return
 	}
-	// 每日查询配额（批量更新算 1 次）
-	if !QuotaGuard(c) {
+	// 短视频查询配额（批量更新算 1 次，每日 10 次）
+	if !ShortVideoQuotaGuard(c) {
 		return
 	}
 	updated := 0

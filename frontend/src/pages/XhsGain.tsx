@@ -532,7 +532,7 @@ export default function XhsGain() {
           <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>小红书获客</span>
           <Tag color="arcoblue" size="small">Beta</Tag>
           <Tag color="green" size="small">合规半自动</Tag>
-          <QuotaBadge compact />
+          <QuotaBadge compact scope="short_video" />
         </div>
         <div style={{ color: '#86909C', fontSize: 13, marginTop: 4 }}>
           多账号管理 · 同行笔记数据分析 · 评论区客户获取 · AI 话术辅助 · 价值客户上报（人工确认执行）

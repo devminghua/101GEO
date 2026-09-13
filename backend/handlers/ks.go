@@ -183,8 +183,8 @@ func KsImportPeers(c *gin.Context) {
 		dyErr(c, http.StatusBadRequest, "未识别到有效的快手主页链接（支持 kuaishou.com/profile/ 或 www.kuaishou.com 短链）")
 		return
 	}
-	// 每日查询配额：跨百度/抖音/小红书/快手统一计数
-	if !QuotaGuard(c) {
+	// 短视频查询配额：抖音/小红书/快手共用池，每日 10 次（超限联系官方解锁）
+	if !ShortVideoQuotaGuard(c) {
 		return
 	}
 	db := database.DB
@@ -356,7 +356,8 @@ func KsParseLeads(c *gin.Context) {
 		dyErr(c, http.StatusBadRequest, "请选择来源同行或粘贴评论文本")
 		return
 	}
-	if !QuotaGuard(c) {
+	// 短视频查询配额（每日 10 次）
+	if !ShortVideoQuotaGuard(c) {
 		return
 	}
 	db := database.DB

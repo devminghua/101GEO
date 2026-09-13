@@ -52,7 +52,7 @@ export default function KuaishouGain() {
       </div>
       <div style={{ color: '#86909C', fontSize: 13, marginBottom: 12 }}>
         账号管理 · 同行追踪 · 视频分析 · 话术打招呼（半自动：AI 生成话术，人工官方客户端发送）
-        <QuotaBadge />
+        <QuotaBadge scope="short_video" />
       </div>
 
       <Tabs activeTab={tab} onChange={(k) => setTab(String(k))} type="line" style={{ marginBottom: 16 }}>

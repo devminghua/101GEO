@@ -512,7 +512,7 @@ export default function DouyinGain() {
           <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>抖音获客</span>
           <Tag color="arcoblue" size="small">Beta</Tag>
           <Tag color="green" size="small">合规半自动</Tag>
-          <QuotaBadge compact />
+          <QuotaBadge compact scope="short_video" />
         </div>
         <div style={{ color: '#86909C', fontSize: 13, marginTop: 4 }}>
           多账号管理 · 同行视频数据分析 · 评论区客户获取 · 打招呼话术辅助（人工确认执行）

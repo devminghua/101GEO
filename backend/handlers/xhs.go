@@ -280,8 +280,8 @@ func XhsImportPeers(c *gin.Context) {
 		dyErr(c, http.StatusBadRequest, "未识别到有效的小红书主页链接（支持 xiaohongshu.com/user/profile/ 或 xhslink.com 短链）")
 		return
 	}
-	// 每日查询配额：跨百度/抖音/小红书统一计数
-	if !QuotaGuard(c) {
+	// 短视频查询配额：抖音/小红书/快手共用池，每日 10 次（超限联系官方解锁）
+	if !ShortVideoQuotaGuard(c) {
 		return
 	}
 	db := database.DB
@@ -342,8 +342,8 @@ func XhsRefreshPeer(c *gin.Context) {
 		dyErr(c, http.StatusNotFound, "同行不存在")
 		return
 	}
-	// 每日查询配额
-	if !QuotaGuard(c) {
+	// 短视频查询配额（每日 10 次）
+	if !ShortVideoQuotaGuard(c) {
 		return
 	}
 	profile, notes := syncXhsPeerData(peer.Link)

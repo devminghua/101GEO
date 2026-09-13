@@ -155,6 +155,8 @@ export const api = {
 
   // 每日查询配额（百度 / 抖音 / 小红书共用同一额度池；remain = -1 表示不限量）
   quotaInfo: () => request<{ limit: number; used: number; remain: number }>('/quota/info'),
+  // 短视频查询配额（抖音/小红书/快手共用池，每日 10 次）
+  shortVideoQuota: () => request<{ limit: number; used: number; remain: number }>('/quota/short-video'),
 
   // 充值卡密兑换 token（分站，二选一充值方式之一）
   redeemCard: (code: string) =>

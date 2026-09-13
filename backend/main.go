@@ -172,6 +172,7 @@ func main() {
 		// 分站点卡中心：查询余额与流水（admin 权限，仅本租户）
 		api.GET("/points", handlers.AdminOnly(), handlers.GetPoints)
 		api.GET("/quota/info", handlers.QueryQuotaInfo)
+		api.GET("/quota/short-video", handlers.ShortVideoQuotaInfo)
 
 		// 充值卡密兑换 token（分站 admin 用，二选一充值方式之一）
 		api.POST("/card/redeem", handlers.AdminOnly(), handlers.RedeemCard)
