@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Message } from '@arco-design/web-react';
 import {
   IconUser, IconGift, IconStar,
@@ -22,6 +23,7 @@ const POPOVER_W = 240; // 用户菜单宽度
 
 export default function UserMenu({ user, onLogout, onChangePassword, collapsed = false }: Props) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const isSuper = user?.role === 'super';
   // AI 优化员为受限账号：后端 ChangePassword 直接拒绝，前端不展示入口（与 Settings 权限说明一致）
   const isOperator = user?.role === 'operator';
@@ -124,7 +126,7 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
         {/* 使用天数倒计时：用户名右侧（不限期不显示；到期红、临期橙、正常绿） */}
         {remainDays >= 0 && (
           <span
-            title={remainDays === 0 ? '服务已到期，请及时续费' : `服务剩余 ${remainDays} 天`}
+            title={remainDays === 0 ? t('topbar.expired') : t('topbar.remainingDays', { days: remainDays })}
             style={{
               fontSize: 11,
               fontWeight: 700,
@@ -136,7 +138,7 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
               background: remainDays === 0 ? '#F53F3F' : remainDays <= 7 ? '#FFF3E0' : '#E8F8F4',
             }}
           >
-            {remainDays === 0 ? '已到期' : `${remainDays} 天`}
+            {remainDays === 0 ? t('topbar.expired') : t('topbar.remainingDays', { days: remainDays })}
           </span>
         )}
         <span
@@ -192,9 +194,9 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
               navigate('/invite');
             }}
           >
-            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>邀约奖励</span>
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{t('usermenu.invite')}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, color: 'var(--color-text-3)', fontSize: 11, whiteSpace: 'nowrap' }}>
-              <span style={{ marginRight: 2 }}>2000 token/人</span>
+              <span style={{ marginRight: 2 }}>{t('usermenu.inviteDesc')}</span>
               <Chevron />
             </span>
           </Row>
@@ -206,9 +208,9 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
               navigate('/growth');
             }}
           >
-            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>成长计划</span>
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{t('usermenu.growth')}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, color: 'var(--color-text-3)', fontSize: 11, whiteSpace: 'nowrap' }}>
-              <span style={{ marginRight: 2 }}>每日签到</span>
+              <span style={{ marginRight: 2 }}>{t('usermenu.growthDesc')}</span>
               <Chevron />
             </span>
           </Row>
@@ -216,7 +218,7 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
           <Divider />
 
           <Row icon={<IconPalette style={{ fontSize: 16 }} />}>
-            <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>外观</span>
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{t('usermenu.appearance')}</span>
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
@@ -255,7 +257,7 @@ export default function UserMenu({ user, onLogout, onChangePassword, collapsed =
                 onChangePassword();
               }}
             >
-              <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>修改密码</span>
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{t('usermenu.changePassword')}</span>
             </Row>
           )}
 

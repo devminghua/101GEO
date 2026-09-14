@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, Form, Input, Button, Typography, Message, Tag, Modal } from '@arco-design/web-react';
 import { IconUser, IconLock, IconRight, IconCheck } from '@arco-design/web-react/icon';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api, setAuth } from '../api';
 
 // 滑动解锁尺寸（与后端 slideRange 保持一致）
@@ -21,6 +22,7 @@ interface CaptchaData {
 }
 
 export default function Login({ onSuccess }: { onSuccess: () => void }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [expiry, setExpiry] = useState<ExpiryHint>({ kind: 'none', text: '' });
@@ -145,7 +147,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
       const d: any = data;
       if (d.open_months && d.open_months > 0) {
         if ((d.remain_days ?? -1) <= 0) {
-          setExpiry({ kind: 'expired', text: '该账号服务已到期，请联系管理员续费' });
+          setExpiry({ kind: 'expired', text: '' });
         } else {
           setExpiry({ kind: 'limited', text: `该账号服务剩余 ${d.remain_days} 天有效` });
         }
@@ -256,21 +258,21 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <Form form={form} layout="vertical" initialValues={{ username: '', password: '' }} autoComplete="off">
           <Form.Item
-            label="账号"
+            label={t('login.account')}
             field="username"
-            rules={[{ required: true, message: '请输入账号' }]}
+            rules={[{ required: true, message: t('login.account') }]}
           >
             <Input
               prefix={<IconUser />}
-              placeholder="分站账号或总后台账号"
+              placeholder={t('login.account')}
               size="large"
               onBlur={(e) => queryExpiry(e.target.value)}
             />
           </Form.Item>
           <Form.Item
-            label="密码"
+            label={t('login.password')}
             field="password"
-            rules={[{ required: true, message: '请输入密码' }]}
+            rules={[{ required: true, message: t('login.password') }]}
             extra={
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {expiry.kind === 'loading' && (
@@ -282,7 +284,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
               </span>
             }
           >
-            <Input.Password prefix={<IconLock />} placeholder="请输入密码" size="large" />
+            <Input.Password prefix={<IconLock />} placeholder={t('login.password')} size="large" />
           </Form.Item>
 
           {/* 滑动解锁（无图像，拖到最右端即通过） */}
@@ -326,7 +328,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
                     pointerEvents: 'none',
                   }}
                 >
-                  {verified ? '✓ 验证通过' : '拖动滑块到最右端完成验证'}
+                  {verified ? '✓ ' + t('login.captchaHint') : t('login.captchaHint')}
                 </div>
                 <div
                   onMouseDown={(e) => { e.preventDefault(); startDrag(e.clientX); }}
@@ -371,16 +373,16 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
             onClick={submit}
             style={{ marginTop: 12 }}
           >
-            {lock ? '账号已锁定' : '登 录'}
+            {lock ? t('login.loginFailed') : t('login.login')}
           </Button>
         </Form>
 
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            还没有账号？
+            {t('login.noAccount')}
           </Typography.Text>{' '}
           <Button type="text" size="small" onClick={() => navigate('/register')} style={{ padding: 0 }}>
-            立即注册（免费试用）
+            {t('login.registerNow')}
           </Button>
         </div>
       </Card>

@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Card, Button, Form, Input, Message, Typography } from '@arco-design/web-react';
 import { IconSave } from '@arco-design/web-react/icon';
 import { api } from '../../api';
+import { useTranslation } from 'react-i18next';
 
 // 渠道品牌与客服设置：设置自己的品牌（名称/版权）与客服联系方式，
 // 自动应用到旗下所有分站的客户端（分站自设品牌时优先分站）。
 export default function ChannelProfile() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [points, setPoints] = useState(0);
@@ -55,7 +57,7 @@ export default function ChannelProfile() {
       </Card>
       <Card title="品牌设置" style={{ borderRadius: 12, maxWidth: 720 }} bordered>
         <Form form={form} layout="vertical" disabled={loading}>
-          <Form.Item label="品牌名称" field="brand_name" extra="旗下分站登录页、侧边栏显示的品牌名；留空走平台默认">
+          <Form.Item label="t('channel.brandName')" field="brand_name" extra="旗下分站登录页、侧边栏显示的品牌名；留空走平台默认">
             <Input placeholder="如：XX 科技" />
           </Form.Item>
           <Form.Item label="版权文案" field="copyright" extra="显示在客户端侧边栏底部">
@@ -65,10 +67,10 @@ export default function ChannelProfile() {
       </Card>
       <Card title="客服联系方式" style={{ borderRadius: 12, maxWidth: 720, marginTop: 16 }} bordered>
         <Form form={form} layout="vertical" disabled={loading}>
-          <Form.Item label="客服微信" field="service_wechat" extra="显示在旗下分站客户端的客服悬浮入口">
+          <Form.Item label="t('channel.serviceWechat')" field="service_wechat" extra="显示在旗下分站客户端的客服悬浮入口">
             <Input placeholder="如：kefu888" />
           </Form.Item>
-          <Form.Item label="客服电话" field="service_phone">
+          <Form.Item label="t('channel.servicePhone')" field="service_phone">
             <Input placeholder="如：400-000-0000" />
           </Form.Item>
         </Form>

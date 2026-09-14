@@ -5,6 +5,7 @@ import {
 } from '@arco-design/web-react';
 import { IconPlus, IconEye, IconExperiment, IconQrcode } from '@arco-design/web-react/icon';
 import { api } from '../../api';
+import { useTranslation } from 'react-i18next';
 import { FEATURES, ALL_FEATURE_KEYS, featureLabel } from '../../features';
 
 // 渠道端客户管理（拷贝总后台客户管理全部能力，范围限定自己渠道的分站）。
@@ -12,6 +13,7 @@ import { FEATURES, ALL_FEATURE_KEYS, featureLabel } from '../../features';
 // 开通客户：填客户名称 + 登录账号 + 登录密码 + 勾选功能 + 开通时长，一键开通、立即可用。
 // 后续管理（查看/重置密码、充值、续费、改功能、停用、模拟登录、删除）全部在同一张表内完成。
 export default function ChannelCustomers() {
+  const { t } = useTranslation();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -253,7 +255,7 @@ export default function ChannelCustomers() {
 
   const columns = [
     {
-      title: '客户 / 账号', width: 200,
+      title: t('channel.customerAccount'), width: 200,
       render: (_: any, row: any) => (
         <div>
           <div style={{ fontWeight: 600 }}>{row.name}</div>
@@ -264,7 +266,7 @@ export default function ChannelCustomers() {
       ),
     },
     {
-      title: '密码', width: 130,
+      title: t('channel.password'), width: 130,
       render: (_: any, row: any) => (
         <Space size={4}>
           <Tooltip content="查看客户当前明文密码">
@@ -276,9 +278,9 @@ export default function ChannelCustomers() {
         </Space>
       ),
     },
-    { title: '功能授权', dataIndex: 'features', width: 160, render: renderFeatures },
+    { title: t('channel.featureAuth'), dataIndex: 'features', width: 160, render: renderFeatures },
     {
-      title: '点卡余额', width: 150,
+      title: t('channel.pointBalance'), width: 150,
       render: (_: any, row: any) => (
         <div>
           <span style={{ fontWeight: 600 }}>{row.points ?? 0} 点</span>
@@ -288,9 +290,9 @@ export default function ChannelCustomers() {
         </div>
       ),
     },
-    { title: '服务有效期', width: 150, render: renderExpiry },
+    { title: t('channel.serviceExpiry'), width: 150, render: renderExpiry },
     {
-      title: '每日查询上限', width: 110,
+      title: t('channel.dailyQueryLimit'), width: 110,
       render: (_: any, row: any) => (
         <span style={{ fontWeight: 600, color: (row.daily_query_limit ?? 3) === 0 ? '#00B42A' : undefined }}>
           {(row.daily_query_limit ?? 3) === 0 ? '不限' : `${row.daily_query_limit ?? 3} 次`}
@@ -298,17 +300,17 @@ export default function ChannelCustomers() {
       ),
     },
     {
-      title: '状态', width: 90,
+      title: t('common.status'), width: 90,
       render: (_: any, row: any) => (
         <Switch size="small" checked={row.status === 1} checkedText="启用" uncheckedText="停用" onChange={(c) => toggleStatus(row, c)} />
       ),
     },
     {
-      title: '创建时间', width: 150,
+      title: t('channel.createTime'), width: 150,
       render: (_: any, row: any) => (row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'),
     },
     {
-      title: '操作', width: 240,
+      title: t('common.action'), width: 240,
       render: (_: any, row: any) => (
         <Space>
           <Button size="mini" onClick={() => openExtend(row)}>续费</Button>
@@ -352,13 +354,13 @@ export default function ChannelCustomers() {
         unmountOnExit
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="客户名称" field="name" rules={[{ required: true, message: '请输入客户名称' }]}>
+          <Form.Item label={t('channel.customerName')} field="name" rules={[{ required: true, message: '请输入客户名称' }]}>
             <Input placeholder="如：婚恋高定服务" />
           </Form.Item>
           {!editing && (
             <>
               <Form.Item
-                label="登录账号"
+                label={t('channel.loginAccount')}
                 field="username"
                 rules={[
                   { required: true, message: '请输入登录账号' },
@@ -374,21 +376,21 @@ export default function ChannelCustomers() {
                 <Input placeholder="如 hongniang01" autoComplete="off" />
               </Form.Item>
               <Form.Item
-                label="登录密码"
+                label={t('channel.loginPassword')}
                 field="password"
                 rules={[
                   { required: true, message: '请设置登录密码' },
-                  { minLength: 8, message: '密码至少 8 位' },
+                  { minLength: 8, message: t('channel.pwdMin8') },
                   { match: /^(?=.*[A-Za-z])(?=.*\d).+$/, message: '密码须同时包含字母和数字' },
                 ]}
               >
                 <Input.Password placeholder="至少 8 位，含字母和数字" autoComplete="new-password" />
               </Form.Item>
-              <Form.Item label="昵称（选填）" field="nickname">
+              <Form.Item label={t('channel.nickname')} field="nickname">
                 <Input />
               </Form.Item>
               {!editing && (
-                <Form.Item label="开通方式" field="trial" initialValue={false}>
+                <Form.Item label={t('channel.openMode')} field="trial" initialValue={false}>
                   <Radio.Group type="button">
                     <Radio value={false}>正式（按月）</Radio>
                     <Radio value={true}>试用 7 天</Radio>
@@ -397,7 +399,7 @@ export default function ChannelCustomers() {
               )}
               {!editing && !isTrial && (
                 <Form.Item
-                  label="开通时长"
+                  label={t('channel.openMonths')}
                   field="open_months"
                   rules={[{ required: true, message: '请选择开通时长' }]}
                 >
@@ -417,10 +419,10 @@ export default function ChannelCustomers() {
               )}
             </>
           )}
-          <Form.Item label="备注" field="remark">
+          <Form.Item label={t('channel.remark')} field="remark">
             <Input placeholder="选填" />
           </Form.Item>
-          <Form.Item label="每日查询上限" field="daily_query_limit" extra="小红书/抖音/百度每日查询总次数上限，0 = 不限。默认 3 次，高级版本可解锁更多。">
+          <Form.Item label={t('channel.dailyQueryLimit')} field="daily_query_limit" extra="小红书/抖音/百度每日查询总次数上限，0 = 不限。默认 3 次，高级版本可解锁更多。">
             <InputNumber min={0} max={999} style={{ width: 160 }} placeholder="3" />
           </Form.Item>
           {editing && (
@@ -429,7 +431,7 @@ export default function ChannelCustomers() {
             </Form.Item>
           )}
           <Divider style={{ margin: '4px 0 16px' }} />
-          <Form.Item label="功能授权" extra="勾选开放的功能；不勾选任何功能 = 全部开放。未开放功能在客户端不显示菜单、路由拦截且接口返回 403。">
+          <Form.Item label={t('channel.featureAuth')} extra="勾选开放的功能；不勾选任何功能 = 全部开放。未开放功能在客户端不显示菜单、路由拦截且接口返回 403。">
             <Space direction="vertical" style={{ width: '100%' }}>
               <Space>
                 <Button size="mini" onClick={() => setSelectedFeatures([...ALL_FEATURE_KEYS])}>全选</Button>
@@ -483,7 +485,7 @@ export default function ChannelCustomers() {
         maskClosable={false}
       >
         <Form form={pwdForm} layout="vertical">
-          <Form.Item label="新密码" field="password" rules={[{ required: true, message: '请输入新密码' }, { minLength: 8, message: '密码至少 8 位' }, { match: /^(?=.*[A-Za-z])(?=.*\d).+$/, message: '密码须同时包含字母和数字' }]}>
+          <Form.Item label={t('channel.newPassword')} field="password" rules={[{ required: true, message: '请输入新密码' }, { minLength: 8, message: t('channel.pwdMin8') }, { match: /^(?=.*[A-Za-z])(?=.*\d).+$/, message: '密码须同时包含字母和数字' }]}>
             <Input.Password placeholder="至少 8 位，含字母和数字" autoComplete="new-password" />
           </Form.Item>
         </Form>
@@ -508,10 +510,10 @@ export default function ChannelCustomers() {
           本次充值将<b>从渠道余额扣除</b>，余额不足请联系平台充值。
         </Typography.Paragraph>
         <Form form={rechargeForm} layout="vertical">
-          <Form.Item label="充值点数" field="amount" rules={[{ required: true, message: '请输入充值点数' }]}>
+          <Form.Item label={t('channel.rechargePoints')} field="amount" rules={[{ required: true, message: '请输入充值点数' }]}>
             <InputNumber min={1} precision={0} placeholder="如 1000" style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item label="备注" field="remark">
+          <Form.Item label={t('channel.remark')} field="remark">
             <Input placeholder="选填" />
           </Form.Item>
         </Form>
@@ -529,10 +531,10 @@ export default function ChannelCustomers() {
         maskClosable={false}
       >
         <Form form={extendForm} layout="vertical">
-          <Form.Item label="续费月数" field="months" rules={[{ required: true, message: '请输入续费月数' }]}>
+          <Form.Item label={t('channel.extendMonths')} field="months" rules={[{ required: true, message: '请输入续费月数' }]}>
             <InputNumber min={1} max={36} precision={0} suffix="个月" style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item label="收款方式" field="pay_method">
+          <Form.Item label={t('channel.paymentMethod')} field="pay_method">
             <Select>
               {['微信', '支付宝', '银行转账', '现金', '赠送'].map((m) => (
                 <Select.Option key={m} value={m}>{m}</Select.Option>

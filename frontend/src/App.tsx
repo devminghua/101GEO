@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Layout, Menu, Button, Tag, Dropdown, Space, Modal, Form, Input, Message, Card } from '@arco-design/web-react';
 import {
   IconDashboard,
@@ -64,6 +65,7 @@ import Cases from './pages/Cases';
 import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import NotificationPopover from './components/NotificationPopover';
 import NoticePopup from './components/NoticePopup';
 import Notifications from './pages/Notifications';
@@ -116,6 +118,7 @@ function FloatingService({ phone, qr }: { phone?: string; qr?: string }) {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState(getStoredUser());
   const [sysInfo, setSysInfo] = useState<any>(null);
@@ -357,81 +360,81 @@ export default function App() {
   const menus = isChannel
     ? [
         // 渠道后台：管理自己渠道下的分站（客户管理全能力）+ 品牌/客服设置
-        { key: '/channel/customers', label: '客户管理', icon: <IconApps /> },
-        { key: '/channel/profile', label: '品牌设置', icon: <IconSettings /> },
-        { key: '/settings', label: '账号安全', icon: <IconSafe /> },
+        { key: '/channel/customers', label: t('menu.channelCustomers'), icon: <IconApps /> },
+        { key: '/channel/profile', label: t('menu.channelProfile'), icon: <IconSettings /> },
+        { key: '/settings', label: t('menu.accountSecurity'), icon: <IconSafe /> },
       ]
     : isSuper
     ? [
-        { key: '/super/overview', label: '总览', icon: <IconStorage /> },
+        { key: '/super/overview', label: t('menu.superOverview'), icon: <IconStorage /> },
         // 分站（客户）与账号管理融合为一个入口
-        { key: '/super/customers', label: '客户管理', icon: <IconApps /> },
+        { key: '/super/customers', label: t('menu.channelCustomers'), icon: <IconApps /> },
         // 渠道管理：渠道商自建分站 + 品牌/客服
-        { key: '/super/channels', label: '渠道管理', icon: <IconUserGroup /> },
+        { key: '/super/channels', label: t('menu.superChannels'), icon: <IconUserGroup /> },
         // AI 平台已收归总后台统一管理（tenant_id=0 全局平台），仅 super 可配置
-        { key: '/super/platforms', label: 'AI 平台', icon: <IconCommon /> },
+        { key: '/super/platforms', label: t('menu.superPlatforms'), icon: <IconCommon /> },
         // 扫码支付（微信/支付宝）配置已并入「系统设置」Tab，不再单独挂菜单
         // 站内信：SaaS 端统一推送，客户端左下角铃铛收取
-        { key: '/super/notifications', label: '站内信推送', icon: <IconNotification /> },
+        { key: '/super/notifications', label: t('menu.superNotifications'), icon: <IconNotification /> },
         // 卡密管理：密钥对 + 批量生成/导出卡密（软件授权）
-        { key: '/super/cards', label: '卡密管理', icon: <IconLock /> },
+        { key: '/super/cards', label: t('menu.superCards'), icon: <IconLock /> },
         // 短信设置：注册短信验证开关 + 短信服务商配置
-        { key: '/super/sms', label: '短信设置', icon: <IconNotification /> },
+        { key: '/super/sms', label: t('menu.superSms'), icon: <IconNotification /> },
         // 第三方数据 API：抖音/小红书稳定数据抓取 token 配置
-        { key: '/super/data-api', label: '数据 API', icon: <IconCommon /> },
+        { key: '/super/data-api', label: t('menu.superDataApi'), icon: <IconCommon /> },
         // 帮助文档：客户端「使用指南」内容编辑
-        { key: '/super/help-doc', label: '帮助文档', icon: <IconBook /> },
+        { key: '/super/help-doc', label: t('menu.superHelpDoc'), icon: <IconBook /> },
         // 成功案例：SaaS 端上传，客户端「成功案例」页展示
-        { key: '/super/cases', label: '成功案例', icon: <IconTrophy /> },
+        { key: '/super/cases', label: t('menu.superCases'), icon: <IconTrophy /> },
         // 价格套餐：充值中心「选择套餐」的套餐配置
-        { key: '/super/plans', label: '套餐设置', icon: <IconGift /> },
+        { key: '/super/plans', label: t('menu.superPlans'), icon: <IconGift /> },
         // 系统设置：品牌名称/Logo/版权 + 账号与安全 + 登录日志
-        { key: '/settings', label: '系统设置', icon: <IconSettings /> },
+        { key: '/settings', label: t('menu.superSettings'), icon: <IconSettings /> },
       ]
     : [
-        { key: '/dashboard', label: '仪表盘', icon: <IconDashboard />, feature: 'dashboard' },
+        { key: '/dashboard', label: t('menu.dashboard'), icon: <IconDashboard />, feature: 'dashboard' },
         // GEO 智能中心：GEO 智能 + 关键词监控 + AI 平台 + 巡检任务 + 内容投放 + 生成报告
         // （2026-09-13 老板拍板：五项归纳为 GEO 智能下拉，侧栏瘦身）
         // 父组不挂 feature（常显），各子项保留各自 feature 权限控制
-        { key: '/geo-center', label: 'GEO 智能', icon: <IconBulb />, children: [
-          { key: '/geo-intel', label: '智能中心', feature: 'geo_intel' },
-          { key: '/platforms', label: 'AI 平台', feature: 'platforms' },
-          { key: '/keywords', label: '关键词监控', feature: 'keywords' },
-          { key: '/tasks', label: '巡检任务', feature: 'tasks' },
-          { key: '/content', label: '内容投放', feature: 'content' },
-          { key: '/report', label: '生成报告', feature: 'report' },
+        { key: '/geo-center', label: t('menu.geoCenter'), icon: <IconBulb />, children: [
+          { key: '/geo-intel', label: t('menu.geoIntel'), feature: 'geo_intel' },
+          { key: '/platforms', label: t('menu.superPlatforms'), feature: 'platforms' },
+          { key: '/keywords', label: t('menu.keywords'), feature: 'keywords' },
+          { key: '/tasks', label: t('menu.tasks'), feature: 'tasks' },
+          { key: '/content', label: t('menu.content'), feature: 'content' },
+          { key: '/report', label: t('menu.report'), feature: 'report' },
         ] },
-        { key: '/baidu', label: '百度优化', icon: <IconSearch />, feature: 'baidu', children: [
-          { key: '/baidu-keywords', label: '关键词分析' },
-          { key: '/baidu-rank-monitor', label: '排名监控' },
-          { key: '/baidu-index-count', label: '收录查询' },
-          { key: '/baidu-audit', label: '站点体检' },
-          { key: '/baidu-gaps', label: '差距诊断' },
-          { key: '/baidu-industry-rank', label: '行业排行' },
+        { key: '/baidu', label: t('menu.baidu'), icon: <IconSearch />, feature: 'baidu', children: [
+          { key: '/baidu-keywords', label: t('menu.baiduKeywords') },
+          { key: '/baidu-rank-monitor', label: t('menu.rankMonitor') },
+          { key: '/baidu-index-count', label: t('menu.indexCount') },
+          { key: '/baidu-audit', label: t('menu.siteAudit') },
+          { key: '/baidu-gaps', label: t('menu.gapDiagnose') },
+          { key: '/baidu-industry-rank', label: t('menu.industryRank') },
         ] },
         // 短视频获客：抖音 + 快手 + 小红书（2026-09-13 老板拍板收纳为一个栏目）
-        { key: '/short-video', label: '短视频获客', icon: <IconPlayArrow />, children: [
-          { key: '/douyin', label: '抖音获客', feature: 'douyin' },
-          { key: '/kuaishou', label: '快手获客', feature: 'kuaishou' },
-          { key: '/xhs', label: '小红书获客', feature: 'xhs' },
+        { key: '/short-video', label: t('menu.shortVideo'), icon: <IconPlayArrow />, children: [
+          { key: '/douyin', label: t('menu.douyin'), feature: 'douyin' },
+          { key: '/kuaishou', label: t('menu.kuaishou'), feature: 'kuaishou' },
+          { key: '/xhs', label: t('menu.xhs'), feature: 'xhs' },
         ] },
-        { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
+        { key: '/creation', label: t('menu.creation'), icon: <IconCommon />, feature: 'creation' },
         // Token 用量已集成到充值中心页签（v1.0.57），不再独立挂菜单
         // 成功案例：SaaS 端上传，客户端展示（v1.0.61）
-        { key: '/cases', label: '成功案例', icon: <IconTrophy /> },
+        { key: '/cases', label: t('menu.superCases'), icon: <IconTrophy /> },
         // 使用指南：SaaS 后台编辑的帮助文档（图文 + B 站视频），下拉「分类 → 文档」
-        { key: '/help', label: '使用指南', icon: <IconBook />, children: helpTree.length > 0 ? helpTree.map((c: any) => ({
+        { key: '/help', label: t('menu.help'), icon: <IconBook />, children: helpTree.length > 0 ? helpTree.map((c: any) => ({
           key: `/help?cat=${c.id}`, label: c.name,
           children: (c.docs && c.docs.length > 0) ? c.docs.map((d: any) => ({ key: `/help?doc=${d.id}`, label: d.title })) : undefined,
         })) : undefined },
         // 系统中心：固定最后（2026-09-13 老板拍板：系统中心/充值中心/消息中心收纳且置底）
-        { key: '/system-center', label: '系统中心', icon: <IconSettings />, feature: 'settings', children: [
-          { key: '/settings', label: '系统设置' },
-          { key: '/points', label: '充值中心' },
-          { key: '/notifications', label: '消息中心' },
+        { key: '/system-center', label: t('menu.systemCenter'), icon: <IconSettings />, feature: 'settings', children: [
+          { key: '/settings', label: t('menu.superSettings') },
+          { key: '/points', label: t('menu.points') },
+          { key: '/notifications', label: t('menu.notifications') },
         ] },
         // 获客工具：暂时隐藏（待第三方解析 API 接入后恢复）
-        // { key: '/tools', label: '获客工具', icon: <IconTool />, feature: 'tools', children: [
+        // { key: '/tools', label: t('menu.tools'), icon: <IconTool />, feature: 'tools', children: [
         //   { key: '/tools/watermark', label: '短视频去水印' },
         //   { key: '/tools/video2text', label: '视频转文案' },
         // ] },
@@ -751,31 +754,33 @@ export default function App() {
         >
           <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--geo-text)' }}>
             {isSuper
-              ? '总管理后台 · ' + (menuTitle(selectedKey) === 'LinkGeo' ? '总览' : menuTitle(selectedKey))
+              ? 'Super · ' + (menuTitle(selectedKey, t) === 'LinkGeo' ? t('menu.superOverview') : menuTitle(selectedKey, t))
               : isChannel
-              ? '渠道管理后台 · ' + (menuTitle(selectedKey) === 'LinkGeo' ? '客户管理' : menuTitle(selectedKey))
-              : menuTitle(selectedKey)}
+              ? 'Channel · ' + (menuTitle(selectedKey, t) === 'LinkGeo' ? t('menu.channelCustomers') : menuTitle(selectedKey, t))
+              : menuTitle(selectedKey, t)}
           </div>
           <Space>
+            {/* 语言切换：中文 / English / 한국어 / 日本語 */}
+            <LanguageSwitcher />
             {isSuper || isChannel ? (
               <>
-                {isSuper && <Tag color="gold" size="small">总后台管理员</Tag>}
-                {isChannel && <Tag color="purple" size="small">渠道商</Tag>}
+                {isSuper && <Tag color="gold" size="small">{t('topbar.superAdmin')}</Tag>}
+                {isChannel && <Tag color="purple" size="small">{t('topbar.channel')}</Tag>}
                 <Dropdown droplist={userDroplist} trigger="click" position="br">
                   <Button size="small" icon={<IconExport />}>
-                    退出登录 <IconDown />
+                    {t('topbar.logout')} <IconDown />
                   </Button>
                 </Dropdown>
               </>
             ) : (
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--geo-text)' }}>
                 <span className={working ? 'geo-working-dot' : 'geo-working-idle'} />
-                <span>工作状态</span>
+                <span>{t('topbar.workingStatus')}</span>
                 <span
                   ref={notifRef}
                   onClick={toggleNotif}
                   className={unread > 0 ? 'geo-bell geo-bell-shake' : 'geo-bell'}
-                  title={unread > 0 ? `站内信 · ${unread} 条未读` : '站内信'}
+                  title={unread > 0 ? `${t('topbar.notifications')} · ${unread} ${t('topbar.unread')}` : t('topbar.notifications')}
                   style={{
                     marginLeft: 3, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     width: 28, height: 28, borderRadius: 8, color: unread > 0 ? '#165DFF' : '#C9CDD4', transition: 'color .15s, background .15s',
@@ -1030,46 +1035,47 @@ function NoAccess({ feature }: { feature: string }) {
   );
 }
 
-function menuTitle(key: string): string {
+function menuTitle(key: string, t: (k: string) => string): string {
   const map: Record<string, string> = {
-    '/dashboard': '仪表盘',
-    '/points': '充值中心',
-    '/notifications': '消息中心',
-    '/keywords': '关键词监控',
-    '/platforms': 'AI 平台',
-    '/super/platforms': 'AI 平台',
-    '/super/notifications': '站内信推送',
-    '/super/cards': '卡密管理',
-    '/super/sms': '短信设置',
-    '/super/channels': '渠道管理',
-    '/channel/customers': '客户管理',
-    '/channel/profile': '品牌设置',
-    '/super/data-api': '数据 API',
-    '/super/help-doc': '帮助文档',
-    '/help': '使用指南',
-    '/super/cases': '成功案例',
-    '/cases': '成功案例',
-    '/super/plans': '套餐设置',
-    '/super/customers': '客户管理',
-    '/super/tenants': '分站管理',
-    '/super/users': '账号管理',
-    '/tasks': '巡检任务',
-    '/content': '内容投放',
-    '/report': '生成报告',
-    '/baidu-keywords': '百度优化 · 关键词分析',
-    '/baidu-rank-monitor': '百度优化 · 排名监控',
-    '/baidu-index-count': '百度优化 · 收录查询',
-    '/baidu-audit': '百度优化 · 站点体检',
-    '/baidu-gaps': '百度优化 · 差距诊断',
-    '/baidu-industry-rank': '百度优化 · 行业排行',
-    '/douyin': '抖音获客',
-    '/kuaishou': '快手获客',
-    '/xhs': '小红书获客',
-    '/creation': '智能创作中心',
-    '/geo-intel': '智能中心',
-    '/tools/watermark': '获客工具 · 短视频去水印',
-    '/tools/video2text': '获客工具 · 视频转文案',
-    '/settings': '系统设置',
+    '/dashboard': 'menu.dashboard',
+    '/points': 'menu.points',
+    '/notifications': 'menu.notifications',
+    '/keywords': 'menu.keywords',
+    '/platforms': 'menu.platforms',
+    '/super/platforms': 'menu.superPlatforms',
+    '/super/notifications': 'menu.superNotifications',
+    '/super/cards': 'menu.superCards',
+    '/super/sms': 'menu.superSms',
+    '/super/channels': 'menu.superChannels',
+    '/channel/customers': 'menu.channelCustomers',
+    '/channel/profile': 'menu.channelProfile',
+    '/super/data-api': 'menu.superDataApi',
+    '/super/help-doc': 'menu.superHelpDoc',
+    '/help': 'menu.help',
+    '/super/cases': 'menu.superCases',
+    '/cases': 'menu.cases',
+    '/super/plans': 'menu.superPlans',
+    '/super/customers': 'menu.superCustomers',
+    '/super/tenants': 'menu.superCustomers',
+    '/super/users': 'menu.superUsers',
+    '/tasks': 'menu.tasks',
+    '/content': 'menu.content',
+    '/report': 'menu.report',
+    '/baidu-keywords': 'menu.baiduKeywords',
+    '/baidu-rank-monitor': 'menu.rankMonitor',
+    '/baidu-index-count': 'menu.indexCount',
+    '/baidu-audit': 'menu.siteAudit',
+    '/baidu-gaps': 'menu.gapDiagnose',
+    '/baidu-industry-rank': 'menu.industryRank',
+    '/douyin': 'menu.douyin',
+    '/kuaishou': 'menu.kuaishou',
+    '/xhs': 'menu.xhs',
+    '/creation': 'menu.creation',
+    '/geo-intel': 'menu.geoIntel',
+    '/tools/watermark': 'menu.tools',
+    '/tools/video2text': 'menu.tools',
+    '/settings': 'menu.settings',
   };
-  return map[key] || 'LinkGeo';
+  const k = map[key];
+  return k ? t(k) : 'LinkGeo';
 }
