@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Spin, Empty, Typography } from '@arco-design/web-react';
 import DOMPurify from 'dompurify';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 
 // 客户端「使用指南」：只展示文档内容（导航由侧栏「使用指南」下拉菜单承载）。
 // B 站视频链接自动识别渲染为可播放的 iframe。
 export default function HelpDoc() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const docParam = params.get('doc');
   const catParam = params.get('cat');
@@ -57,7 +59,7 @@ export default function HelpDoc() {
           <div className="help-doc-content" dangerouslySetInnerHTML={{ __html: rendered }} />
         </div>
       ) : (
-        <Empty description={<span><Typography.Text type="secondary">该分类暂无文档，请在左侧菜单选择其他分类</Typography.Text></span>} />
+        <Empty description={<span><Typography.Text type="secondary">{t('help.empty')}</Typography.Text></span>} />
       )}
     </Card>
   );

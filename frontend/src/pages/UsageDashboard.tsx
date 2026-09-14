@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { Card, Grid, Statistic, Table, Typography, Radio, Empty, Spin } from '@arco-design/web-react';
 import { api } from '../api';
 import EChart from '../components/EChart';
+import { useTranslation } from 'react-i18next';
 
 const { Row, Col } = Grid;
 
 // 客户端「Token 用量」看板：统计本分站 AI 调用的真实 token 消耗
 // （请求级 usage 记录，按平台 / 场景 / 天聚合）。
 export default function UsageDashboard() {
+  const { t } = useTranslation();
   const [days, setDays] = useState(7);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -60,51 +62,51 @@ export default function UsageDashboard() {
         <Col span={24}>
           <Card
             style={{ borderRadius: 12 }}
-            title="Token 用量看板"
+            title={t('usage.title')}
             extra={
               <Radio.Group value={days} onChange={setDays} type="button">
-                <Radio value={1}>近 1 天</Radio>
-                <Radio value={3}>近 3 天</Radio>
-                <Radio value={7}>近 7 天</Radio>
-                <Radio value={30}>近 30 天</Radio>
+                <Radio value={1}>{t('usage.last1d')}</Radio>
+                <Radio value={3}>{t('usage.last3d')}</Radio>
+                <Radio value={7}>{t('usage.last7d')}</Radio>
+                <Radio value={30}>{t('usage.last30d')}</Radio>
               </Radio.Group>
             }
           >
             {loading ? (
               <div style={{ textAlign: 'center', padding: 60 }}><Spin /></div>
             ) : !data ? (
-              <Empty description="暂无用量数据" />
+              <Empty description={t('usage.empty')} />
             ) : (
               <>
                 <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                   <Col span={6}>
-                    <Statistic title="总 Token 消耗" value={fmt(kpi.tokens)} groupSeparator />
+                    <Statistic title={t('usage.totalTokens')} value={fmt(kpi.tokens)} groupSeparator />
                   </Col>
                   <Col span={6}>
-                    <Statistic title="AI 调用次数" value={fmt(kpi.calls)} groupSeparator />
+                    <Statistic title={t('usage.aiCalls')} value={fmt(kpi.calls)} groupSeparator />
                   </Col>
                   <Col span={6}>
-                    <Statistic title="输入 Token" value={fmt(kpi.in_tokens)} groupSeparator />
+                    <Statistic title={t('usage.inTokens')} value={fmt(kpi.in_tokens)} groupSeparator />
                   </Col>
                   <Col span={6}>
-                    <Statistic title="输出 Token" value={fmt(kpi.out_tokens)} groupSeparator />
+                    <Statistic title={t('usage.outTokens')} value={fmt(kpi.out_tokens)} groupSeparator />
                   </Col>
                 </Row>
                 <Row gutter={[16, 16]}>
                   <Col span={14}>
-                    <Card title="每日用量趋势" bordered style={{ borderRadius: 10 }}>
+                    <Card title={t('usage.dailyTrend')} bordered style={{ borderRadius: 10 }}>
                       <EChart option={dailyOption} height={260} />
                     </Card>
                   </Col>
                   <Col span={10}>
-                    <Card title="平台用量分布" bordered style={{ borderRadius: 10 }}>
+                    <Card title={t('usage.platformDist')} bordered style={{ borderRadius: 10 }}>
                       <EChart option={platformOption} height={260} />
                     </Card>
                   </Col>
                 </Row>
                 <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                   <Col span={24}>
-                    <Card title="平台明细" bordered style={{ borderRadius: 10 }}>
+                    <Card title={t('usage.platformDetail')} bordered style={{ borderRadius: 10 }}>
                       <Table
                         rowKey="key"
                         size="small"
@@ -112,13 +114,13 @@ export default function UsageDashboard() {
                         data={data?.by_platform || []}
                         columns={[
                           { title: '平台', dataIndex: 'key' },
-                          { title: '模型', dataIndex: 'model' },
-                          { title: 'Token 用量', dataIndex: 'tokens', render: (v: number) => fmt(v) },
-                          { title: '调用次数', dataIndex: 'calls', render: (v: number) => fmt(v) },
+                          { title: t('usage.model'), dataIndex: 'model' },
+                          { title: t('usage.tokenUsage'), dataIndex: 'tokens', render: (v: number) => fmt(v) },
+                          { title: t('usage.callCount'), dataIndex: 'calls', render: (v: number) => fmt(v) },
                         ]}
                       />
                       <Typography.Paragraph type="secondary" style={{ fontSize: 12, margin: '10px 0 0' }}>
-                        按场景分布：
+                        {t('usage.byScene')}
                         {(data?.by_scene || []).map((s: any) => `${s.key} ${fmt(s.tokens)} token / ${fmt(s.calls)} 次`).join(' · ') || '暂无'}
                       </Typography.Paragraph>
                     </Card>
@@ -126,20 +128,20 @@ export default function UsageDashboard() {
                 </Row>
                 <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                   <Col span={24}>
-                    <Card title="最近调用记录" bordered style={{ borderRadius: 10 }}>
+                    <Card title={t('usage.recentCalls')} bordered style={{ borderRadius: 10 }}>
                       <Table
                         rowKey="id"
                         size="small"
                         pagination={false}
                         data={data?.recent || []}
                         columns={[
-                          { title: '时间', dataIndex: 'created_at', width: 180, render: (v: string) => (v || '').replace('T', ' ').slice(0, 19) },
-                          { title: '平台', dataIndex: 'platform_name', width: 140 },
-                          { title: '模型', dataIndex: 'model', width: 170 },
-                          { title: '场景', dataIndex: 'scene', width: 110 },
-                          { title: '输入', dataIndex: 'prompt_tokens', render: (v: number) => fmt(v) },
-                          { title: '输出', dataIndex: 'completion_tokens', render: (v: number) => fmt(v) },
-                          { title: '合计', dataIndex: 'total_tokens', render: (v: number) => fmt(v) },
+                          { title: t('usage.time'), dataIndex: 'created_at', width: 180, render: (v: string) => (v || '').replace('T', ' ').slice(0, 19) },
+                          { title: t('usage.platform'), dataIndex: 'platform_name', width: 140 },
+                          { title: t('usage.model'), dataIndex: 'model', width: 170 },
+                          { title: t('usage.scene'), dataIndex: 'scene', width: 110 },
+                          { title: t('usage.input'), dataIndex: 'prompt_tokens', render: (v: number) => fmt(v) },
+                          { title: t('usage.output'), dataIndex: 'completion_tokens', render: (v: number) => fmt(v) },
+                          { title: t('usage.total'), dataIndex: 'total_tokens', render: (v: number) => fmt(v) },
                         ]}
                       />
                     </Card>

@@ -38,6 +38,12 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.65", Date: "2026-09-14", Title: "多语言内页覆盖：成功案例/使用指南/消息中心/Token 用量/充值中心",
+		Items: items(
+			"feat", "**内页多语言覆盖**：成功案例、使用指南、消息中心、Token 用量看板、充值中心五个页面接入四语言，切换语言后内页同步显示对应语言版本",
+		),
+	},
+	{
 		Version: "1.0.64", Date: "2026-09-14", Title: "多语言支持：中文/English/한국어/日本語",
 		Items: items(
 			"feat", "**四语言切换**：顶栏新增语言切换器（🇨🇳 中文 / 🇺🇸 English / 🇰🇷 한국어 / 🇯🇵 日本語），切换即时生效并自动记忆，下次进入自动恢复",

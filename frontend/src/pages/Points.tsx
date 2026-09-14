@@ -6,6 +6,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import { useTranslation } from 'react-i18next';
 import UsageDashboard from './UsageDashboard';
 
 interface PointRecord {
@@ -162,6 +163,7 @@ function PayChannel({
 }
 
 export default function Points() {
+  const { t } = useTranslation();
   const [balance, setBalance] = useState(0);
   const [records, setRecords] = useState<PointRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -396,10 +398,10 @@ export default function Points() {
 
   return (
     <div>
-      <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>充值中心</div>
+      <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>{t('pointsPage.title')}</div>
       <Tabs activeTab={tab} onChange={setTab} type="line" style={{ marginBottom: 16 }}>
-        <Tabs.TabPane key="recharge" title="充值兑换" />
-        <Tabs.TabPane key="usage" title="Token 用量" />
+        <Tabs.TabPane key="recharge" title={t('pointsPage.tabRecharge')} />
+        <Tabs.TabPane key="usage" title={t('pointsPage.tabUsage')} />
       </Tabs>
 
       {tab === 'usage' ? (
@@ -408,20 +410,20 @@ export default function Points() {
       <div>
       <Card style={{ marginBottom: 16 }}>
         <Space size="large" align="start">
-          <Statistic title="Token 余额" value={balance} groupSeparator suffix="token" />
+          <Statistic title={t('pointsPage.balance')} value={balance} groupSeparator suffix="token" />
           <div style={{ color: 'var(--color-text-3)', fontSize: 13, paddingTop: 6, maxWidth: 420 }}>
-            AI 调用按次扣 token（每次 1 token），余额不足时将无法使用 AI 功能。
-            支持两种充值方式：<b>扫码充值</b> 或 <b>卡密兑换</b>，任选其一。
+            {t('pointsPage.hint')}
+            {t('pointsPage.hint2')}
           </div>
           <Space>
             <Button type="primary" onClick={openRecharge}>充值</Button>
-            <Button type="outline" onClick={() => setRedeemVisible(true)}>卡密兑换</Button>
+            <Button type="outline" onClick={() => setRedeemVisible(true)}>{t('pointsPage.cardRedeem')}</Button>
           </Space>
         </Space>
       </Card>
       {/* 邀约奖励：邀请新客户注册，双向得 2000 token，邀请人还延 1 个月使用（上不封顶） */}
       <InviteCard />
-      <Card title="Token 流水">
+      <Card title={t('pointsPage.flowTitle')}>
         <Table
           rowKey="id"
           loading={loading}

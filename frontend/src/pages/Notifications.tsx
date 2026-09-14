@@ -3,12 +3,14 @@
 // 已读能力复用既有接口（api.readNotification / readAllNotifications），不另起第二套口径；
 // 时间展示复用 NotificationPopover 导出的 relTime。
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Message, Spin } from '@arco-design/web-react';
 import { IconCheck, IconNotification } from '@arco-design/web-react/icon';
 import { api, NotificationItem } from '../api';
 import { relTime } from '../components/NotificationPopover';
 
 export default function Notifications() {
+  const { t } = useTranslation();
   const [list, setList] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -71,7 +73,7 @@ export default function Notifications() {
       {/* 页头 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
         <IconNotification style={{ fontSize: 20, color: '#4F46E5' }} />
-        <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--geo-text)' }}>消息中心</span>
+        <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--geo-text)' }}>{t('notif.title')}</span>
         <span style={{ flex: 1 }} />
         {unreadCount > 0 && (
           <span
@@ -87,7 +89,7 @@ export default function Notifications() {
             }}
           >
             <IconCheck style={{ fontSize: 13 }} />
-            全部已读（{unreadCount}）
+            {t('notif.readAll')}（{unreadCount}）
           </span>
         )}
       </div>

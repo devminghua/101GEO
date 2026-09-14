@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, Empty, Spin, Tag, Message, Modal, Typography } from '@arco-design/web-react';
 import { IconRight, IconTrophy } from '@arco-design/web-react/icon';
 import DOMPurify from 'dompurify';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 
 interface CaseItem {
@@ -17,6 +18,7 @@ interface CaseItem {
  * 卡片流：封面 / 标题 / 摘要 / 标签，点击查看详情。
  * ================================================================ */
 export default function Cases() {
+  const { t } = useTranslation();
   const [list, setList] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any>(null);
@@ -63,11 +65,11 @@ export default function Cases() {
       {/* 页头 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
         <span style={{ width: 8, height: 26, borderRadius: 4, background: 'linear-gradient(180deg,#F7BA1E,#FF9A2E,#FF7D00)' }} />
-        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>成功案例</span>
-        <Tag color="gold" size="small">精选</Tag>
+        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>{t('cases.pageTitle')}</span>
+        <Tag color="gold" size="small">{t('cases.selected')}</Tag>
       </div>
       <div style={{ color: '#86909C', fontSize: 13, marginBottom: 16 }}>
-        客户真实合作成果与 GEO 优化效果展示，供您参考借鉴
+        {t('cases.subtitle')}
       </div>
 
       {loading ? (
@@ -76,7 +78,7 @@ export default function Cases() {
         </div>
       ) : list.length === 0 ? (
         <Card bordered={false} style={{ borderRadius: 16, boxShadow: '0 2px 14px rgba(0,0,0,.05)' }}>
-          <Empty description="暂无成功案例，敬请期待" />
+          <Empty description="{t('cases.empty')}" />
         </Card>
       ) : (
         <div
@@ -168,7 +170,7 @@ export default function Cases() {
         title={
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <IconTrophy style={{ color: '#F7BA1E' }} />
-            {detail?.title || '案例详情'}
+            {detail?.title || t('cases.detail')}
           </span>
         }
         visible={!!detail}
@@ -213,7 +215,7 @@ export default function Cases() {
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detail?.content || '') }}
             />
             {!detail?.content && (
-              <div style={{ fontSize: 14, color: '#86909c' }}>（暂无正文）</div>
+              <div style={{ fontSize: 14, color: '#86909c' }}>{t('cases.noContent')}</div>
             )}
           </div>
         )}
