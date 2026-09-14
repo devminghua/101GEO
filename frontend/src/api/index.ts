@@ -356,6 +356,8 @@ export const api = {
     request('/intl/analyze', { method: 'POST', body: JSON.stringify(body) }),
   intlIndexCount: (body: { domain: string; engine: string }) =>
     request('/intl/index-count', { method: 'POST', body: JSON.stringify(body) }),
+  intlTrends: (body: { engine: string; keywords: string[]; range: string }) =>
+    request('/intl/trends', { method: 'POST', body: JSON.stringify(body) }),
   baiduSuggest: (body: { keyword: string; source?: string }) =>
     request<{ keyword: string; words: string[]; baidu_count: number; google_count: number }>('/baidu/suggest', { method: 'POST', body: JSON.stringify(body) }),
   siteAudit: (body: { url: string }) =>

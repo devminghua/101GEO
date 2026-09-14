@@ -38,6 +38,14 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.69", Date: "2026-09-14", Title: "国际搜索优化 P4：行业排行 + 差距诊断（四阶段收官）",
+		Items: items(
+			"feat", "**国际行业排行上线**：关键词搜索热度趋势对比折线图。Naver 走官方 Datalab API（免费/权威/归一化热度），Google 走 SerpAPI Trends；1/3/6/12 月时间范围切换",
+			"feat", "**国际差距诊断上线**：输入关键词+我方域名，一键输出我方最佳排名 vs 同行 TOP 对比与差距优化建议（复用统一分析管线）",
+			"feat", "**总后台数据 API 页新增 Naver Datalab 凭据配置**（Client ID / Secret）；国际六个模块全部四语言",
+		),
+	},
+	{
 		Version: "1.0.68", Date: "2026-09-14", Title: "国际搜索优化 P3：收录查询 + 站点体检",
 		Items: items(
 			"feat", "**国际收录查询上线**：输入域名查询 Google / Naver 收录（site: 快照口径），Serper 官方总数+首页条目，Naver 条数估算并明确标注口径",

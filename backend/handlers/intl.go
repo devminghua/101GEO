@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"geo-tool/services/baidu"
+	"geo-tool/services/biztime"
+	"geo-tool/services/datalab"
 	"geo-tool/services/serp"
 )
 
@@ -20,6 +22,8 @@ import (
 
 const keySerperAPIKey = "serper_api_key"
 const keySerpAPIKey = "serpapi_key"
+const keyDatalabClientID = "datalab_client_id"
+const keyDatalabClientSecret = "datalab_client_secret"
 
 // SerperKey 读取 Serper API Key（env 优先，其次总后台 settings）
 func SerperKey() string {
@@ -35,6 +39,21 @@ func SerpAPIKey() string {
 		return v
 	}
 	return strings.TrimSpace(readSetting(0, keySerpAPIKey))
+}
+
+// DatalabClientID / DatalabClientSecret Naver Datalab 凭据（行业排行数据源）
+func DatalabClientID() string {
+	if v := strings.TrimSpace(os.Getenv("GEO_DATALAB_CLIENT_ID")); v != "" {
+		return v
+	}
+	return strings.TrimSpace(readSetting(0, keyDatalabClientID))
+}
+
+func DatalabClientSecret() string {
+	if v := strings.TrimSpace(os.Getenv("GEO_DATALAB_CLIENT_SECRET")); v != "" {
+		return v
+	}
+	return strings.TrimSpace(readSetting(0, keyDatalabClientSecret))
 }
 
 // AnalyzeIntlKeyword POST /api/intl/analyze —— 国际关键词分析（engine=google）
@@ -151,4 +170,95 @@ func IntlIndexCount(c *gin.Context) {
 		return
 	}
 	dyOK(c, res)
+}
+
+// IntlTrends POST /api/intl/trends —— 国际行业排行/趋势（naver→Datalab 官方，google→SerpAPI Trends）
+func IntlTrends(c *gin.Context) {
+	var req struct {
+		Engine   string   `json:"engine"`
+		Keywords []string `json:"keywords"`
+		Range    string   `json:"range"` // 1m/3m/6m/12m（naver 仅支持日期区间，google 用 date 参数）
+	}
+	if !jsonBody(c, &req) {
+		return
+	}
+	// 关键词去重、去空、截断（最多 5 组各 1 词；P4 首版每组 1 词，后续可扩展组内多词）
+	seen := map[string]bool{}
+	kws := make([]string, 0, 5)
+	for _, k := range req.Keywords {
+		k = strings.TrimSpace(k)
+		if k == "" || seen[k] {
+			continue
+		}
+		seen[k] = true
+		kws = append(kws, k)
+		if len(kws) >= 5 {
+			break
+		}
+	}
+	if len(kws) == 0 {
+		dyErr(c, http.StatusBadRequest, "请至少填写一个关键词")
+		return
+	}
+	// 依赖前置校验（先校验 → 再扣费）
+	if req.Engine == "naver" {
+		if DatalabClientID() == "" || DatalabClientSecret() == "" {
+			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 Naver Datalab 凭据（总后台「数据 API」页配置）"})
+			return
+		}
+	} else if req.Engine == "google" {
+		if SerpAPIKey() == "" {
+			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 SerpAPI Key（Google Trends 数据源，总后台「数据 API」页配置）"})
+			return
+		}
+	} else {
+		dyErr(c, http.StatusBadRequest, "暂不支持该搜索引擎（当前支持 google / naver）")
+		return
+	}
+	if !QuotaGuard(c) {
+		return
+	}
+
+	if req.Engine == "naver" {
+		// 近 N 月日期区间（北京时间）
+		months := 3
+		switch req.Range {
+		case "1m": months = 1
+		case "6m": months = 6
+		case "12m": months = 12
+		default: months = 3
+		}
+		end := biztime.Today()
+		start := biztime.Day(-months * 30)
+		groups := make([]struct {
+			Name     string   `json:"name"`
+			Keywords []string `json:"keywords"`
+		}, 0, len(kws))
+		for _, k := range kws {
+			groups = append(groups, struct {
+				Name     string   `json:"name"`
+				Keywords []string `json:"keywords"`
+			}{Name: k, Keywords: []string{k}})
+		}
+		series, err := datalab.Query(DatalabClientID(), DatalabClientSecret(), start, end, "date", groups)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "趋势查询失败：" + err.Error()})
+			return
+		}
+		dyOK(c, gin.H{"engine": "naver", "series": series, "source": "naver_datalab"})
+		return
+	}
+	// google：SerpAPI google_trends
+	date := "today 3-m"
+	switch req.Range {
+	case "1m": date = "today 1-m"
+	case "6m": date = "today 6-m"
+	case "12m": date = "today 12-m"
+	}
+	series, err := serp.TrendsGoogle(SerpAPIKey(), date, kws)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "趋势查询失败：" + err.Error()})
+		return
+	}
+	dyOK(c, gin.H{"engine": "google", "series": series, "source": "google_trends"})
 }

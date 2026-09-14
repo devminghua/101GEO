@@ -65,6 +65,8 @@ import HelpDoc from './pages/HelpDoc';
 import Cases from './pages/Cases';
 import IntlKeywords from './pages/IntlKeywords';
 import IntlIndex from './pages/IntlIndex';
+import IntlRank from './pages/IntlRank';
+import IntlGap from './pages/IntlGap';
 import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
@@ -414,6 +416,8 @@ export default function App() {
             { key: '/intl-google-rank', label: t('menu.rankMonitor') },
             { key: '/intl-google-index', label: t('menu.indexCount') },
             { key: '/intl-google-audit', label: t('menu.siteAudit') },
+            { key: '/intl-google-gap', label: t('menu.gapDiagnose') },
+            { key: '/intl-google-industry', label: t('menu.industryRank') },
           ]},
         ]},
         { key: '/baidu', label: t('menu.baidu'), icon: <IconSearch />, feature: 'baidu', children: [
@@ -976,6 +980,8 @@ export default function App() {
                 <Route path="/intl-google-rank" element={<RankMonitor />} />
                 <Route path="/intl-google-index" element={<IntlIndex />} />
                 <Route path="/intl-google-audit" element={<SiteAudit />} />
+                <Route path="/intl-google-gap" element={<IntlGap />} />
+                <Route path="/intl-google-industry" element={<IntlRank />} />
                 <Route
                   path="/geo-intel"
                   element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="智能中心" />}

@@ -211,6 +211,7 @@ func main() {
 		// 国际搜索优化：Google/Naver 关键词分析（P1：google）
 		api.POST("/intl/analyze", handlers.AnalyzeIntlKeyword)
 		api.POST("/intl/index-count", handlers.IntlIndexCount)
+		api.POST("/intl/trends", handlers.IntlTrends)
 		api.POST("/baidu/suggest", handlers.KeywordSuggest)
 		// 站点体检（四层）+ 差距诊断（三缺口）
 		api.POST("/baidu/site-audit", handlers.SiteAuditDetail)
