@@ -1,5 +1,24 @@
 /* 中文语言包（基准） */
 export default {
+  irm: {
+        title: '国际排名监控',
+    sub: 'Google / Naver 排名看板（与百度独立存储、独立配额）',
+    refresh: '刷新',
+    empty: '暂无监控关键词，请先在国际关键词分析中完成分析后自动落库',
+    colKeyword: '关键词',
+    colDomain: '站点域名',
+    colLatest: '最新排名',
+    colTrend: '较上次变化',
+    colDate: '检测日期',
+    up: '上升',
+    down: '下降',
+    flat: '持平',
+    new: '新上榜',
+    none: '暂无数据',
+    loadFailed: '加载排名监控失败',
+    googleNote: 'Google 排名数据独立存储，与百度互不影响',
+    naverNote: 'Naver 排名数据独立存储，与百度互不影响',
+  },
   intlDs: {
         title: '国际数据源设置',
     sub: '配置 Google / Naver 数据源 Key（平台级配置，全部分站共用）',

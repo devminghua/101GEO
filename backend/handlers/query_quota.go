@@ -18,13 +18,21 @@ import (
 
 const quotaModuleTotal = "total"
 const quotaModuleShortVideo = "short_video"
+// quotaModuleIntl 国际搜索优化独立配额池（老板 2026-09-14 拍板：大陆以外全部独立自主，
+// 与百度 total 池完全分开计数，上限同为租户 daily_query_limit，互不影响）。
+const quotaModuleIntl = "intl"
 
 // shortVideoDailyLimit 短视频查询（抖音/小红书/快手）每日上限，固定 10 次。
 const shortVideoDailyLimit = 10
 
-// CheckQueryQuota 检查并扣减每日查询配额（total 池，百度模块）。
-// 返回 (是否放行, 已用次数, 每日上限)。limit<=0 表示不限量。
+// CheckQueryQuota 检查并扣减每日查询配额（total 池，百度模块，兼容旧调用）。
 func CheckQueryQuota(c *gin.Context) (allowed bool, used int, limit int) {
+	return CheckQueryQuotaModule(c, quotaModuleTotal)
+}
+
+// CheckQueryQuotaModule 按模块检查并扣减每日查询配额（total=百度 / intl=国际）。
+// 返回 (是否放行, 已用次数, 每日上限)。limit<=0 表示不限量。
+func CheckQueryQuotaModule(c *gin.Context, module string) (allowed bool, used int, limit int) {
 	tid := TenantID(c)
 	var tenant models.Tenant
 	if database.DB.Where("id = ?", tid).First(&tenant).Error != nil {
@@ -39,18 +47,27 @@ func CheckQueryQuota(c *gin.Context) (allowed bool, used int, limit int) {
 	// 行为与文案不符（详见 services/biztime 包注释）。
 	day := biztime.Today()
 	var quota models.QueryQuota
-	database.DB.Where("tenant_id = ? AND day = ? AND module = ?", tid, day, quotaModuleTotal).First(&quota)
+	database.DB.Where("tenant_id = ? AND day = ? AND module = ?", tid, day, module).First(&quota)
 	used = quota.Count
 	if used >= limit {
 		return false, used, limit
 	}
 	// 扣减：无记录则创建，有记录则 +1
 	if quota.ID == 0 {
-		database.DB.Create(&models.QueryQuota{TenantID: tid, Day: day, Module: quotaModuleTotal, Count: 1})
+		database.DB.Create(&models.QueryQuota{TenantID: tid, Day: day, Module: module, Count: 1})
 	} else {
 		database.DB.Model(&quota).Update("count", used+1)
 	}
 	return true, used + 1, limit
+}
+
+// IntlQuotaGuard 国际搜索优化独立配额守卫（intl 池）。
+func IntlQuotaGuard(c *gin.Context) bool {
+	if ok, used, limit := CheckQueryQuotaModule(c, quotaModuleIntl); !ok {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": fmt.Sprintf("今日国际查询次数已用完（%d/%d），明天 0 点自动重置，或联系服务商升级版本解锁更多次数", used, limit)})
+		return false
+	}
+	return true
 }
 
 // QuotaGuard 配额守卫（total 池）：超限时写入响应并返回 false；放行返回 true。

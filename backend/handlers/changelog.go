@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.71", Date: "2026-09-14", Title: "国际与百度彻底分家（老板拍板：中文归中文，大陆以外独立自主）",
+		Items: items(
+			"feat", "**国际查询独立配额池**：国际搜索优化三个查询（分析/收录/趋势）使用独立 intl 配额池，与百度 total 池完全分开计数、互不影响",
+			"feat", "**国际排名监控独立成页**：Google/Naver 双引擎看板，四语言国际语境，数据独立存储；百度排名监控保持中文语境不受影响",
+		),
+	},
+	{
 		Version: "1.0.70", Date: "2026-09-14", Title: "国际数据源配置移入系统设置",
 		Items: items(
 			"improve", "**三个国际数据源 Key 统一移入「系统设置 → 国际数据源」页**（老板拍板）：Serper（Google SERP）、SerpAPI（Naver SERP + Google Trends）、Naver Datalab（行业排行官方源），各自带注册指引与配置状态",

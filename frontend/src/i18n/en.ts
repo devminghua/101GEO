@@ -1,5 +1,24 @@
 /* English language pack */
 export default {
+  irm: {
+        title: 'Intl Rank Monitor',
+    sub: 'Google / Naver rank dashboard (isolated data & quota from Baidu)',
+    refresh: 'Refresh',
+    empty: 'No monitored keywords yet. Intl keyword analysis results are saved here automatically',
+    colKeyword: 'Keyword',
+    colDomain: 'Domain',
+    colLatest: 'Latest Rank',
+    colTrend: 'Change',
+    colDate: 'Checked',
+    up: 'Up',
+    down: 'Down',
+    flat: 'Flat',
+    new: 'New',
+    none: 'No data',
+    loadFailed: 'Failed to load rank monitor',
+    googleNote: 'Google rank data is stored independently from Baidu',
+    naverNote: 'Naver rank data is stored independently from Baidu',
+  },
   intlDs: {
         title: 'Intl Data Sources',
     sub: 'Configure Google / Naver data source keys (platform-wide, shared by all tenants)',

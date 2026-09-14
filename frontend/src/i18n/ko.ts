@@ -1,5 +1,24 @@
 /* 한국어 언어팩 */
 export default {
+  irm: {
+        title: '국제 순위 모니터',
+    sub: 'Google / Naver 순위 대시보드 (바이두와 독립 저장·독립 쿼터)',
+    refresh: '새로고침',
+    empty: '모니터링 키워드가 없습니다. 국제 키워드 분석 결과가 자동 저장됩니다',
+    colKeyword: '키워드',
+    colDomain: '도메인',
+    colLatest: '최신 순위',
+    colTrend: '변동',
+    colDate: '확인일',
+    up: '상승',
+    down: '하락',
+    flat: '변동 없음',
+    new: '신규 진입',
+    none: '데이터 없음',
+    loadFailed: '순위 모니터 로딩 실패',
+    googleNote: 'Google 순위 데이터는 바이두와 독립 저장됩니다',
+    naverNote: 'Naver 순위 데이터는 바이두와 독립 저장됩니다',
+  },
   intlDs: {
         title: '국제 데이터 소스 설정',
     sub: 'Google / Naver 데이터 소스 Key 설정 (플랫폼 공용)',

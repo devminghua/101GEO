@@ -68,6 +68,7 @@ import IntlIndex from './pages/IntlIndex';
 import IntlRank from './pages/IntlRank';
 import IntlGap from './pages/IntlGap';
 import IntlDataSource from './pages/IntlDataSource';
+import IntlRankMonitor from './pages/IntlRankMonitor';
 import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
@@ -978,7 +979,7 @@ export default function App() {
                 <Route path="/help" element={<HelpDoc />} />
                 <Route path="/cases" element={<Cases />} />
                 <Route path="/intl-google-keywords" element={<IntlKeywords />} />
-                <Route path="/intl-google-rank" element={<RankMonitor />} />
+                <Route path="/intl-google-rank" element={<IntlRankMonitor />} />
                 <Route path="/intl-google-index" element={<IntlIndex />} />
                 <Route path="/intl-google-audit" element={<SiteAudit />} />
                 <Route path="/intl-google-gap" element={<IntlGap />} />

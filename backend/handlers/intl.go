@@ -90,8 +90,8 @@ func AnalyzeIntlKeyword(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 Serper API Key，请联系服务商（总后台「数据 API」页配置）"})
 		return
 	}
-	// 每日查询配额（与百度同一配额池，口径一致）
-	if !QuotaGuard(c) {
+	// 国际独立配额池（大陆以外全部独立自主，与百度 total 池分开计数）
+	if !IntlQuotaGuard(c) {
 		return
 	}
 	// 客户域名归一化（与百度同口径）
@@ -155,7 +155,7 @@ func IntlIndexCount(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 Serper API Key，请联系服务商（总后台「数据 API」页配置）"})
 		return
 	}
-	if !QuotaGuard(c) {
+	if !IntlQuotaGuard(c) {
 		return
 	}
 	var res *serp.IndexResult
@@ -215,7 +215,7 @@ func IntlTrends(c *gin.Context) {
 		dyErr(c, http.StatusBadRequest, "暂不支持该搜索引擎（当前支持 google / naver）")
 		return
 	}
-	if !QuotaGuard(c) {
+	if !IntlQuotaGuard(c) {
 		return
 	}
 

@@ -1,5 +1,24 @@
 /* 日本語言語パック */
 export default {
+  irm: {
+        title: '国際順位モニター',
+    sub: 'Google / Naver 順位ダッシュボード（Baiduと独立保存・独立クォータ）',
+    refresh: '更新',
+    empty: '監視キーワードがありません。国際キーワード分析の結果が自動保存されます',
+    colKeyword: 'キーワード',
+    colDomain: 'ドメイン',
+    colLatest: '最新順位',
+    colTrend: '前回比',
+    colDate: '確認日',
+    up: '上昇',
+    down: '下落',
+    flat: '横ばい',
+    new: '新規',
+    none: 'データなし',
+    loadFailed: '順位モニターの読み込みに失敗',
+    googleNote: 'Google順位データはBaiduと独立保存されます',
+    naverNote: 'Naver順位データはBaiduと独立保存されます',
+  },
   intlDs: {
         title: '国際データソース設定',
     sub: 'Google / Naver データソースKeyの設定（プラットフォーム共通）',
