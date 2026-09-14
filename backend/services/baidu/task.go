@@ -38,8 +38,31 @@ func (c *TaskConfig) Normalize() {
 	}
 }
 
-// RunKeyword 同步执行一次关键词分析，返回完整 Result
+// RunKeyword 同步执行一次关键词分析，返回完整 Result（百度引擎）
 func RunKeyword(cfg TaskConfig) (*Result, error) {
+	return RunKeywordEngine(cfg, httpEngine{}, SuggestThrottle)
+}
+
+// Engine 抓取并解析一页搜索结果的引擎（引擎差异点收敛于此，管线共用）。
+// 百度走「HTTP 抓取 HTML + goquery 解析」；Google/Naver 走第三方 SERP API。
+type Engine interface {
+	FetchParse(keyword string, page int) (PageResult, error)
+}
+
+// httpEngine 百度引擎：抓 HTML 后解析
+type httpEngine struct{}
+
+func (httpEngine) FetchParse(keyword string, page int) (PageResult, error) {
+	html, err := FetchPage(keyword, page)
+	if err != nil {
+		return PageResult{}, err
+	}
+	return ParseSERP(html, keyword), nil
+}
+
+// RunKeywordEngine 引擎可注入的关键词分析管线（抓取 → 解析 → 同行识别 → 归因 → 建议）。
+// 口径唯一：百度/Google/Naver 共用此管线，仅引擎实现不同。
+func RunKeywordEngine(cfg TaskConfig, eng Engine, throttle func()) (*Result, error) {
 	cfg.Normalize()
 	start := time.Now()
 
@@ -49,13 +72,12 @@ func RunKeyword(cfg TaskConfig) (*Result, error) {
 
 	// 页间节流串行执行更稳妥（避免风控）；解析在内存中完成，无需并发。
 	for p := 1; p <= cfg.Depth; p++ {
-		html, err := FetchPage(cfg.Keyword, p)
+		pr, err := eng.FetchParse(cfg.Keyword, p)
 		if err != nil {
 			errors++
 			pages = append(pages, PageInfo{Page: p, ParseErrTag: err.Error()})
 			continue
 		}
-		pr := ParseSERP(html, cfg.Keyword)
 		analyzePage(&pr, cfg)
 		pages = append(pages, PageInfo{
 			Page: p, Ads: pr.AdCount, OrganicPeers: pr.OrganicPeers, OrganicOther: countOrganicOther(pr),
@@ -71,9 +93,9 @@ func RunKeyword(cfg TaskConfig) (*Result, error) {
 				})
 			}
 		}
-		// 页面间节流
-		if p < cfg.Depth {
-			SuggestThrottle()
+		// 页面间节流（nil = 引擎自带限流，无需额外节流）
+		if p < cfg.Depth && throttle != nil {
+			throttle()
 		}
 	}
 

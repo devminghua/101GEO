@@ -351,6 +351,9 @@ export const api = {
   // 百度分析（实时抓取 SERP → 同行识别 → 归因 → 建议）
   baiduAnalyze: (body: { keyword: string; depth: number; my_domain?: string; my_domains?: string[] }) =>
     request('/baidu/analyze', { method: 'POST', body: JSON.stringify(body) }),
+  // 国际搜索优化：Google/Naver 关键词分析（engine=google，P1）
+  intlAnalyze: (body: { keyword: string; engine: string; my_domain?: string; my_domains?: string[] }) =>
+    request('/intl/analyze', { method: 'POST', body: JSON.stringify(body) }),
   baiduSuggest: (body: { keyword: string; source?: string }) =>
     request<{ keyword: string; words: string[]; baidu_count: number; google_count: number }>('/baidu/suggest', { method: 'POST', body: JSON.stringify(body) }),
   siteAudit: (body: { url: string }) =>
@@ -672,9 +675,9 @@ export const api = {
 
   // 第三方数据 API（Just One API）token 配置（总后台 super）：抖音/小红书稳定数据抓取
   dataApiConfig: () =>
-    request<{ enabled: boolean; token_masked: string; base_url: string }>('/super/data-api/config'),
-  dataApiSaveConfig: (token: string) =>
-    request<{ enabled: boolean; token_masked: string }>('/super/data-api/config', { method: 'POST', body: JSON.stringify({ token }) }),
+    request<{ enabled: boolean; token_masked: string; base_url: string; serper_enabled: boolean; serper_masked: string }>('/super/data-api/config'),
+  dataApiSaveConfig: (token: string, serperKey = '') =>
+    request<{ enabled: boolean; token_masked: string; serper_enabled: boolean; serper_masked: string }>('/super/data-api/config', { method: 'POST', body: JSON.stringify({ token, serper_key: serperKey }) }),
 
   // 帮助文档（使用教程）：客户端只读 + SaaS 后台管理
   helpTree: () =>

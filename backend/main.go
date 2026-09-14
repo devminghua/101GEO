@@ -208,6 +208,8 @@ func main() {
 
 		// 百度关键词分析
 		api.POST("/baidu/analyze", handlers.AnalyzeBaiduKeyword)
+		// 国际搜索优化：Google/Naver 关键词分析（P1：google）
+		api.POST("/intl/analyze", handlers.AnalyzeIntlKeyword)
 		api.POST("/baidu/suggest", handlers.KeywordSuggest)
 		// 站点体检（四层）+ 差距诊断（三缺口）
 		api.POST("/baidu/site-audit", handlers.SiteAuditDetail)

@@ -15,9 +15,11 @@ func DataAPIConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"enabled":    token != "",
-			"token_masked": maskToken(token),
-			"base_url":   social.BaseURL,
+			"enabled":       token != "",
+			"token_masked":  maskToken(token),
+			"base_url":      social.BaseURL,
+			"serper_enabled": SerperKey() != "",
+			"serper_masked":  maskToken(SerperKey()),
 		},
 	})
 }
@@ -25,15 +27,21 @@ func DataAPIConfig(c *gin.Context) {
 // SaveDataAPIConfig 保存第三方数据 API token：POST /super/data-api/config
 func SaveDataAPIConfig(c *gin.Context) {
 	var req struct {
-		Token string `json:"token"`
+		Token  string `json:"token"`
+		Serper string `json:"serper_key"`
 	}
 	if !jsonBody(c, &req) {
 		return
 	}
 	saveSetting(0, social.TokenKey, req.Token)
+	if req.Serper != "" {
+		saveSetting(0, keySerperAPIKey, req.Serper)
+	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已保存", "data": gin.H{
-		"enabled":      req.Token != "",
-		"token_masked": maskToken(req.Token),
+		"enabled":       req.Token != "",
+		"token_masked":  maskToken(req.Token),
+		"serper_enabled": SerperKey() != "",
+		"serper_masked":  maskToken(SerperKey()),
 	}})
 }
 

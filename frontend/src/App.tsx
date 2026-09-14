@@ -9,6 +9,7 @@ import {
   IconExport,
   IconDown,
   IconSearch,
+  IconPublic,
   IconPlayArrow,
   IconBook,
   IconTrophy,
@@ -62,6 +63,7 @@ import DataApiConfig from './pages/super/DataApiConfig';
 import HelpDocConfig from './pages/super/HelpDocConfig';
 import HelpDoc from './pages/HelpDoc';
 import Cases from './pages/Cases';
+import IntlKeywords from './pages/IntlKeywords';
 import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
@@ -404,6 +406,12 @@ export default function App() {
           { key: '/content', label: t('menu.content'), feature: 'content' },
           { key: '/report', label: t('menu.report'), feature: 'report' },
         ] },
+        // 国际搜索优化：Google/Naver（P1：Google 关键词分析，feature 同 baidu）
+        { key: '/intl', label: t('menu.intl'), icon: <IconPublic />, feature: 'baidu', children: [
+          { key: '/intl-google', label: 'Google', children: [
+            { key: '/intl-google-keywords', label: t('menu.intlGoogleKeywords') },
+          ]},
+        ]},
         { key: '/baidu', label: t('menu.baidu'), icon: <IconSearch />, feature: 'baidu', children: [
           { key: '/baidu-keywords', label: t('menu.baiduKeywords') },
           { key: '/baidu-rank-monitor', label: t('menu.rankMonitor') },
@@ -960,6 +968,7 @@ export default function App() {
                 />
                 <Route path="/help" element={<HelpDoc />} />
                 <Route path="/cases" element={<Cases />} />
+                <Route path="/intl-google-keywords" element={<IntlKeywords />} />
                 <Route
                   path="/geo-intel"
                   element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="智能中心" />}
@@ -1076,6 +1085,6 @@ function menuTitle(key: string, t: (k: string) => string): string {
     '/tools/video2text': 'menu.tools',
     '/settings': 'menu.settings',
   };
-  const k = map[key];
+  const k = map[key] || ({ '/intl-google-keywords': 'menu.intlGoogleKeywords' } as Record<string, string>)[key];
   return k ? t(k) : 'LinkGeo';
 }

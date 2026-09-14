@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.66", Date: "2026-09-14", Title: "国际搜索优化 P1：Google 关键词分析",
+		Items: items(
+			"feat", "**国际搜索优化栏目上线**：侧栏新增「国际搜索优化」下拉（Google → 关键词分析），Google SERP 数据源 Serper（总后台「数据 API」页配置 Key），同行竞争/霸屏统计/优化建议与百度同口径",
+			"feat", "**Gemini 接入就绪**：AI 平台支持任意 OpenAI 兼容端点，直接填 Gemini 地址即可使用（无需改代码）",
+		),
+	},
+	{
 		Version: "1.0.65", Date: "2026-09-14", Title: "多语言内页覆盖：成功案例/使用指南/消息中心/Token 用量/充值中心",
 		Items: items(
 			"feat", "**内页多语言覆盖**：成功案例、使用指南、消息中心、Token 用量看板、充值中心五个页面接入四语言，切换语言后内页同步显示对应语言版本",
