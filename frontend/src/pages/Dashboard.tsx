@@ -4,6 +4,8 @@ import { Card, Grid, Button, Message, Tag, Space, Typography, Empty, Skeleton, P
 import { IconLaunch, IconRefresh, IconSync } from '@arco-design/web-react/icon';
 import { api } from '../api';
 import EChart from '../components/EChart';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 
 const { Row: GridRow, Col: GridCol } = Grid;
 const { Title, Text } = Typography;
@@ -129,7 +131,7 @@ function CountUpNumber({ value, duration = 750 }: { value: number; duration?: nu
 // 排名徽章（TOP1 / TOP2-3 / TOP4-10 / 未进入）
 function RankBadge({ p }: { p: number }) {
   if (p >= 99) {
-    return <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, color: '#86909C', background: 'var(--color-fill-2)' }}>未进入 TOP10</span>;
+    return <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, color: '#86909C', background: 'var(--color-fill-2)' }}>{i18n.t('dashboard.notInTop10')}</span>;
   }
   const color = p === 1 ? '#00B42A' : p <= 3 ? '#165DFF' : p <= 10 ? '#FF7D00' : '#86909C';
   const bg = p === 1 ? '#00B42A14' : p <= 3 ? '#165DFF14' : p <= 10 ? '#FF7D0014' : '#f2f3f5';
@@ -144,18 +146,18 @@ function RankBadge({ p }: { p: number }) {
 function DeltaTag({ d }: { d: number }) {
   if (d > 0) return <span style={{ color: '#00B42A', fontWeight: 600, fontSize: 13 }}>↑ {d.toFixed(1)}%</span>;
   if (d < 0) return <span style={{ color: '#F53F3F', fontWeight: 600, fontSize: 13 }}>↓ {Math.abs(d).toFixed(1)}%</span>;
-  return <span style={{ color: '#86909C', fontSize: 13 }}>— 持平</span>;
+  return <span style={{ color: '#86909C', fontSize: 13 }}>— {i18n.t('dashboard.flat')}</span>;
 }
 
 // 平台对接健康度 → 展示映射
 const HEALTH_META: Record<string, { color: string; text: string }> = {
-  healthy: { color: '#00B42A', text: '对接正常' },
-  bad_key: { color: '#F53F3F', text: 'Key 错误' },
-  no_key: { color: '#FF7D00', text: '未配 Key' },
-  timeout: { color: '#F53F3F', text: '超时' },
-  empty: { color: '#FF7D00', text: '空响应' },
-  error: { color: '#F53F3F', text: '对接异常' },
-  disabled: { color: '#C9CDD4', text: '已停用' },
+  healthy: { color: '#00B42A', text: i18n.t('dashboard.health_healthy') },
+  bad_key: { color: '#F53F3F', text: i18n.t('dashboard.health_bad_key') },
+  no_key: { color: '#FF7D00', text: i18n.t('dashboard.health_no_key') },
+  timeout: { color: '#F53F3F', text: i18n.t('dashboard.health_timeout') },
+  empty: { color: '#FF7D00', text: i18n.t('dashboard.health_empty') },
+  error: { color: '#F53F3F', text: i18n.t('dashboard.health_error') },
+  disabled: { color: '#C9CDD4', text: i18n.t('dashboard.health_disabled') },
 };
 
 // 迷你趋势线（动态纵轴：让波形撑满卡片）
@@ -177,6 +179,7 @@ function Spark({ data, color }: { data: number[]; color: string }) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -266,11 +269,11 @@ export default function Dashboard() {
   const coveredCount = coverage.filter((p: any) => p.covered).length;
 
   const kpiCards = [
-    { label: '整体可见度(平均)', num: kpi.avg_visibility ?? 0, tail: '%', color: '#165DFF', delta: pctDelta(kpi.visibility_trend || kpi.trend || []), trend: (kpi.visibility_trend || kpi.trend || []) as number[] },
-    { label: 'TOP3推荐占比', num: kpi.top3_rate ?? 0, tail: '%', color: '#00B42A', delta: pctDelta(kpi.top3_trend || []), trend: (kpi.top3_trend || []) as number[] },
-    { label: '品牌曝光次数', num: kpi.exposure ?? 0, tail: '', color: '#722ED1', delta: pctDelta(kpi.exposure_trend || []), trend: (kpi.exposure_trend || []) as number[] },
-    { label: '覆盖AI平台数', num: kpi.covered ?? 0, tail: `/${kpi.total_platform ?? 0}`, color: '#722ED1', delta: pctDelta(kpi.covered_trend || []), trend: (kpi.covered_trend || []) as number[] },
-    { label: '监测关键词数', num: kpi.keyword_count ?? 0, tail: '个', color: '#F7BA1E', delta: pctDelta(kpi.keyword_trend || []), trend: (kpi.keyword_trend || []) as number[] },
+    { label: t('dashboard.kpi_visibility'), num: kpi.avg_visibility ?? 0, tail: '%', color: '#165DFF', delta: pctDelta(kpi.visibility_trend || kpi.trend || []), trend: (kpi.visibility_trend || kpi.trend || []) as number[] },
+    { label: t('dashboard.kpi_top3'), num: kpi.top3_rate ?? 0, tail: '%', color: '#00B42A', delta: pctDelta(kpi.top3_trend || []), trend: (kpi.top3_trend || []) as number[] },
+    { label: t('dashboard.kpi_exposure'), num: kpi.exposure ?? 0, tail: '', color: '#722ED1', delta: pctDelta(kpi.exposure_trend || []), trend: (kpi.exposure_trend || []) as number[] },
+    { label: t('dashboard.kpi_covered'), num: kpi.covered ?? 0, tail: `/${kpi.total_platform ?? 0}`, color: '#722ED1', delta: pctDelta(kpi.covered_trend || []), trend: (kpi.covered_trend || []) as number[] },
+    { label: t('dashboard.kpi_keywords'), num: kpi.keyword_count ?? 0, tail: t('dashboard.keywordsUnit'), color: '#F7BA1E', delta: pctDelta(kpi.keyword_trend || []), trend: (kpi.keyword_trend || []) as number[] },
   ];
 
   // 场景覆盖分布（环形，中间总场景数；label 靠右显示百分比）
@@ -321,7 +324,7 @@ export default function Dashboard() {
     }],
   };
 
-  // 关键词排名分布（环形，中间总数）
+  // {t('dashboard.rankDist')}（环形，中间总数）
   const distData = [
     { name: 'TOP1', value: rankDist.top1 || 0, color: '#165DFF' },
     { name: 'TOP2-3', value: rankDist.top23 || 0, color: '#FF7D00' },
@@ -352,7 +355,7 @@ export default function Dashboard() {
     }],
   };
 
-  // 排名分布（环形，参考 Results.tsx rankPieOption，数据用 rank_dist 构造 label/value）
+  // {t('dashboard.rankPieTitle')}（环形，参考 Results.tsx rankPieOption，数据用 rank_dist 构造 label/value）
   const rankPieData = [
     { label: '第 1 位', value: rankDist.top1 || 0 },
     { label: '第 2-3 位', value: rankDist.top23 || 0 },
@@ -402,7 +405,7 @@ export default function Dashboard() {
           padding: '16px 20px', marginBottom: 16,
         }}>
           <div style={{ fontWeight: 700, color: '#D46B08', marginBottom: 8, fontSize: 14 }}>
-            GEO 尚无法完整执行，请先完成以下配置：
+            {t('dashboard.setupTitle')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {(setup.checks || []).filter((c: any) => !c.ok).map((c: any) => (
@@ -427,9 +430,9 @@ export default function Dashboard() {
           }}
         >
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>配置已就绪，开始首次 GEO 巡检查询</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{t('dashboard.startTitle')}</div>
             <div style={{ opacity: 0.88, fontSize: 13, marginTop: 4 }}>
-              系统将向各 AI 平台提问你的监控关键词，检测品牌曝光与推荐效果
+              {t('dashboard.startSub')}
             </div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.22)', borderRadius: 20, padding: '8px 20px', fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -438,7 +441,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* AI 平台覆盖横幅：横向滚动平台覆盖状态 */}
+      {/* {t('dashboard.platformCoverage')}横幅：横向滚动平台覆盖状态 */}
       <div style={{
         background: 'var(--geo-surface)',
         borderRadius: 16,
@@ -448,20 +451,20 @@ export default function Dashboard() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--geo-text)' }}>AI 平台覆盖</span>
+            <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--geo-text)' }}>{t('dashboard.platformCoverage')}</span>
             <span style={{
               background: hasData ? '#165DFF' : '#FF7D00', color: '#fff', fontSize: 12, fontWeight: 600,
               borderRadius: 12, padding: '2px 12px', whiteSpace: 'nowrap',
-            }}>{hasData ? `${coveredCount}/${coverage.length || 0} 个平台已覆盖` : '尚未巡检'}</span>
+            }}>{hasData ? t('dashboard.coveredCount', { a: coveredCount, b: coverage.length || 0 }) : t('dashboard.notChecked')}</span>
             {hasData && data?.generated_at && (
-              <span style={{ color: '#86909C', fontSize: 12 }}>数据更新于 {data.generated_at}</span>
+              <span style={{ color: '#86909C', fontSize: 12 }}>{t('dashboard.updatedAt', { t: data.generated_at })}</span>
             )}
-            {!hasData && <span style={{ color: '#FF7D00', fontSize: 12 }}>点击右上「开始巡检查询」完成首次检测</span>}
+            {!hasData && <span style={{ color: '#FF7D00', fontSize: 12 }}>{t('dashboard.hintNotChecked')}</span>}
           </div>
           <Space>
-            <Button icon={<IconSync />} loading={refreshing} onClick={load}>刷新数据</Button>
+            <Button icon={<IconSync />} loading={refreshing} onClick={load}>{t('dashboard.refreshData')}</Button>
             <Button type="primary" icon={<IconLaunch />} loading={running} onClick={runCheck}>
-              {running ? '巡检中…' : '开始巡检查询'}
+              {running ? t('dashboard.checking') : t('dashboard.startCheck')}
             </Button>
           </Space>
         </div>
@@ -470,7 +473,7 @@ export default function Dashboard() {
             const h = health.find((x: any) => x.name === (p.name || p.platform));
             const hm = h ? HEALTH_META[h.status] : null;
             const dotColor = hm ? hm.color : (p.enabled === false ? '#C9CDD4' : p.covered ? '#00B42A' : (hasData ? '#F53F3F' : '#FF7D00'));
-            const statusText = hm ? hm.text : (p.enabled === false ? '已停用' : p.covered ? '已覆盖' : (hasData ? '未覆盖' : '待巡检'));
+            const statusText = hm ? hm.text : (p.enabled === false ? t('dashboard.disabled') : p.covered ? t('dashboard.covered') : (hasData ? t('dashboard.notCovered') : t('dashboard.pending')));
             return (
               <div key={(p.name || p.platform) + i} style={{
                 flex: '0 0 auto', minWidth: 148, padding: '12px 14px',
@@ -500,7 +503,7 @@ export default function Dashboard() {
       <div style={{ opacity: refreshing ? 0.55 : 1, transition: 'opacity .35s ease', pointerEvents: refreshing ? 'none' : 'auto' }}>
       {!hasData ? (
         <Card style={{ borderRadius: 16, padding: '60px 0' }}>
-          <Empty description="暂无巡检数据，先配置关键词与 AI 平台，再点击「开始巡检查询」" />
+          <Empty description={t('dashboard.emptyMain')} />
         </Card>
       ) : (
         <>
@@ -519,10 +522,10 @@ export default function Dashboard() {
                 </div>
                 {k.delta !== undefined && k.delta !== 0 ? (
                   <div style={{ fontSize: 12, marginTop: 6, fontWeight: 500, color: k.delta > 0 ? '#00B42A' : '#F53F3F' }}>
-                    较上次检测 {k.delta > 0 ? `↑ ${k.delta}%` : `↓ ${Math.abs(k.delta)}%`}
+                    {t('dashboard.vsLast')} {k.delta > 0 ? `↑ ${k.delta}%` : `↓ ${Math.abs(k.delta)}%`}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, marginTop: 6, color: '#86909C' }}>较上次检测 持平</div>
+                  <div style={{ fontSize: 12, marginTop: 6, color: '#86909C' }}>{t('dashboard.vsLast')} {t('dashboard.flat')}</div>
                 )}
                 <div style={{ marginTop: 10 }}>
                   <Spark data={(k.trend || []) as number[]} color={k.color} />
@@ -531,15 +534,15 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* 第二排：各 AI 平台表现 + 场景覆盖分布 */}
+          {/* 第二排：{t('dashboard.platformPerf')} + 场景覆盖分布 */}
           <GridRow gutter={[16, 16]} style={{ marginBottom: 0 }}>
             <GridCol xs={24} xl={15}>
-              <Card style={{ borderRadius: 16 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>各 AI 平台表现</span>}>
+              <Card style={{ borderRadius: 16 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>{t('dashboard.platformPerf')}</span>}>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--color-border-2)' }}>
-                        {['平台', '可见度', 'TOP3占比', '曝光次数', '较上次变化', '趋势'].map((h, i) => (
+                        {[t('dashboard.col_platform'), t('dashboard.col_visibility'), t('dashboard.col_top3'), t('dashboard.col_exposure'), t('dashboard.col_delta'), t('dashboard.col_trend')].map((h, i) => (
                           <th key={h} style={{ textAlign: i === 0 ? 'left' : 'center', padding: '10px 8px', color: '#86909C', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>
                             {h}
                           </th>
@@ -554,7 +557,7 @@ export default function Dashboard() {
                               <PlatformLogo name={p.platform} index={i} size={32} />
                               <div>
                                 <div style={{ fontWeight: 600 }}>{p.platform}</div>
-                                <div style={{ fontSize: 11, color: p.enabled ? '#00B42A' : '#C9CDD4' }}>{p.enabled ? '已启用' : '已停用'}</div>
+                                <div style={{ fontSize: 11, color: p.enabled ? '#00B42A' : '#C9CDD4' }}>{p.enabled ? t('dashboard.enabled') : t('dashboard.disabled')}</div>
                               </div>
                             </div>
                           </td>
@@ -579,35 +582,35 @@ export default function Dashboard() {
                 </div>
                 <div style={{ textAlign: 'right', marginTop: 10 }}>
                   <span onClick={() => navigate('/platforms')} style={{ color: '#165DFF', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                    查看全部 {kpi.total_platform ?? 0} 个AI平台数据 &gt;
+                    {t('dashboard.viewAllPlatforms', { n: kpi.total_platform ?? 0 })}
                   </span>
                 </div>
               </Card>
             </GridCol>
             <GridCol xs={24} xl={9}>
-              <Card style={{ borderRadius: 16 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>推荐场景覆盖分布</span>}>
+              <Card style={{ borderRadius: 16 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>{t('dashboard.sceneDist')}</span>}>
                 {scenes.length > 0
                   ? <EChart option={sceneOption} height={240} />
-                  : <Empty description="按关键词分类后展示场景分布" style={{ padding: '60px 0' }} />}
+                  : <Empty description={t('dashboard.sceneEmpty')} style={{ padding: '60px 0' }} />}
               </Card>
-              <Card style={{ borderRadius: 16, marginTop: 16 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>各平台出现率 (TOP)</span>}>
+              <Card style={{ borderRadius: 16, marginTop: 16 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>{t('dashboard.occurrenceTop')}</span>}>
                 {platformTop8.length > 0
                   ? <EChart option={platformBarOption} height={220} />
-                  : <Empty description="暂无平台出现率数据" style={{ padding: '24px 0' }} />}
+                  : <Empty description={t('dashboard.occurrenceEmpty')} style={{ padding: '24px 0' }} />}
               </Card>
             </GridCol>
           </GridRow>
 
-          {/* 第三排：关键词排名监测 TOP5 + 关键词排名分布 */}
+          {/* 第三排：关键词排名监测 TOP5 + {t('dashboard.rankDist')} */}
           <GridRow gutter={[16, 0]}>
             <GridCol xs={24} xl={15}>
-              <Card style={{ borderRadius: 16, marginTop: 8 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>关键词排名监测 (TOP)</span>}>
+              <Card style={{ borderRadius: 16, marginTop: 8 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>{t('dashboard.rankMonitorTop')}</span>}>
                 {(ranks || []).slice(0, 8).length > 0 ? (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
                       <thead>
                         <tr style={{ borderBottom: '1px solid var(--color-border-2)' }}>
-                          {['关键词', '所属平台', '排名位置', '是否进入TOP3', '较上次变化', '检测时间'].map((h) => (
+                          {[t('dashboard.col_keyword'), t('dashboard.col_belong'), t('dashboard.col_rank'), t('dashboard.col_inTop3'), t('dashboard.col_delta'), t('dashboard.col_checkTime')].map((h) => (
                             <th key={h} style={{ textAlign: h === '关键词' ? 'left' : 'center', padding: '10px 8px', color: '#86909C', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>
                               {h}
                             </th>
@@ -635,11 +638,11 @@ export default function Dashboard() {
                                 display: 'inline-block', padding: '2px 12px', borderRadius: 12, fontSize: 12, fontWeight: 600,
                                 color: r.top3 ? '#00B42A' : '#86909C', background: r.top3 ? '#00B42A14' : 'var(--color-fill-2)',
                               }}>
-                                {r.top3 ? '是' : '否'}
+                                {r.top3 ? t('dashboard.yes') : t('dashboard.no')}
                               </span>
                             </td>
                             <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                              {r.miss || r.delta === 0 ? <span style={{ color: '#86909C', fontSize: 13 }}>持平</span>
+                              {r.miss || r.delta === 0 ? <span style={{ color: '#86909C', fontSize: 13 }}>{t('dashboard.flat')}</span>
                                 : r.delta > 0
                                   ? <span style={{ color: '#00B42A', fontWeight: 600, fontSize: 13 }}>↑ {r.delta}</span>
                                   : <span style={{ color: '#F53F3F', fontWeight: 600, fontSize: 13 }}>↓ {Math.abs(r.delta)}</span>}
@@ -653,31 +656,31 @@ export default function Dashboard() {
                     </table>
                   </div>
                 ) : (
-                  <Empty description="最近一轮查询暂无排名数据" style={{ padding: '60px 0' }} />
+                  <Empty description={t('dashboard.rankEmpty')} style={{ padding: '60px 0' }} />
                 )}
                 <div style={{ textAlign: 'right', marginTop: 10 }}>
                   <span onClick={() => navigate('/keywords')} style={{ color: '#165DFF', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                    查看全部 {kpi.keyword_count ?? 0} 个关键词排名 &gt;
+                    {t('dashboard.viewAllKeywords', { n: kpi.keyword_count ?? 0 })}
                   </span>
                 </div>
               </Card>
             </GridCol>
             <GridCol xs={24} xl={9}>
-              <Card style={{ borderRadius: 16, marginTop: 11 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>关键词排名分布</span>}>
+              <Card style={{ borderRadius: 16, marginTop: 11 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>{t('dashboard.rankDist')}</span>}>
                 <EChart option={distOption} height={220} />
               </Card>
-              <Card style={{ borderRadius: 16, marginTop: 16 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>排名分布</span>}>
+              <Card style={{ borderRadius: 16, marginTop: 16 }} title={<span style={{ fontSize: 15, fontWeight: 600 }}>{t('dashboard.rankPieTitle')}</span>}>
                 {rankPieData.length > 0
                   ? <EChart option={rankPieOption} height={200} />
-                  : <Empty description="暂无排名分布数据" style={{ padding: '24px 0' }} />}
+                  : <Empty description="暂无{t('dashboard.rankPieTitle')}数据" style={{ padding: '24px 0' }} />}
               </Card>
             </GridCol>
           </GridRow>
 
           {/* 数据说明 */}
           <div style={{ textAlign: 'right', marginTop: 16, fontSize: 12, lineHeight: 1.9, color: '#C9CDD4' }}>
-            <div>每24小时自动刷新数据 — 覆盖于 {kpi.total_platform ?? 0} 个 AI 平台搜索热点</div>
-            <div>数据来源于公开搜索结果，仅供参考</div>
+            <div>{t('dashboard.autoRefresh', { n: kpi.total_platform ?? 0 })}</div>
+            <div>{t('dashboard.disclaimer')}</div>
           </div>
         </>
       )}
