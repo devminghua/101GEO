@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.75", Date: "2026-09-14", Title: "SQL 注入检测结果中文化 + AI 分析",
+		Items: items(
+			"feat", "**检测结果中文化**：注入类型（布尔盲注/报错注入/联合查询/堆叠注入/时间盲注/内联查询）中文标签展示",
+			"feat", "**AI 中文安全分析**：检测出注入点后一键 AI 分析——漏洞概述、风险评级（高/中/低危）、危害说明、修复建议（参数化查询/输入校验/WAF）；走分站自己的 AI 平台（与全站口径一致）",
+		),
+	},
+	{
 		Version: "1.0.74", Date: "2026-09-14", Title: "站点体检集成 SQL 注入检测（sqlmap 图形界面）",
 		Items: items(
 			"feat", "**SQL 注入检测图形界面**：Nmap 端口扫描右侧并排新增 sqlmap 卡片——注入技术（布尔/报错/联合/堆叠/时间/内联）、检测等级/风险/线程、表单参数、八项枚举（Banner/用户/库/表/字段/权限/主机名）、高级参数自由传参，实时日志流 + 注入点结果表",

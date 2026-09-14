@@ -231,6 +231,7 @@ func main() {
 		api.GET("/baidu/site-audit/sqlmap/log", handlers.SQLMapLog)
 		api.DELETE("/baidu/site-audit/sqlmap/task", handlers.SQLMapDelete)
 		api.GET("/baidu/site-audit/sqlmap/options", handlers.SQLMapOptions)
+		api.POST("/baidu/site-audit/sqlmap/analyze", handlers.SQLMapAnalyze)
 		api.GET("/baidu/gap-diagnose", handlers.GapDiagnose)
 		// 百度指数行业排行（各行业 TOP 品牌指数）
 		api.GET("/baidu/industry-rank", handlers.IndustryRank)

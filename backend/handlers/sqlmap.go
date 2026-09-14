@@ -1,9 +1,15 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"geo-tool/services/ai"
+	"geo-tool/services/ai_platform"
 
 	"github.com/gin-gonic/gin"
 
@@ -214,4 +220,114 @@ func checkTask(c *gin.Context, task string) bool {
 
 func itoa(n int) string {
 	return strconv.Itoa(n)
+}
+
+// SQLMapAnalyze POST /api/baidu/site-audit/sqlmap/analyze —— AI 中文安全分析
+// 取任务结果 → 组装中文提示词 → 调分站自己的 AI 平台（ai_platform.FirstUsable）
+func SQLMapAnalyze(c *gin.Context) {
+	var req struct {
+		Task string `json:"task"`
+	}
+	if !jsonBody(c, &req) {
+		return
+	}
+	if !checkTask(c, req.Task) {
+		return
+	}
+	data, err := svcsqlmap.Data(req.Task)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "结果读取失败：" + err.Error()})
+		return
+	}
+	// 组装结果摘要（注入点+类型+枚举）
+	summary := buildSqlmapSummary(data)
+	if summary == "" {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "暂无可分析的结果（未发现注入点或扫描尚未完成）"})
+		return
+	}
+	tid := TenantID(c)
+	p := ai_platform.FirstUsable(tid)
+	if p == nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置可用 AI 平台，请先在「AI 平台」页配置"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 90*time.Second)
+	defer cancel()
+
+	system := "你是资深 Web 安全专家。根据 SQL 注入检测工具的扫描结果，输出**中文**安全分析报告：1) 漏洞概述（该目标发现了什么）2) 每个注入点的风险评级（高危/中危/低危）与危害说明 3) 具体修复建议（参数化查询、输入校验、WAF 等）。语气专业简洁，使用 Markdown 分段。"
+	client := ai.NewClient(p.BaseURL, p.APIKey, p.Model).WithMeta(tid, p.Name, "SQL注入AI分析")
+	report, err := client.Chat(ctx, system, []ai.Message{{Role: "user", Content: summary}}, 2048, 0.3)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "AI 分析失败：" + err.Error()})
+		return
+	}
+	dyOK(c, gin.H{"report": report, "summary": summary})
+}
+
+// buildSqlmapSummary 把 sqlmap 结果组装成适合 AI 分析的中文摘要
+func buildSqlmapSummary(data map[string]interface{}) string {
+	d, _ := data["data"].([]interface{})
+	if len(d) == 0 {
+		// 兼容对象结构
+		if dm, ok := data["data"].(map[string]interface{}); ok {
+			_ = dm
+		}
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("SQL 注入检测结果摘要：\n")
+	for _, item := range d {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		param, _ := m["parameter"].(string)
+		place, _ := m["place"].(string)
+		tech := extractInjectionTypes(m)
+		b.WriteString(fmt.Sprintf("- 注入点参数：%s（位置：%s）\n", param, place))
+		if tech != "" {
+			b.WriteString(fmt.Sprintf("  注入类型：%s\n", tech))
+		}
+		if payload := firstPayload(m); payload != "" {
+			b.WriteString(fmt.Sprintf("  Payload 示例：%s\n", payload))
+		}
+	}
+	return b.String()
+}
+
+// extractInjectionTypes 提取注入类型（英文 → 供 AI 阅读）
+func extractInjectionTypes(m map[string]interface{}) string {
+	inner, _ := m["data"].(map[string]interface{})
+	if inner == nil {
+		return ""
+	}
+	types := []string{}
+	for i := 1; i <= 3; i++ {
+		if t, ok := inner[strconv.Itoa(i)].(map[string]interface{}); ok {
+			if title, ok := t["title"].(string); ok && title != "" {
+				types = append(types, title)
+			}
+		}
+	}
+	return strings.Join(types, "；")
+}
+
+// firstPayload 取第一条 payload 示例
+func firstPayload(m map[string]interface{}) string {
+	inner, _ := m["data"].(map[string]interface{})
+	if inner == nil {
+		return ""
+	}
+	for i := 1; i <= 3; i++ {
+		if t, ok := inner[strconv.Itoa(i)].(map[string]interface{}); ok {
+			if payloads, ok := t["payload"].([]interface{}); ok && len(payloads) > 0 {
+				if p0, ok := payloads[0].(map[string]interface{}); ok {
+					if v, ok := p0["vector"].(string); ok && v != "" {
+						return v
+					}
+				}
+			}
+		}
+	}
+	return ""
 }

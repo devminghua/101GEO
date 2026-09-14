@@ -14,6 +14,23 @@ const { Text } = Typography;
 
 interface SqlmapCardProps { defaultTarget: string; }
 
+// sqlmap 注入类型标题 → 中文
+const TYPE_CN: Record<string, string> = {
+  'boolean-based blind': '布尔盲注',
+  'error-based': '报错注入',
+  'UNION query': '联合查询',
+  'stacked queries': '堆叠注入',
+  'time-based blind': '时间盲注',
+  'inline query': '内联查询',
+};
+function cnType(title: string): string {
+  const t = (title || '').toLowerCase();
+  for (const k of Object.keys(TYPE_CN)) {
+    if (t.includes(k)) return TYPE_CN[k];
+  }
+  return title || '未知类型';
+}
+
 const TECHNIQUES = [
   { key: 'B', label: '布尔盲注' }, { key: 'E', label: '报错注入' }, { key: 'U', label: '联合查询' },
   { key: 'S', label: '堆叠注入' }, { key: 'T', label: '时间盲注' }, { key: 'Q', label: '内联查询' },
@@ -43,6 +60,8 @@ export default function SqlmapCard({ defaultTarget }: SqlmapCardProps) {
 
   const [task, setTask] = useState('');
   const [running, setRunning] = useState(false);
+  const [aiReport, setAiReport] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [data, setData] = useState<any>(null);
   const [err, setErr] = useState('');
@@ -201,14 +220,51 @@ export default function SqlmapCard({ defaultTarget }: SqlmapCardProps) {
                 dataIndex: 'data',
                 ellipsis: true,
                 render: (v: any) => {
-                  const t = v && (v.title || v['1']?.title || v['2']?.title || v['3']?.title || JSON.stringify(v).slice(0, 60));
-                  return <span style={{ fontSize: 12 }}>{t}</span>;
+                  const t = v && (v.title || v['1']?.title || v['2']?.title || v['3']?.title || '');
+                  return <Tag color="red" size="small" style={{ fontSize: 12 }}>{cnType(t)}</Tag>;
                 },
               },
               { title: '占位符', dataIndex: 'place', width: 100 },
               { title: 'payload 数', dataIndex: 'length', width: 90, align: 'center' as const },
             ]}
           />
+        </div>
+      )}
+      {data && Array.isArray(data) && data.length > 0 && !running && (
+        <div style={{ marginTop: 12 }}>
+          <Button
+            type="secondary"
+            loading={aiLoading}
+            onClick={async () => {
+              if (!task) return;
+              setAiLoading(true);
+              setAiReport('');
+              try {
+                const r: any = await api.sqlmapAnalyze(task);
+                setAiReport(r.report || '');
+              } catch (e: any) {
+                Message.error(e?.message || 'AI 分析失败');
+              } finally {
+                setAiLoading(false);
+              }
+            }}
+          >
+            🤖 AI 中文安全分析
+          </Button>
+          {aiReport && (
+            <div style={{ marginTop: 12, background: 'var(--color-fill-2)', borderRadius: 8, padding: '14px 16px', maxHeight: 420, overflow: 'auto' }}>
+              {aiReport.split('\n').map((line, i) => {
+                if (line.startsWith('#')) {
+                  return <div key={i} style={{ fontWeight: 700, fontSize: 14, color: 'var(--geo-text)', margin: '8px 0 4px' }}>{line.replace(/^#+\s*/, '')}</div>;
+                }
+                if (line.startsWith('-') || line.startsWith('*')) {
+                  return <div key={i} style={{ fontSize: 13, color: '#4e5969', lineHeight: 1.8, paddingLeft: 14 }}>{line.replace(/^[-*]\s*/, '• ')}</div>;
+                }
+                if (line.trim() === '') return <div key={i} style={{ height: 6 }} />;
+                return <div key={i} style={{ fontSize: 13, color: '#4e5969', lineHeight: 1.8 }}>{line}</div>;
+              })}
+            </div>
+          )}
         </div>
       )}
       {running && <Spin style={{ marginTop: 12 }} size={16} />}

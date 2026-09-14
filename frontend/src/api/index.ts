@@ -377,6 +377,8 @@ export const api = {
   sqlmapLog: (task: string) => request(`/baidu/site-audit/sqlmap/log?task=${task}`),
   sqlmapDelete: (task: string) => request(`/baidu/site-audit/sqlmap/task?task=${task}`, { method: 'DELETE' }),
   sqlmapOptions: () => request('/baidu/site-audit/sqlmap/options'),
+  sqlmapAnalyze: (task: string) =>
+    request('/baidu/site-audit/sqlmap/analyze', { method: 'POST', body: JSON.stringify({ task }) }),
   __siteAuditDup: (body: { url: string }) =>
     request<{ url: string; host: string; score: number; level: string; layers: any[]; grade_dist: Record<string, number>; overall_note: string }>('/baidu/site-audit', { method: 'POST', body: JSON.stringify(body) }),
   gapDiagnose: () =>
