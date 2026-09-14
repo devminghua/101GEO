@@ -19,6 +19,7 @@ import (
  * ================================================================ */
 
 const keySerperAPIKey = "serper_api_key"
+const keySerpAPIKey = "serpapi_key"
 
 // SerperKey 读取 Serper API Key（env 优先，其次总后台 settings）
 func SerperKey() string {
@@ -26,6 +27,14 @@ func SerperKey() string {
 		return v
 	}
 	return strings.TrimSpace(readSetting(0, keySerperAPIKey))
+}
+
+// SerpAPIKey 读取 SerpAPI Key（Naver SERP 数据源）
+func SerpAPIKey() string {
+	if v := strings.TrimSpace(os.Getenv("GEO_SERPAPI_KEY")); v != "" {
+		return v
+	}
+	return strings.TrimSpace(readSetting(0, keySerpAPIKey))
 }
 
 // AnalyzeIntlKeyword POST /api/intl/analyze —— 国际关键词分析（engine=google）
@@ -44,12 +53,21 @@ func AnalyzeIntlKeyword(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "请填写要分析的关键词"})
 		return
 	}
-	if req.Engine != "google" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "暂不支持该搜索引擎（当前仅支持 google）"})
+	switch req.Engine {
+	case "google", "naver":
+	case "":
+		req.Engine = "google"
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"code": 1, "msg": "暂不支持该搜索引擎（当前支持 google / naver）"})
 		return
 	}
-	// Serper Key 前置校验：未配置直接报错（先校验依赖 → 再扣费铁律）
-	if SerperKey() == "" {
+	// API Key 前置校验：未配置直接报错（先校验依赖 → 再扣费铁律）
+	if req.Engine == "naver" {
+		if SerpAPIKey() == "" {
+			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 SerpAPI Key，请联系服务商（总后台「数据 API」页配置）"})
+			return
+		}
+	} else if SerperKey() == "" {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 Serper API Key，请联系服务商（总后台「数据 API」页配置）"})
 		return
 	}
@@ -65,7 +83,13 @@ func AnalyzeIntlKeyword(c *gin.Context) {
 		MyDomains:  myDomains,
 		Depth:      3, // 与百度一致：固定 3 页，防风控
 	}
-	res, err := serp.RunGoogle(cfg, SerperKey())
+	var res *baidu.Result
+	var err error
+	if req.Engine == "naver" {
+		res, err = serp.RunNaver(cfg, SerpAPIKey())
+	} else {
+		res, err = serp.RunGoogle(cfg, SerperKey())
+	}
 	if err != nil && res == nil {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "分析失败：" + err.Error()})
 		return
@@ -75,7 +99,7 @@ func AnalyzeIntlKeyword(c *gin.Context) {
 	if tid > 0 {
 		best := bestRankPerDomain(res, myDomains)
 		for domain, br := range best {
-			baidu.SaveSnapshot(tid, req.Keyword, domain, br.BestRank, br.Occurrences)
+			baidu.SaveSnapshotEngine(tid, req.Keyword, domain, req.Engine, br.BestRank, br.Occurrences)
 		}
 		res.TrendSummary = baidu.TrendSummary(tid, req.Keyword, 30)
 	}

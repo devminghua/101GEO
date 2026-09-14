@@ -154,8 +154,12 @@ func BaiduDeleteSite(c *gin.Context) {
 // BaiduListMonitorKeywords 监控关键词列表（可选 site_id 过滤）
 func BaiduListMonitorKeywords(c *gin.Context) {
 	tid := TenantID(c)
+	engine := strings.TrimSpace(c.Query("engine"))
+	if engine == "" {
+		engine = "baidu"
+	}
 	var list []models.BaiduMonitorKeyword
-	q := database.DB.Where("tenant_id = ?", tid)
+	q := database.DB.Where("tenant_id = ? AND engine = ?", tid, engine)
 	if sid := queryUint(c, "site_id"); sid > 0 {
 		q = q.Where("site_id = ?", sid)
 	}
@@ -183,11 +187,16 @@ func BaiduCreateMonitorKeyword(c *gin.Context) {
 	tid := TenantID(c)
 	var req struct {
 		Keyword string `json:"keyword"`
+		Engine  string `json:"engine"`
 		SiteID  uint   `json:"site_id"`
 		Enabled *bool  `json:"enabled"`
 	}
 	if !jsonBody(c, &req) {
 		return
+	}
+	engine := strings.TrimSpace(req.Engine)
+	if engine == "" {
+		engine = "baidu"
 	}
 	kw := strings.TrimSpace(req.Keyword)
 	if kw == "" {
@@ -206,13 +215,13 @@ func BaiduCreateMonitorKeyword(c *gin.Context) {
 	// 同租户同词同站去重
 	var dup int64
 	database.DB.Model(&models.BaiduMonitorKeyword{}).
-		Where("tenant_id = ? AND keyword = ? AND site_id = ?", tid, kw, req.SiteID).Count(&dup)
+		Where("tenant_id = ? AND keyword = ? AND engine = ? AND site_id = ?", tid, kw, engine, req.SiteID).Count(&dup)
 	if dup > 0 {
 		dyErr(c, http.StatusBadRequest, "该关键词已存在（同网站下不能重复）")
 		return
 	}
 	item := models.BaiduMonitorKeyword{
-		TenantID: tid, Keyword: kw, SiteID: req.SiteID, SiteDomain: domain, Enabled: true,
+		TenantID: tid, Keyword: kw, Engine: engine, SiteID: req.SiteID, SiteDomain: domain, Enabled: true,
 	}
 	if req.Enabled != nil {
 		item.Enabled = *req.Enabled
@@ -306,7 +315,7 @@ func BaiduRankHistory(c *gin.Context) {
 			days = int(d)
 		}
 	}
-	points := baidu.QueryRankHistory(tid, keyword, days)
+	points := baidu.QueryRankHistoryEngine(tid, keyword, strings.TrimSpace(c.Query("engine")), days)
 	dyOK(c, gin.H{
 		"keyword": keyword,
 		"days":    days,

@@ -20,6 +20,8 @@ func DataAPIConfig(c *gin.Context) {
 			"base_url":      social.BaseURL,
 			"serper_enabled": SerperKey() != "",
 			"serper_masked":  maskToken(SerperKey()),
+			"serpapi_enabled": SerpAPIKey() != "",
+			"serpapi_masked":  maskToken(SerpAPIKey()),
 		},
 	})
 }
@@ -29,6 +31,7 @@ func SaveDataAPIConfig(c *gin.Context) {
 	var req struct {
 		Token  string `json:"token"`
 		Serper string `json:"serper_key"`
+		SerpAPI string `json:"serpapi_key"`
 	}
 	if !jsonBody(c, &req) {
 		return
@@ -37,11 +40,16 @@ func SaveDataAPIConfig(c *gin.Context) {
 	if req.Serper != "" {
 		saveSetting(0, keySerperAPIKey, req.Serper)
 	}
+	if req.SerpAPI != "" {
+		saveSetting(0, keySerpAPIKey, req.SerpAPI)
+	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已保存", "data": gin.H{
-		"enabled":       req.Token != "",
-		"token_masked":  maskToken(req.Token),
-		"serper_enabled": SerperKey() != "",
-		"serper_masked":  maskToken(SerperKey()),
+		"enabled":        req.Token != "",
+		"token_masked":   maskToken(req.Token),
+		"serper_enabled":  SerperKey() != "",
+		"serper_masked":   maskToken(SerperKey()),
+		"serpapi_enabled": SerpAPIKey() != "",
+		"serpapi_masked":  maskToken(SerpAPIKey()),
 	}})
 }
 

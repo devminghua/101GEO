@@ -7,9 +7,10 @@ import { api } from '../../api';
 // 配置存全局（tenant_id=0），所有分站共用同一 token。
 export default function DataApiConfig() {
   const [loading, setLoading] = useState(false);
-  const [config, setConfig] = useState<{ enabled: boolean; token_masked: string; base_url: string; serper_enabled: boolean; serper_masked: string } | null>(null);
+  const [config, setConfig] = useState<{ enabled: boolean; token_masked: string; base_url: string; serper_enabled: boolean; serper_masked: string; serpapi_enabled: boolean; serpapi_masked: string } | null>(null);
   const [token, setToken] = useState('');
   const [serperKey, setSerperKey] = useState('');
+  const [serpapiKey, setSerpapiKey] = useState('');
 
   const load = async () => {
     try {
@@ -23,12 +24,14 @@ export default function DataApiConfig() {
   const save = async () => {
     const t = token.trim();
     const sk = serperKey.trim();
-    if (!t && !sk) { Message.warning('请输入 API Token 或 Serper Key'); return; }
+    const sk2 = serpapiKey.trim();
+    if (!t && !sk && !sk2) { Message.warning('请输入 API Token / Serper Key / SerpAPI Key'); return; }
     setLoading(true);
     try {
-      const res = await api.dataApiSaveConfig(t, sk);
+      const res = await api.dataApiSaveConfig(t, sk, sk2);
       setToken('');
       setSerperKey('');
+      setSerpapiKey('');
       setConfig(res as any);
       Message.success('数据 API Token 已保存');
     } catch (e: any) {
@@ -93,6 +96,28 @@ export default function DataApiConfig() {
               value={serperKey}
               onChange={setSerperKey}
               placeholder="粘贴 Serper.dev 的 API Key"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+          <Divider />
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Naver SERP（韩国市场）</div>
+          <Alert
+            type="info"
+            style={{ marginBottom: 16 }}
+            content="Naver 关键词分析数据源。注册地址：https://serpapi.com（engine=naver，$50/月套餐或按次计费）"
+          />
+          <Form.Item label="SerpAPI 当前状态">
+            {config?.serpapi_enabled ? (
+              <Tag color="green">已配置（{config?.serpapi_masked}）</Tag>
+            ) : (
+              <Tag color="orange">未配置（Naver 关键词分析不可用）</Tag>
+            )}
+          </Form.Item>
+          <Form.Item label="SerpAPI Key" extra="留空表示不修改已保存的 Key">
+            <Input.Password
+              value={serpapiKey}
+              onChange={setSerpapiKey}
+              placeholder="粘贴 SerpAPI 的 API Key"
               autoComplete="new-password"
             />
           </Form.Item>

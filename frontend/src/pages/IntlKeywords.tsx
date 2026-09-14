@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Input, Button, Message, Table, Tag, Space, Typography, Empty, Spin, Alert, Grid } from '@arco-design/web-react';
+import { Card, Input, Button, Message, Table, Tag, Space, Typography, Empty, Spin, Alert, Grid, Tabs } from '@arco-design/web-react';
 import { IconSearch, IconGoogle } from '@arco-design/web-react/icon';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
@@ -26,6 +26,7 @@ interface IntlResult {
 export default function IntlKeywords() {
   const { t } = useTranslation();
   const [keyword, setKeyword] = useState('');
+  const [engine, setEngine] = useState('google');
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<IntlResult | null>(null);
   const [errMsg, setErrMsg] = useState('');
@@ -36,7 +37,7 @@ export default function IntlKeywords() {
     setAnalyzing(true);
     setErrMsg('');
     try {
-      const d: any = await api.intlAnalyze({ keyword: kw, engine: 'google' });
+      const d: any = await api.intlAnalyze({ keyword: kw, engine });
       setResult(d);
     } catch (e: any) {
       setErrMsg(e?.message || t('intl.analyzeFailed'));
@@ -56,10 +57,20 @@ export default function IntlKeywords() {
       {/* 页头 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
         <span style={{ width: 8, height: 26, borderRadius: 4, background: 'linear-gradient(180deg,#4285F4,#34A853,#FBBC05,#EA4335)' }} />
-        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>{t('intl.googleTitle')}</span>
-        <Tag color="arcoblue" size="small">Google</Tag>
+        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--geo-text)' }}>{engine === 'naver' ? t('intl.naverTitle') : t('intl.googleTitle')}</span>
+        <Tag color={engine === 'naver' ? 'green' : 'arcoblue'} size="small">{engine === 'naver' ? 'Naver' : 'Google'}</Tag>
       </div>
       <div style={{ color: '#86909C', fontSize: 13, marginBottom: 16 }}>{t('intl.googleSub')}</div>
+
+      {/* 引擎切换 */}
+      <Tabs
+        activeTab={engine}
+        onChange={setEngine}
+        style={{ marginBottom: 12 }}
+      >
+        <Tabs.TabPane key="google" title="🇺🇸 Google" />
+        <Tabs.TabPane key="naver" title="🇰🇷 Naver" />
+      </Tabs>
 
       {/* 输入区 */}
       <Card bordered={false} style={{ borderRadius: 16, boxShadow: '0 2px 14px rgba(0,0,0,.05)', marginBottom: 16 }}>
@@ -68,7 +79,7 @@ export default function IntlKeywords() {
             value={keyword}
             onChange={setKeyword}
             onPressEnter={analyze}
-            placeholder={t('intl.googlePlaceholder')}
+            placeholder={engine === 'naver' ? t('intl.naverPlaceholder') : t('intl.googlePlaceholder')}
             prefix={<IconGoogle style={{ color: '#86909C' }} />}
             size="large"
             style={{ borderRadius: 10 }}

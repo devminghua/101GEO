@@ -3,6 +3,7 @@
 // 数据来自「关键词分析」页每次分析自动落库的排名快照，无需额外抓取。
 // 自适应：≥840px 宽屏用表格；窄屏切换为卡片流（每词一卡，竖排信息），页头自动换行。
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button, Card, Empty, Message, Spin, Table, Tag } from '@arco-design/web-react';
 import { IconRefresh, IconArrowUp, IconArrowDown, IconMinus, IconPlusCircle, IconCloseCircle } from '@arco-design/web-react/icon';
 import { api } from '../api';
@@ -60,6 +61,8 @@ function TrendTag({ trend }: { trend: string }) {
 }
 
 export default function RankMonitor() {
+  const [params] = useSearchParams();
+  const engine = params.get('engine') || 'baidu';
   const [items, setItems] = useState<OverviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [hint, setHint] = useState('');
@@ -67,7 +70,7 @@ export default function RankMonitor() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const d: any = await api.rankOverview();
+      const d: any = await api.rankOverview(engine);
       setItems(d.items || []);
       setHint(d.hint || '');
     } catch {
@@ -75,7 +78,7 @@ export default function RankMonitor() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [engine]);
 
   useEffect(() => {
     load();

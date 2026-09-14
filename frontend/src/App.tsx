@@ -410,6 +410,7 @@ export default function App() {
         { key: '/intl', label: t('menu.intl'), icon: <IconPublic />, feature: 'baidu', children: [
           { key: '/intl-google', label: 'Google', children: [
             { key: '/intl-google-keywords', label: t('menu.intlGoogleKeywords') },
+            { key: '/intl-google-rank', label: t('menu.rankMonitor') },
           ]},
         ]},
         { key: '/baidu', label: t('menu.baidu'), icon: <IconSearch />, feature: 'baidu', children: [
@@ -969,6 +970,7 @@ export default function App() {
                 <Route path="/help" element={<HelpDoc />} />
                 <Route path="/cases" element={<Cases />} />
                 <Route path="/intl-google-keywords" element={<IntlKeywords />} />
+                <Route path="/intl-google-rank" element={<RankMonitor />} />
                 <Route
                   path="/geo-intel"
                   element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="智能中心" />}

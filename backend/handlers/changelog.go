@@ -38,6 +38,14 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.67", Date: "2026-09-14", Title: "国际搜索优化 P2：Google 排名监控 + Naver 关键词分析",
+		Items: items(
+			"feat", "**Google 排名监控上线**：国际菜单新增「排名监控」，监控关键词与排名快照按搜索引擎隔离（baidu/google/naver），升降趋势与百度同口径",
+			"feat", "**Naver 关键词分析上线**：SerpAPI（engine=naver）适配器，页面一键切换 Google/Naver，同行竞争/霸屏统计/优化建议同管线复用",
+			"feat", "**总后台数据 API 页新增 SerpAPI Key 配置**（Naver 数据源，env 优先）",
+		),
+	},
+	{
 		Version: "1.0.66", Date: "2026-09-14", Title: "国际搜索优化 P1：Google 关键词分析",
 		Items: items(
 			"feat", "**国际搜索优化栏目上线**：侧栏新增「国际搜索优化」下拉（Google → 关键词分析），Google SERP 数据源 Serper（总后台「数据 API」页配置 Key），同行竞争/霸屏统计/优化建议与百度同口径",

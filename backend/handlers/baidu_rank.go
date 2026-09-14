@@ -189,8 +189,12 @@ func IndustryRankRefresh(c *gin.Context) {
 // 数据源为每次「关键词分析」自动落库的排名快照（baidu_rank_snapshots）。
 func RankOverview(c *gin.Context) {
 	tid := TenantID(c)
+	engine := strings.TrimSpace(c.Query("engine"))
+	if engine == "" {
+		engine = "baidu"
+	}
 	var kws []models.BaiduMonitorKeyword
-	database.DB.Where("tenant_id = ? AND enabled = ?", tid, true).Order("id asc").Find(&kws)
+	database.DB.Where("tenant_id = ? AND enabled = ? AND engine = ?", tid, true, engine).Order("id asc").Find(&kws)
 	if len(kws) == 0 {
 		dyOK(c, gin.H{"items": []gin.H{}, "keywords": 0, "hint": "暂无监控关键词，请先到「关键词分析」页配置"})
 		return
@@ -227,7 +231,7 @@ func RankOverview(c *gin.Context) {
 		}
 		// 该词该域最近两条快照（按日期倒序）
 		var snaps []models.BaiduRankSnapshot
-		database.DB.Where("tenant_id = ? AND keyword = ? AND site_domain = ?", tid, kw.Keyword, domain).
+		database.DB.Where("tenant_id = ? AND keyword = ? AND site_domain = ? AND engine = ?", tid, kw.Keyword, domain, engine).
 			Order("date desc").Limit(2).Find(&snaps)
 		r := row{Keyword: kw.Keyword, SiteID: kw.SiteID, SiteDomain: domain, SiteName: siteNames[kw.SiteID]}
 		if len(snaps) == 0 {

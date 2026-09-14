@@ -3,6 +3,9 @@ export default {
   intl: {
         emptyKeyword: '请输入要分析的关键词',
     analyzeFailed: '分析失败',
+    naverTitle: 'Naver 关键词分析',
+    naverSub: '分析 Naver 搜索结果中的同行竞争与品牌占位（数据源：SerpAPI）',
+    naverPlaceholder: '如：결혼정보회사',
     googleTitle: 'Google 关键词分析',
     googleSub: '分析 Google 搜索结果中的同行竞争与品牌占位（数据源：Serper）',
     googlePlaceholder: '如：matchmaking agency',

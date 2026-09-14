@@ -30,23 +30,32 @@ type RankPoint struct {
 	Occurrences int    `json:"occurrences"`  // 当日出现次数
 }
 
-// SaveSnapshot 写入一次分析快照。
-// 去重口径：同租户 + 关键词 + 域名 + 抓取日期唯一；存在则更新 best_rank/occurrences，否则插入。
+// SaveSnapshot 写入一次分析快照（百度引擎，兼容旧调用）。
 func SaveSnapshot(tid uint, keyword, domain string, bestRank, occurrences int) {
+	SaveSnapshotEngine(tid, keyword, domain, "baidu", bestRank, occurrences)
+}
+
+// SaveSnapshotEngine 写入一次分析快照（按搜索引擎隔离）。
+// 去重口径：同租户 + 关键词 + 域名 + 引擎 + 抓取日期唯一；存在则更新 best_rank/occurrences，否则插入。
+func SaveSnapshotEngine(tid uint, keyword, domain, engine string, bestRank, occurrences int) {
 	if tid == 0 || strings.TrimSpace(keyword) == "" || strings.TrimSpace(domain) == "" {
 		return
+	}
+	if engine == "" {
+		engine = "baidu"
 	}
 	db := database.DB
 	date := biztime.Today()
 	var snap models.BaiduRankSnapshot
-	err := db.Where("tenant_id = ? AND keyword = ? AND site_domain = ? AND date = ?",
-		tid, strings.TrimSpace(keyword), strings.TrimSpace(domain), date).First(&snap).Error
+	err := db.Where("tenant_id = ? AND keyword = ? AND site_domain = ? AND engine = ? AND date = ?",
+		tid, strings.TrimSpace(keyword), strings.TrimSpace(domain), engine, date).First(&snap).Error
 	if err == gorm.ErrRecordNotFound {
 		// 插入
 		db.Create(&models.BaiduRankSnapshot{
 			TenantID:    tid,
 			Keyword:     strings.TrimSpace(keyword),
 			SiteDomain:  strings.TrimSpace(domain),
+			Engine:      engine,
 			BestRank:    bestRank,
 			Occurrences: occurrences,
 			Date:        date,
@@ -71,11 +80,19 @@ func SaveSnapshot(tid uint, keyword, domain string, bestRank, occurrences int) {
 	})
 }
 
-// QueryRankHistory 查询某关键词近 days 天按日聚合的排名序列。
+// QueryRankHistory 查询某关键词近 days 天按日聚合的排名序列（百度引擎，兼容旧调用）。
 // 返回按日期升序的数组；每个日期为一条，含该词所有监控域名的当日最佳排名。
 func QueryRankHistory(tid uint, keyword string, days int) []RankPoint {
+	return QueryRankHistoryEngine(tid, keyword, "baidu", days)
+}
+
+// QueryRankHistoryEngine 按搜索引擎查询排名历史。
+func QueryRankHistoryEngine(tid uint, keyword, engine string, days int) []RankPoint {
 	if tid == 0 {
 		return nil
+	}
+	if engine == "" {
+		engine = "baidu"
 	}
 	if days <= 0 {
 		days = 30
@@ -85,8 +102,8 @@ func QueryRankHistory(tid uint, keyword string, days int) []RankPoint {
 	}
 	from := biztime.Day(-(days - 1))
 	var snaps []models.BaiduRankSnapshot
-	database.DB.Where("tenant_id = ? AND keyword = ? AND date >= ?",
-		tid, strings.TrimSpace(keyword), from).Find(&snaps)
+	database.DB.Where("tenant_id = ? AND keyword = ? AND engine = ? AND date >= ?",
+		tid, strings.TrimSpace(keyword), engine, from).Find(&snaps)
 
 	// 按 (date, site_domain) 聚合：best_rank 取该日所有记录中最小（最靠前，0 表示未上榜则保留 0）
 	type key struct{ date, domain string }

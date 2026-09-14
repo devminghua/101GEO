@@ -373,7 +373,7 @@ export const api = {
   // 百度关键词分析 · 客户网站配置（按租户隔离）
   baiduListSites: () => request('/baidu/sites'),
   // 排名监控看板：聚合全部监控词的最新排名与变化（快照聚合，不消耗查询配额）
-  rankOverview: () => request<{ items: any[]; keywords: number; hint?: string }>('/baidu/rank-overview'),
+  rankOverview: (engine = 'baidu') => request<{ items: any[]; keywords: number; hint?: string }>(`/baidu/rank-overview?engine=${engine}`),
   // 收录查询：site:domain 抓取百度收录总数与首页条目（消耗 1 次查询配额）
   baiduIndexCount: (body: { domain: string }) =>
     request<{ domain: string; count: number; count_exact: boolean; items: any[]; page_count: number }>('/baidu/index-count', { method: 'POST', body: JSON.stringify(body) }),
@@ -675,9 +675,9 @@ export const api = {
 
   // 第三方数据 API（Just One API）token 配置（总后台 super）：抖音/小红书稳定数据抓取
   dataApiConfig: () =>
-    request<{ enabled: boolean; token_masked: string; base_url: string; serper_enabled: boolean; serper_masked: string }>('/super/data-api/config'),
-  dataApiSaveConfig: (token: string, serperKey = '') =>
-    request<{ enabled: boolean; token_masked: string; serper_enabled: boolean; serper_masked: string }>('/super/data-api/config', { method: 'POST', body: JSON.stringify({ token, serper_key: serperKey }) }),
+    request<{ enabled: boolean; token_masked: string; base_url: string; serper_enabled: boolean; serper_masked: string; serpapi_enabled: boolean; serpapi_masked: string }>('/super/data-api/config'),
+  dataApiSaveConfig: (token: string, serperKey = '', serpapiKey = '') =>
+    request<{ enabled: boolean; token_masked: string; serper_enabled: boolean; serper_masked: string; serpapi_enabled: boolean; serpapi_masked: string }>('/super/data-api/config', { method: 'POST', body: JSON.stringify({ token, serper_key: serperKey, serpapi_key: serpapiKey }) }),
 
   // 帮助文档（使用教程）：客户端只读 + SaaS 后台管理
   helpTree: () =>

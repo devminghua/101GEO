@@ -29,6 +29,7 @@ type BaiduMonitorKeyword struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	TenantID   uint      `gorm:"index;not null" json:"tenant_id"`
 	Keyword    string    `gorm:"size:255;not null" json:"keyword"` // 关键词文本
+	Engine     string    `gorm:"size:16;default:baidu;index" json:"engine"` // 搜索引擎：baidu/google/naver
 	SiteID     uint      `gorm:"index" json:"site_id"`             // 关联网站 ID（BaiduSite.ID）
 	SiteDomain string    `gorm:"size:255" json:"site_domain"`      // 关联网站域名（冗余，便于查询展示）
 	Enabled    bool      `gorm:"default:true" json:"enabled"`      // 是否启用监控
@@ -42,6 +43,7 @@ type BaiduRankSnapshot struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	TenantID    uint      `gorm:"index;not null" json:"tenant_id"`
 	Keyword     string    `gorm:"size:255;index;not null" json:"keyword"`                 // 关键词
+	Engine      string    `gorm:"size:16;default:baidu;index" json:"engine"`              // 搜索引擎：baidu/google/naver
 	SiteDomain  string    `gorm:"size:255;index;not null" json:"site_domain"`             // 网站域名
 	BestRank    int       `gorm:"default:0" json:"best_rank"`                             // 该词该域名下最佳排名（0=未上榜）
 	Occurrences int       `gorm:"default:0" json:"occurrences"`                           // 该词该域名出现次数

@@ -3,6 +3,9 @@ export default {
   intl: {
         emptyKeyword: '分析するキーワードを入力してください',
     analyzeFailed: '分析に失敗しました',
+    naverTitle: 'Naverキーワード分析',
+    naverSub: 'Naver検索結果の競合状況とブランドポジションを分析（SerpAPI）',
+    naverPlaceholder: '例: 결혼정보회사',
     googleTitle: 'Googleキーワード分析',
     googleSub: 'Google検索結果の競合状況とブランドポジションを分析（Serper）',
     googlePlaceholder: '例: matchmaking agency',

@@ -3,6 +3,9 @@ export default {
   intl: {
         emptyKeyword: 'Please enter a keyword',
     analyzeFailed: 'Analysis failed',
+    naverTitle: 'Naver Keyword Analysis',
+    naverSub: 'Analyze competitor landscape and brand presence in Naver results (powered by SerpAPI)',
+    naverPlaceholder: 'e.g. 결혼정보회사',
     googleTitle: 'Google Keyword Analysis',
     googleSub: 'Analyze competitor landscape and brand presence in Google results (powered by Serper)',
     googlePlaceholder: 'e.g. matchmaking agency',
