@@ -18,12 +18,12 @@ func DataAPIConfig(c *gin.Context) {
 			"enabled":       token != "",
 			"token_masked":  maskToken(token),
 			"base_url":      social.BaseURL,
-			"serper_enabled": SerperKey() != "",
-			"serper_masked":  maskToken(SerperKey()),
-			"serpapi_enabled": SerpAPIKey() != "",
-			"serpapi_masked":  maskToken(SerpAPIKey()),
-			"datalab_enabled": DatalabClientID() != "" && DatalabClientSecret() != "",
-			"datalab_masked":  maskToken(DatalabClientID()),
+			"serper_enabled": SerperKeyFor(0) != "",
+			"serper_masked":  maskToken(SerperKeyFor(0)),
+			"serpapi_enabled": SerpAPIKeyFor(0) != "",
+			"serpapi_masked":  maskToken(SerpAPIKeyFor(0)),
+			"datalab_enabled": DatalabClientIDFor(0) != "" && DatalabClientSecretFor(0) != "",
+			"datalab_masked":  maskToken(DatalabClientIDFor(0)),
 		},
 	})
 }
@@ -56,12 +56,12 @@ func SaveDataAPIConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已保存", "data": gin.H{
 		"enabled":        req.Token != "",
 		"token_masked":   maskToken(req.Token),
-		"serper_enabled":  SerperKey() != "",
-		"serper_masked":   maskToken(SerperKey()),
-		"serpapi_enabled": SerpAPIKey() != "",
-		"serpapi_masked":  maskToken(SerpAPIKey()),
-		"datalab_enabled": DatalabClientID() != "" && DatalabClientSecret() != "",
-		"datalab_masked":  maskToken(DatalabClientID()),
+		"serper_enabled":  SerperKeyFor(0) != "",
+		"serper_masked":   maskToken(SerperKeyFor(0)),
+		"serpapi_enabled": SerpAPIKeyFor(0) != "",
+		"serpapi_masked":  maskToken(SerpAPIKeyFor(0)),
+		"datalab_enabled": DatalabClientIDFor(0) != "" && DatalabClientSecretFor(0) != "",
+		"datalab_masked":  maskToken(DatalabClientIDFor(0)),
 	}})
 }
 

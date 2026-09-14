@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, Form, Input, Button, Message, Tag, Alert, Spin } from '@arco-design/web-react';
 import { IconSave } from '@arco-design/web-react/icon';
 import { useTranslation } from 'react-i18next';
-import { api, getStoredUser } from '../api';
+import { api } from '../api';
 
 /* ================================================================
  * 国际数据源设置（入口：侧栏「国际搜索优化」下拉最底部，老板 2026-09-14 拍板）
@@ -12,7 +12,6 @@ import { api, getStoredUser } from '../api';
 
 export default function IntlDataSource() {
   const { t } = useTranslation();
-  const isSuper = getStoredUser()?.role === 'super';
   const [cfg, setCfg] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [serper, setSerper] = useState('');
@@ -24,15 +23,9 @@ export default function IntlDataSource() {
   const load = async () => {
     setLoading(true);
     try {
-      const c = await api.dataApiConfig();
+      const c = await api.intlDataSourceGet();
       setCfg(c || null);
-    } catch {
-      // 分站无权限读取 → 用状态接口兜底
-      try {
-        const s = await api.intlDataSourceStatus();
-        setCfg(s || null);
-      } catch { /* 忽略 */ }
-    } finally {
+    } catch { /* 忽略 */ } finally {
       setLoading(false);
     }
   };
@@ -46,7 +39,7 @@ export default function IntlDataSource() {
     }
     setSaving(true);
     try {
-      const res = await api.dataApiSaveConfig('', serper.trim(), serpapi.trim(), dlId.trim(), dlSecret.trim());
+      const res = await api.intlDataSourceSave({ serper_key: serper.trim(), serpapi_key: serpapi.trim(), datalab_client_id: dlId.trim(), datalab_client_secret: dlSecret.trim() });
       setSerper(''); setSerpapi(''); setDlId(''); setDlSecret('');
       setCfg(res as any);
       Message.success(t('intlDs.saved'));
@@ -67,14 +60,6 @@ export default function IntlDataSource() {
       </div>
       <div style={{ color: '#86909C', fontSize: 13, marginBottom: 16 }}>{t('intlDs.sub')}</div>
 
-      {!isSuper && (
-        <Alert
-          type="warning"
-          style={{ marginBottom: 16, borderRadius: 10 }}
-          content={t('intlDs.readonlyHint')}
-        />
-      )}
-
       {loading ? (
         <div style={{ padding: '60px 0', textAlign: 'center' }}><Spin size={24} /></div>
       ) : (
@@ -85,12 +70,11 @@ export default function IntlDataSource() {
             <Form layout="vertical" style={{ maxWidth: 560 }}>
               <Form.Item label={t('intlDs.status')}>
                 {cfg?.serper_enabled ? <Tag color="green">{t('intlDs.configured')}（{cfg?.serper_masked}）</Tag> : <Tag color="orange">{t('intlDs.notConfigured')}</Tag>}
+                {cfg?.serper_own && <Tag color="arcoblue" size="small">{t('intlDs.ownKey')}</Tag>}
               </Form.Item>
-              {isSuper && (
-                <Form.Item label="Serper API Key" extra={t('intlDs.keepEmpty')}>
-                  <Input.Password value={serper} onChange={setSerper} placeholder="Serper.dev API Key" autoComplete="new-password" />
-                </Form.Item>
-              )}
+              <Form.Item label="Serper API Key" extra={t('intlDs.keepEmpty')}>
+                <Input.Password value={serper} onChange={setSerper} placeholder="Serper.dev API Key" autoComplete="new-password" />
+              </Form.Item>
             </Form>
           </Card>
 
@@ -100,12 +84,11 @@ export default function IntlDataSource() {
             <Form layout="vertical" style={{ maxWidth: 560 }}>
               <Form.Item label={t('intlDs.status')}>
                 {cfg?.serpapi_enabled ? <Tag color="green">{t('intlDs.configured')}（{cfg?.serpapi_masked}）</Tag> : <Tag color="orange">{t('intlDs.notConfigured')}</Tag>}
+                {cfg?.serpapi_own && <Tag color="arcoblue" size="small">{t('intlDs.ownKey')}</Tag>}
               </Form.Item>
-              {isSuper && (
-                <Form.Item label="SerpAPI Key" extra={t('intlDs.keepEmpty')}>
-                  <Input.Password value={serpapi} onChange={setSerpapi} placeholder="SerpAPI Key" autoComplete="new-password" />
-                </Form.Item>
-              )}
+              <Form.Item label="SerpAPI Key" extra={t('intlDs.keepEmpty')}>
+                <Input.Password value={serpapi} onChange={setSerpapi} placeholder="SerpAPI Key" autoComplete="new-password" />
+              </Form.Item>
             </Form>
           </Card>
 
@@ -115,27 +98,22 @@ export default function IntlDataSource() {
             <Form layout="vertical" style={{ maxWidth: 560 }}>
               <Form.Item label={t('intlDs.status')}>
                 {cfg?.datalab_enabled ? <Tag color="green">{t('intlDs.configured')}（{cfg?.datalab_masked}）</Tag> : <Tag color="orange">{t('intlDs.notConfigured')}</Tag>}
+                {cfg?.datalab_own && <Tag color="arcoblue" size="small">{t('intlDs.ownKey')}</Tag>}
               </Form.Item>
-              {isSuper && (
-                <>
-                  <Form.Item label="Client ID" extra={t('intlDs.keepEmpty')}>
-                    <Input value={dlId} onChange={setDlId} placeholder="Naver Datalab Client ID" autoComplete="off" />
-                  </Form.Item>
-                  <Form.Item label="Client Secret" extra={t('intlDs.keepEmpty')}>
-                    <Input.Password value={dlSecret} onChange={setDlSecret} placeholder="Naver Datalab Client Secret" autoComplete="new-password" />
-                  </Form.Item>
-                </>
-              )}
+              <Form.Item label="Client ID" extra={t('intlDs.keepEmpty')}>
+                <Input value={dlId} onChange={setDlId} placeholder="Naver Datalab Client ID" autoComplete="off" />
+              </Form.Item>
+              <Form.Item label="Client Secret" extra={t('intlDs.keepEmpty')}>
+                <Input.Password value={dlSecret} onChange={setDlSecret} placeholder="Naver Datalab Client Secret" autoComplete="new-password" />
+              </Form.Item>
             </Form>
           </Card>
 
-          {isSuper && (
-            <div style={{ marginTop: 20 }}>
-              <Button type="primary" size="large" icon={<IconSave />} loading={saving} onClick={save}>
-                {t('intlDs.saveAll')}
-              </Button>
-            </div>
-          )}
+          <div style={{ marginTop: 20 }}>
+            <Button type="primary" size="large" icon={<IconSave />} loading={saving} onClick={save}>
+              {t('intlDs.saveAll')}
+            </Button>
+          </div>
         </>
       )}
     </div>

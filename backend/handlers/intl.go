@@ -25,35 +25,54 @@ const keySerpAPIKey = "serpapi_key"
 const keyDatalabClientID = "datalab_client_id"
 const keyDatalabClientSecret = "datalab_client_secret"
 
-// SerperKey 读取 Serper API Key（env 优先，其次总后台 settings）
-func SerperKey() string {
-	if v := strings.TrimSpace(os.Getenv("GEO_SERPER_KEY")); v != "" {
+// 数据源 Key 读取优先级（老板 2026-09-14 拍板：分站可自备 Key，权限放开）：
+// 租户级 settings(tid) 优先 → 平台级 settings(0) 回退 → 环境变量。
+func SerperKeyFor(tid uint) string {
+	if tid > 0 {
+		if v := strings.TrimSpace(readSetting(tid, keySerperAPIKey)); v != "" {
+			return v
+		}
+	}
+	if v := strings.TrimSpace(readSetting(0, keySerperAPIKey)); v != "" {
 		return v
 	}
-	return strings.TrimSpace(readSetting(0, keySerperAPIKey))
+	return strings.TrimSpace(os.Getenv("GEO_SERPER_KEY"))
 }
 
-// SerpAPIKey 读取 SerpAPI Key（Naver SERP 数据源）
-func SerpAPIKey() string {
-	if v := strings.TrimSpace(os.Getenv("GEO_SERPAPI_KEY")); v != "" {
+func SerpAPIKeyFor(tid uint) string {
+	if tid > 0 {
+		if v := strings.TrimSpace(readSetting(tid, keySerpAPIKey)); v != "" {
+			return v
+		}
+	}
+	if v := strings.TrimSpace(readSetting(0, keySerpAPIKey)); v != "" {
 		return v
 	}
-	return strings.TrimSpace(readSetting(0, keySerpAPIKey))
+	return strings.TrimSpace(os.Getenv("GEO_SERPAPI_KEY"))
 }
 
-// DatalabClientID / DatalabClientSecret Naver Datalab 凭据（行业排行数据源）
-func DatalabClientID() string {
-	if v := strings.TrimSpace(os.Getenv("GEO_DATALAB_CLIENT_ID")); v != "" {
+func DatalabClientIDFor(tid uint) string {
+	if tid > 0 {
+		if v := strings.TrimSpace(readSetting(tid, keyDatalabClientID)); v != "" {
+			return v
+		}
+	}
+	if v := strings.TrimSpace(readSetting(0, keyDatalabClientID)); v != "" {
 		return v
 	}
-	return strings.TrimSpace(readSetting(0, keyDatalabClientID))
+	return strings.TrimSpace(os.Getenv("GEO_DATALAB_CLIENT_ID"))
 }
 
-func DatalabClientSecret() string {
-	if v := strings.TrimSpace(os.Getenv("GEO_DATALAB_CLIENT_SECRET")); v != "" {
+func DatalabClientSecretFor(tid uint) string {
+	if tid > 0 {
+		if v := strings.TrimSpace(readSetting(tid, keyDatalabClientSecret)); v != "" {
+			return v
+		}
+	}
+	if v := strings.TrimSpace(readSetting(0, keyDatalabClientSecret)); v != "" {
 		return v
 	}
-	return strings.TrimSpace(readSetting(0, keyDatalabClientSecret))
+	return strings.TrimSpace(os.Getenv("GEO_DATALAB_CLIENT_SECRET"))
 }
 
 // AnalyzeIntlKeyword POST /api/intl/analyze —— 国际关键词分析（engine=google）
@@ -82,11 +101,11 @@ func AnalyzeIntlKeyword(c *gin.Context) {
 	}
 	// API Key 前置校验：未配置直接报错（先校验依赖 → 再扣费铁律）
 	if req.Engine == "naver" {
-		if SerpAPIKey() == "" {
+		if SerpAPIKeyFor(TenantID(c)) == "" {
 			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 SerpAPI Key，请联系服务商（总后台「数据 API」页配置）"})
 			return
 		}
-	} else if SerperKey() == "" {
+	} else if SerperKeyFor(TenantID(c)) == "" {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 Serper API Key，请联系服务商（总后台「数据 API」页配置）"})
 		return
 	}
@@ -105,9 +124,9 @@ func AnalyzeIntlKeyword(c *gin.Context) {
 	var res *baidu.Result
 	var err error
 	if req.Engine == "naver" {
-		res, err = serp.RunNaver(cfg, SerpAPIKey())
+		res, err = serp.RunNaver(cfg, SerpAPIKeyFor(TenantID(c)))
 	} else {
-		res, err = serp.RunGoogle(cfg, SerperKey())
+		res, err = serp.RunGoogle(cfg, SerperKeyFor(TenantID(c)))
 	}
 	if err != nil && res == nil {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "分析失败：" + err.Error()})
@@ -147,11 +166,11 @@ func IntlIndexCount(c *gin.Context) {
 	}
 	// 先校验依赖 → 再扣费
 	if req.Engine == "naver" {
-		if SerpAPIKey() == "" {
+		if SerpAPIKeyFor(TenantID(c)) == "" {
 			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 SerpAPI Key，请联系服务商（总后台「数据 API」页配置）"})
 			return
 		}
-	} else if SerperKey() == "" {
+	} else if SerperKeyFor(TenantID(c)) == "" {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 Serper API Key，请联系服务商（总后台「数据 API」页配置）"})
 		return
 	}
@@ -161,9 +180,9 @@ func IntlIndexCount(c *gin.Context) {
 	var res *serp.IndexResult
 	var err error
 	if req.Engine == "naver" {
-		res, err = serp.IndexCountNaver(domain, SerpAPIKey())
+		res, err = serp.IndexCountNaver(domain, SerpAPIKeyFor(TenantID(c)))
 	} else {
-		res, err = serp.IndexCountGoogle(domain, SerperKey())
+		res, err = serp.IndexCountGoogle(domain, SerperKeyFor(TenantID(c)))
 	}
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "收录查询失败：" + err.Error()})
@@ -202,12 +221,12 @@ func IntlTrends(c *gin.Context) {
 	}
 	// 依赖前置校验（先校验 → 再扣费）
 	if req.Engine == "naver" {
-		if DatalabClientID() == "" || DatalabClientSecret() == "" {
+		if DatalabClientIDFor(TenantID(c)) == "" || DatalabClientSecretFor(TenantID(c)) == "" {
 			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 Naver Datalab 凭据（总后台「数据 API」页配置）"})
 			return
 		}
 	} else if req.Engine == "google" {
-		if SerpAPIKey() == "" {
+		if SerpAPIKeyFor(TenantID(c)) == "" {
 			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 SerpAPI Key（Google Trends 数据源，总后台「数据 API」页配置）"})
 			return
 		}
@@ -240,7 +259,7 @@ func IntlTrends(c *gin.Context) {
 				Keywords []string `json:"keywords"`
 			}{Name: k, Keywords: []string{k}})
 		}
-		series, err := datalab.Query(DatalabClientID(), DatalabClientSecret(), start, end, "date", groups)
+		series, err := datalab.Query(DatalabClientIDFor(TenantID(c)), DatalabClientSecretFor(TenantID(c)), start, end, "date", groups)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "趋势查询失败：" + err.Error()})
 			return
@@ -255,7 +274,7 @@ func IntlTrends(c *gin.Context) {
 	case "6m": date = "today 6-m"
 	case "12m": date = "today 12-m"
 	}
-	series, err := serp.TrendsGoogle(SerpAPIKey(), date, kws)
+	series, err := serp.TrendsGoogle(SerpAPIKeyFor(TenantID(c)), date, kws)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "趋势查询失败：" + err.Error()})
 		return
@@ -265,12 +284,61 @@ func IntlTrends(c *gin.Context) {
 
 // IntlDataSourceStatus GET /api/intl/data-source-status —— 分站可读的数据源配置状态（不含任何密钥）
 func IntlDataSourceStatus(c *gin.Context) {
+	IntlDataSourceGet(c)
+}
+
+// IntlDataSourceGet GET /api/intl/data-source —— 当前租户的数据源配置（租户 Key 优先，平台级回退，脱敏）
+func IntlDataSourceGet(c *gin.Context) {
+	tid := TenantID(c)
 	dyOK(c, gin.H{
-		"serper_enabled":  SerperKey() != "",
-		"serper_masked":   maskToken(SerperKey()),
-		"serpapi_enabled": SerpAPIKey() != "",
-		"serpapi_masked":  maskToken(SerpAPIKey()),
-		"datalab_enabled": DatalabClientID() != "" && DatalabClientSecret() != "",
-		"datalab_masked":  maskToken(DatalabClientID()),
+		"serper_enabled":  SerperKeyFor(tid) != "",
+		"serper_masked":   maskToken(SerperKeyFor(tid)),
+		"serper_own":      tid > 0 && strings.TrimSpace(readSetting(tid, keySerperAPIKey)) != "",
+		"serpapi_enabled": SerpAPIKeyFor(tid) != "",
+		"serpapi_masked":  maskToken(SerpAPIKeyFor(tid)),
+		"serpapi_own":     tid > 0 && strings.TrimSpace(readSetting(tid, keySerpAPIKey)) != "",
+		"datalab_enabled": DatalabClientIDFor(tid) != "" && DatalabClientSecretFor(tid) != "",
+		"datalab_masked":  maskToken(DatalabClientIDFor(tid)),
+		"datalab_own":     tid > 0 && strings.TrimSpace(readSetting(tid, keyDatalabClientID)) != "",
+		"tenant_id":       tid,
 	})
 }
+
+// IntlDataSourceSave POST /api/intl/data-source —— 保存当前租户的数据源 Key（分站自备，权限放开）
+func IntlDataSourceSave(c *gin.Context) {
+	var req struct {
+		Serper   string `json:"serper_key"`
+		SerpAPI  string `json:"serpapi_key"`
+		DLClientID string `json:"datalab_client_id"`
+		DLSecret   string `json:"datalab_client_secret"`
+	}
+	if !jsonBody(c, &req) {
+		return
+	}
+	tid := TenantID(c)
+	if req.Serper != "" {
+		saveSetting(tid, keySerperAPIKey, req.Serper)
+	}
+	if req.SerpAPI != "" {
+		saveSetting(tid, keySerpAPIKey, req.SerpAPI)
+	}
+	if req.DLClientID != "" {
+		saveSetting(tid, keyDatalabClientID, req.DLClientID)
+	}
+	if req.DLSecret != "" {
+		saveSetting(tid, keyDatalabClientSecret, req.DLSecret)
+	}
+	dyOK(c, gin.H{
+		"serper_enabled":  SerperKeyFor(tid) != "",
+		"serper_masked":   maskToken(SerperKeyFor(tid)),
+		"serper_own":      tid > 0 && strings.TrimSpace(readSetting(tid, keySerperAPIKey)) != "",
+		"serpapi_enabled": SerpAPIKeyFor(tid) != "",
+		"serpapi_masked":  maskToken(SerpAPIKeyFor(tid)),
+		"serpapi_own":     tid > 0 && strings.TrimSpace(readSetting(tid, keySerpAPIKey)) != "",
+		"datalab_enabled": DatalabClientIDFor(tid) != "" && DatalabClientSecretFor(tid) != "",
+		"datalab_masked":  maskToken(DatalabClientIDFor(tid)),
+		"datalab_own":     tid > 0 && strings.TrimSpace(readSetting(tid, keyDatalabClientID)) != "",
+		"tenant_id":       tid,
+	})
+}
+

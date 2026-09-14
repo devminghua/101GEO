@@ -213,6 +213,8 @@ func main() {
 		api.POST("/intl/index-count", handlers.IntlIndexCount)
 		api.POST("/intl/trends", handlers.IntlTrends)
 		api.GET("/intl/data-source-status", handlers.IntlDataSourceStatus)
+		api.GET("/intl/data-source", handlers.IntlDataSourceGet)
+		api.POST("/intl/data-source", handlers.IntlDataSourceSave)
 		api.POST("/baidu/suggest", handlers.KeywordSuggest)
 		// 站点体检（四层）+ 差距诊断（三缺口）
 		api.POST("/baidu/site-audit", handlers.SiteAuditDetail)

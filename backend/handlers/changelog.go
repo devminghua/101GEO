@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.72", Date: "2026-09-14", Title: "国际数据源权限放开（分站自备 Key）+ 菜单更名",
+		Items: items(
+			"feat", "**数据源 Key 权限放开**：分站可在「数据源设置」页配置自己的 Serper/SerpAPI/Datalab Key（租户级），读取优先级：分站 Key > 平台默认 Key > 环境变量；已配分站 Key 的显示「本分站 Key」标记",
+			"improve", "菜单「Google 关键词分析」更名为「关键词分析」（页面内含 Google/Naver 切换）",
+		),
+	},
+	{
 		Version: "1.0.71", Date: "2026-09-14", Title: "国际与百度彻底分家（老板拍板：中文归中文，大陆以外独立自主）",
 		Items: items(
 			"feat", "**国际查询独立配额池**：国际搜索优化三个查询（分析/收录/趋势）使用独立 intl 配额池，与百度 total 池完全分开计数、互不影响",
