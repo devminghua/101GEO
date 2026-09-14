@@ -64,6 +64,7 @@ import HelpDocConfig from './pages/super/HelpDocConfig';
 import HelpDoc from './pages/HelpDoc';
 import Cases from './pages/Cases';
 import IntlKeywords from './pages/IntlKeywords';
+import IntlIndex from './pages/IntlIndex';
 import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
@@ -411,6 +412,8 @@ export default function App() {
           { key: '/intl-google', label: 'Google', children: [
             { key: '/intl-google-keywords', label: t('menu.intlGoogleKeywords') },
             { key: '/intl-google-rank', label: t('menu.rankMonitor') },
+            { key: '/intl-google-index', label: t('menu.indexCount') },
+            { key: '/intl-google-audit', label: t('menu.siteAudit') },
           ]},
         ]},
         { key: '/baidu', label: t('menu.baidu'), icon: <IconSearch />, feature: 'baidu', children: [
@@ -971,6 +974,8 @@ export default function App() {
                 <Route path="/cases" element={<Cases />} />
                 <Route path="/intl-google-keywords" element={<IntlKeywords />} />
                 <Route path="/intl-google-rank" element={<RankMonitor />} />
+                <Route path="/intl-google-index" element={<IntlIndex />} />
+                <Route path="/intl-google-audit" element={<SiteAudit />} />
                 <Route
                   path="/geo-intel"
                   element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="智能中心" />}

@@ -1,5 +1,23 @@
 /* English language pack */
 export default {
+  intlIdx: {
+        title: 'Intl Index Status',
+    sub: 'Check how many pages of your site are indexed by Google / Naver (site: snapshot)',
+    placeholder: 'e.g. example.com',
+    query: 'Check',
+    quotaNote: 'Each query consumes 1 daily quota',
+    total: 'Total Indexed',
+    firstPage: 'First Page Items',
+    exact: 'Official',
+    approx: 'Estimated',
+    firstPageItems: 'First Page Results',
+    colTitle: 'Title',
+    colUrl: 'URL',
+    noItems: 'No indexed items',
+    empty: 'Enter a domain to check Google / Naver indexing',
+    emptyDomain: 'Please enter a domain',
+    failed: 'Index query failed',
+  },
   intl: {
         emptyKeyword: 'Please enter a keyword',
     analyzeFailed: 'Analysis failed',

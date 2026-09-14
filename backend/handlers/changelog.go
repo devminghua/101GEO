@@ -38,6 +38,14 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.68", Date: "2026-09-14", Title: "国际搜索优化 P3：收录查询 + 站点体检",
+		Items: items(
+			"feat", "**国际收录查询上线**：输入域名查询 Google / Naver 收录（site: 快照口径），Serper 官方总数+首页条目，Naver 条数估算并明确标注口径",
+			"feat", "**国际站点体检上线**：复用统一站点体检引擎（与搜索引擎无关，检查站点自身 SEO 健康度），Google/Naver 站点通用",
+			"improve", "GSC / Naver Search Advisor 官方授权数据源（收录/真实排名）将在凭证就绪后接入，届时收录数自动升级为官方权威口径",
+		),
+	},
+	{
 		Version: "1.0.67", Date: "2026-09-14", Title: "国际搜索优化 P2：Google 排名监控 + Naver 关键词分析",
 		Items: items(
 			"feat", "**Google 排名监控上线**：国际菜单新增「排名监控」，监控关键词与排名快照按搜索引擎隔离（baidu/google/naver），升降趋势与百度同口径",

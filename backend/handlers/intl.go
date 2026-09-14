@@ -105,3 +105,50 @@ func AnalyzeIntlKeyword(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": res})
 }
+
+// IntlIndexCount POST /api/intl/index-count —— 国际收录查询（site: 走 SERP 引擎）
+func IntlIndexCount(c *gin.Context) {
+	var req struct {
+		Domain string `json:"domain"`
+		Engine string `json:"engine"`
+	}
+	if !jsonBody(c, &req) {
+		return
+	}
+	domain := normalizeDomain(strings.TrimSpace(req.Domain))
+	if domain == "" {
+		dyErr(c, http.StatusBadRequest, "请填写要查询的网站域名")
+		return
+	}
+	switch req.Engine {
+	case "google", "naver":
+	default:
+		dyErr(c, http.StatusBadRequest, "暂不支持该搜索引擎（当前支持 google / naver）")
+		return
+	}
+	// 先校验依赖 → 再扣费
+	if req.Engine == "naver" {
+		if SerpAPIKey() == "" {
+			c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 SerpAPI Key，请联系服务商（总后台「数据 API」页配置）"})
+			return
+		}
+	} else if SerperKey() == "" {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "未配置 Serper API Key，请联系服务商（总后台「数据 API」页配置）"})
+		return
+	}
+	if !QuotaGuard(c) {
+		return
+	}
+	var res *serp.IndexResult
+	var err error
+	if req.Engine == "naver" {
+		res, err = serp.IndexCountNaver(domain, SerpAPIKey())
+	} else {
+		res, err = serp.IndexCountGoogle(domain, SerperKey())
+	}
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 1, "msg": "收录查询失败：" + err.Error()})
+		return
+	}
+	dyOK(c, res)
+}

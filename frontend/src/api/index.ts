@@ -354,6 +354,8 @@ export const api = {
   // 国际搜索优化：Google/Naver 关键词分析（engine=google，P1）
   intlAnalyze: (body: { keyword: string; engine: string; my_domain?: string; my_domains?: string[] }) =>
     request('/intl/analyze', { method: 'POST', body: JSON.stringify(body) }),
+  intlIndexCount: (body: { domain: string; engine: string }) =>
+    request('/intl/index-count', { method: 'POST', body: JSON.stringify(body) }),
   baiduSuggest: (body: { keyword: string; source?: string }) =>
     request<{ keyword: string; words: string[]; baidu_count: number; google_count: number }>('/baidu/suggest', { method: 'POST', body: JSON.stringify(body) }),
   siteAudit: (body: { url: string }) =>

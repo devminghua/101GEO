@@ -1,5 +1,23 @@
 /* 中文语言包（基准） */
 export default {
+  intlIdx: {
+        title: '国际收录查询',
+    sub: '查询网站在 Google / Naver 的收录情况（site: 快照口径）',
+    placeholder: '如：example.com',
+    query: '查收录',
+    quotaNote: '每查询消耗 1 次每日查询配额',
+    total: '收录总量',
+    firstPage: '首页条数',
+    exact: '官方口径',
+    approx: '估算值',
+    firstPageItems: '收录首页条目',
+    colTitle: '标题',
+    colUrl: '链接',
+    noItems: '暂无收录条目',
+    empty: '输入域名查询 Google / Naver 收录情况',
+    emptyDomain: '请输入网站域名',
+    failed: '收录查询失败',
+  },
   intl: {
         emptyKeyword: '请输入要分析的关键词',
     analyzeFailed: '分析失败',

@@ -1,5 +1,23 @@
 /* 日本語言語パック */
 export default {
+  intlIdx: {
+        title: '国際インデックス状況',
+    sub: 'Google / Naverでのサイト収録状況を確認（site: スナップショット）',
+    placeholder: '例: example.com',
+    query: '確認',
+    quotaNote: '1回の照会で日次クォータを1消費',
+    total: '総収録数',
+    firstPage: '1ページ目件数',
+    exact: '公式基準',
+    approx: '推定値',
+    firstPageItems: '収録1ページ目',
+    colTitle: 'タイトル',
+    colUrl: 'URL',
+    noItems: '収録項目なし',
+    empty: 'ドメインを入力して収録状況を確認',
+    emptyDomain: 'ドメインを入力してください',
+    failed: '収録照会に失敗しました',
+  },
   intl: {
         emptyKeyword: '分析するキーワードを入力してください',
     analyzeFailed: '分析に失敗しました',

@@ -1,5 +1,23 @@
 /* 한국어 언어팩 */
 export default {
+  intlIdx: {
+        title: '국제 수록 조회',
+    sub: 'Google / Naver의 사이트 수록 현황 조회 (site: 스냅샷 기준)',
+    placeholder: '예: example.com',
+    query: '조회',
+    quotaNote: '조회 1회당 일일 쿼터 1회 차감',
+    total: '총 수록량',
+    firstPage: '첫 페이지 수',
+    exact: '공식 기준',
+    approx: '추정치',
+    firstPageItems: '수록 첫 페이지 항목',
+    colTitle: '제목',
+    colUrl: '링크',
+    noItems: '수록 항목 없음',
+    empty: '도메인을 입력해 Google / Naver 수록을 확인하세요',
+    emptyDomain: '도메인을 입력하세요',
+    failed: '수록 조회 실패',
+  },
   intl: {
         emptyKeyword: '분석할 키워드를 입력하세요',
     analyzeFailed: '분석 실패',
