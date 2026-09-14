@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.62", Date: "2026-09-14", Title: "成功案例编辑器支持上传图片",
+		Items: items(
+			"fix", "**成功案例编辑器支持上传图片**：正文富文本可直接插入本地图片，封面图支持「本地上传」按钮（也保留 URL 填写），上传后即时预览",
+			"improve", "排查发现系统图片上传接口（/system/upload-image）早已就绪，但成功案例编辑器未接入上传配置导致只能填图片链接；本次接入统一上传通道，帮助文档编辑器此前已接入不受影响",
+		),
+	},
+	{
 		Version: "1.0.61", Date: "2026-09-14", Title: "新增成功案例：SaaS 端上传，客户端展示",
 		Items: items(
 			"feat", "**客户端新增「成功案例」**：侧栏独立入口（使用指南上方），卡片流展示封面/标题/摘要/标签，点击查看完整案例详情",

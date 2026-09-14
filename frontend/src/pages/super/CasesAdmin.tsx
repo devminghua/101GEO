@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, Button, Message, Input, Popconfirm, Space, Tag, Table, Modal, Switch, InputNumber } from '@arco-design/web-react';
-import { IconPlus, IconEdit, IconDelete } from '@arco-design/web-react/icon';
+import { Card, Button, Message, Input, Popconfirm, Space, Tag, Table, Modal, Switch, InputNumber, Upload } from '@arco-design/web-react';
+import { IconPlus, IconEdit, IconDelete, IconUpload } from '@arco-design/web-react/icon';
 import '@wangeditor/editor/dist/css/style.css';
 import { Editor, Toolbar } from '@wangeditor/editor-for-react';
 import { IDomEditor, IEditorConfig } from '@wangeditor/editor';
@@ -9,8 +9,24 @@ import { api } from '../../api';
 /* ================================================================
  * 成功案例管理（SaaS 后台 super）：上传/编辑/删除平台级案例，
  * 发布后客户端「成功案例」页即时可见。
- * 正文富文本（图文）；封面填图片 URL。
+ * 正文富文本（图文，支持本地上传插图）；封面图支持本地上传或填 URL。
  * ================================================================ */
+
+// 富文本编辑器配置：图片走自定义上传（api.uploadImage 带鉴权）
+const editorConfig: Partial<IEditorConfig> = {
+  MENU_CONF: {
+    uploadImage: {
+      async customUpload(file: File, insertFn: (url: string, alt: string, href: string) => void) {
+        try {
+          const d = await api.uploadImage(file, 'case');
+          insertFn(d.url, '', '');
+        } catch (e: any) {
+          Message.error(e?.message || '图片上传失败');
+        }
+      },
+    },
+  },
+};
 export default function CasesAdmin() {
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -166,8 +182,40 @@ export default function CasesAdmin() {
             <Input.TextArea value={summary} onChange={setSummary} placeholder="一句话概括案例成果" maxLength={512} rows={2} />
           </div>
           <div>
-            <div style={{ marginBottom: 6, fontSize: 13, color: '#4e5969' }}>封面图 URL（可选，如 https://…/cover.jpg）</div>
-            <Input value={coverURL} onChange={setCoverURL} placeholder="https://…" />
+            <div style={{ marginBottom: 6, fontSize: 13, color: '#4e5969' }}>封面图（本地上传或填 URL）</div>
+            <Space style={{ width: '100%' }}>
+              <Input value={coverURL} onChange={setCoverURL} placeholder="https://… 或点击右侧上传本地图片" style={{ flex: 1 }} />
+              <Upload
+                showUploadList={false}
+                accept="image/*"
+                customRequest={async (option: any) => {
+                  try {
+                    const d = await api.uploadImage(option.file as File, 'cover');
+                    setCoverURL(d.url);
+                    Message.success('封面上传成功');
+                  } catch (e: any) {
+                    Message.error(e?.message || '上传失败');
+                  } finally {
+                    option.onProgress?.(100);
+                    option.onSuccess?.({});
+                  }
+                }}
+              >
+                <Button icon={<IconUpload />}>上传封面</Button>
+              </Upload>
+            </Space>
+            {coverURL && (
+              <div
+                style={{
+                  marginTop: 8,
+                  height: 100,
+                  borderRadius: 8,
+                  background: `url(${coverURL}) center/cover no-repeat`,
+                  backgroundColor: '#f7f8fa',
+                  border: '1px solid var(--color-border-2)',
+                }}
+              />
+            )}
           </div>
           <div>
             <div style={{ marginBottom: 6, fontSize: 13, color: '#4e5969' }}>标签（逗号分隔，可选）</div>
@@ -195,7 +243,7 @@ export default function CasesAdmin() {
               />
               <Editor
                 key={`ed-${editorKeyRef.current}`}
-                defaultConfig={{ placeholder: '填写案例正文：客户背景、使用过程、效果数据…' }}
+                defaultConfig={{ placeholder: '填写案例正文：客户背景、使用过程、效果数据…（支持插入图片）', ...editorConfig }}
                 value={html}
                 onCreated={setEditor}
                 onChange={(e) => setHtml(e.getHtml())}
