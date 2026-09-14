@@ -218,6 +218,8 @@ func main() {
 		api.POST("/baidu/suggest", handlers.KeywordSuggest)
 		// 站点体检（四层）+ 差距诊断（三缺口）
 		api.POST("/baidu/site-audit", handlers.SiteAuditDetail)
+		// 站点体检 · Nmap 端口扫描（老板 2026-09-14 需求）
+		api.POST("/baidu/site-audit/portscan", handlers.SitePortScan)
 		api.GET("/baidu/gap-diagnose", handlers.GapDiagnose)
 		// 百度指数行业排行（各行业 TOP 品牌指数）
 		api.GET("/baidu/industry-rank", handlers.IndustryRank)

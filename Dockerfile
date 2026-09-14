@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o geotool .
 FROM debian:bookworm-slim
 RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || true
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates tzdata chromium fonts-noto-cjk \
+        ca-certificates tzdata chromium fonts-noto-cjk nmap \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/backend
 COPY --from=be-builder /build/backend/geotool .

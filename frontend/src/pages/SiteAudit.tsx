@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Card, Button, Input, Message, Spin, Space, Tag, Alert, Typography, Grid, Progress } from '@arco-design/web-react';
-import { IconLaunch, IconRefresh } from '@arco-design/web-react/icon';
+import { Card, Button, Input, Message, Spin, Space, Tag, Alert, Typography, Grid, Progress, Table } from '@arco-design/web-react';
+import { IconLaunch, IconRefresh, IconBug } from '@arco-design/web-react/icon';
 import { api } from '../api';
 
 const { Title, Text } = Typography;
@@ -24,6 +24,11 @@ export default function SiteAudit() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  // Nmap 端口扫描（老板 2026-09-14 需求）
+  const [scanTarget, setScanTarget] = useState('');
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [scanErr, setScanErr] = useState('');
 
   const run = async () => {
     if (!url.trim()) { Message.warning('请输入站点 URL'); return; }
@@ -36,6 +41,22 @@ export default function SiteAudit() {
       Message.error(e.message || '体检失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runScan = async () => {
+    const target = (scanTarget || url).trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    if (!target) { Message.warning('请输入要扫描的网站域名'); return; }
+    setScanLoading(true);
+    setScanErr('');
+    setScanResult(null);
+    try {
+      const r: any = await api.sitePortScan({ url: target });
+      setScanResult(r);
+    } catch (e: any) {
+      setScanErr(e?.message || '端口扫描失败');
+    } finally {
+      setScanLoading(false);
     }
   };
 
@@ -65,6 +86,57 @@ export default function SiteAudit() {
           按「访问 → 定向 → 理解 → 可引用」四层加权体检（权重 30/18/32/20），每层依赖上一层，访问层失败时下游一切优化在引擎侧不可见。
           与「GEO 智能 → ⑧ 网站审计」共用同一套评分核心与历史记录，两个入口结果完全一致。
         </div>
+      </Card>
+
+      {/* Nmap 端口扫描（独立能力卡） */}
+      <Card
+        title={<span><IconBug style={{ marginRight: 6, color: '#FF7D00' }} />端口扫描（Nmap）</span>}
+        style={{ borderRadius: 12, marginBottom: 16 }}
+      >
+        <Space style={{ width: '100%' }}>
+          <Input
+            value={scanTarget}
+            onChange={setScanTarget}
+            onPressEnter={runScan}
+            placeholder="默认使用上方站点域名，也可单独填写"
+            style={{ width: 420 }}
+          />
+          <Button type="outline" icon={<IconLaunch />} loading={scanLoading} onClick={runScan}>开始扫描</Button>
+        </Space>
+        <div style={{ marginTop: 8, fontSize: 13, color: '#86909C' }}>
+          对站点域名做常用端口与服务识别（Nmap 快扫 + 版本探测，约 10-60 秒）。仅允许扫描您自己的域名，每日 5 次。
+        </div>
+
+        {scanLoading && <div style={{ textAlign: 'center', padding: 30 }}><Spin size={20} tip="Nmap 扫描中，约需 10-60 秒…" /></div>}
+        {scanErr && <Alert type="error" style={{ marginTop: 12 }} content={scanErr} />}
+        {scanResult && (
+          <div style={{ marginTop: 12 }}>
+            <Space size="large" style={{ marginBottom: 12 }}>
+              <Tag color="arcoblue" size="large">{scanResult.host} → {scanResult.ip}</Tag>
+              <Tag color={scanResult.open_count > 0 ? 'orange' : 'green'} size="large">
+                开放端口 {scanResult.open_count} 个
+              </Tag>
+              <Text type="secondary" style={{ fontSize: 12 }}>耗时 {scanResult.elapsed}</Text>
+            </Space>
+            {scanResult.ports.length > 0 ? (
+              <Table
+                rowKey={(r: any) => `${r.port}-${r.protocol}`}
+                data={scanResult.ports}
+                pagination={false}
+                size="small"
+                columns={[
+                  { title: '端口', dataIndex: 'port', width: 80 },
+                  { title: '协议', dataIndex: 'protocol', width: 70 },
+                  { title: '状态', dataIndex: 'state', width: 90, render: (v) => <Tag color={v === 'open' ? 'green' : 'gray'} size="small">{v === 'open' ? '开放' : v}</Tag> },
+                  { title: '服务', dataIndex: 'service', width: 120 },
+                  { title: '版本', dataIndex: 'version', ellipsis: true },
+                ]}
+              />
+            ) : (
+              <Alert type="success" style={{ marginTop: 8 }} content="未发现开放端口（全部关闭或被防火墙过滤），站点暴露面小，安全性良好。" />
+            )}
+          </div>
+        )}
       </Card>
 
       {loading && <div style={{ textAlign: 'center', padding: 60 }}><Spin size={24} tip="正在抓取站点并逐层体检…" /></div>}

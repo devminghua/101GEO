@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.73", Date: "2026-09-14", Title: "站点体检集成 Nmap 端口扫描",
+		Items: items(
+			"feat", "**站点体检新增 Nmap 端口扫描**：对站点域名做常用端口快扫+服务版本探测，结果展示端口/协议/状态/服务/版本与开放端口数",
+			"security", "**安全约束**：仅允许扫描域名（禁直接 IP）、解析后禁止内网/回环网段（防 SSRF）、nmap 参数固定白名单、每日 5 次独立配额",
+		),
+	},
+	{
 		Version: "1.0.72", Date: "2026-09-14", Title: "国际数据源权限放开（分站自备 Key）+ 菜单更名",
 		Items: items(
 			"feat", "**数据源 Key 权限放开**：分站可在「数据源设置」页配置自己的 Serper/SerpAPI/Datalab Key（租户级），读取优先级：分站 Key > 平台默认 Key > 环境变量；已配分站 Key 的显示「本分站 Key」标记",

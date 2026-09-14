@@ -367,6 +367,10 @@ export const api = {
   baiduSuggest: (body: { keyword: string; source?: string }) =>
     request<{ keyword: string; words: string[]; baidu_count: number; google_count: number }>('/baidu/suggest', { method: 'POST', body: JSON.stringify(body) }),
   siteAudit: (body: { url: string }) =>
+    request('/baidu/site-audit', { method: 'POST', body: JSON.stringify(body) }),
+  sitePortScan: (body: { url: string }) =>
+    request('/baidu/site-audit/portscan', { method: 'POST', body: JSON.stringify(body) }),
+  __siteAuditDup: (body: { url: string }) =>
     request<{ url: string; host: string; score: number; level: string; layers: any[]; grade_dist: Record<string, number>; overall_note: string }>('/baidu/site-audit', { method: 'POST', body: JSON.stringify(body) }),
   gapDiagnose: () =>
     request<{ content_gap: number; content_questions: string[]; channel_gap: number; channel_list: string[]; fact_gap: number; fact_list: string[] }>('/baidu/gap-diagnose'),
