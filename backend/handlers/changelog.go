@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.70", Date: "2026-09-14", Title: "国际数据源配置移入系统设置",
+		Items: items(
+			"improve", "**三个国际数据源 Key 统一移入「系统设置 → 国际数据源」页**（老板拍板）：Serper（Google SERP）、SerpAPI（Naver SERP + Google Trends）、Naver Datalab（行业排行官方源），各自带注册指引与配置状态",
+			"improve", "原「数据 API」页保留 Just One API token（抖音/小红书），并提示国际数据源新位置",
+		),
+	},
+	{
 		Version: "1.0.69", Date: "2026-09-14", Title: "国际搜索优化 P4：行业排行 + 差距诊断（四阶段收官）",
 		Items: items(
 			"feat", "**国际行业排行上线**：关键词搜索热度趋势对比折线图。Naver 走官方 Datalab API（免费/权威/归一化热度），Google 走 SerpAPI Trends；1/3/6/12 月时间范围切换",

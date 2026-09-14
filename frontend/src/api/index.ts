@@ -679,9 +679,9 @@ export const api = {
 
   // 第三方数据 API（Just One API）token 配置（总后台 super）：抖音/小红书稳定数据抓取
   dataApiConfig: () =>
-    request<{ enabled: boolean; token_masked: string; base_url: string; serper_enabled: boolean; serper_masked: string; serpapi_enabled: boolean; serpapi_masked: string }>('/super/data-api/config'),
-  dataApiSaveConfig: (token: string, serperKey = '', serpapiKey = '') =>
-    request<{ enabled: boolean; token_masked: string; serper_enabled: boolean; serper_masked: string; serpapi_enabled: boolean; serpapi_masked: string }>('/super/data-api/config', { method: 'POST', body: JSON.stringify({ token, serper_key: serperKey, serpapi_key: serpapiKey }) }),
+    request<{ enabled: boolean; token_masked: string; base_url: string; serper_enabled: boolean; serper_masked: string; serpapi_enabled: boolean; serpapi_masked: string; datalab_enabled: boolean; datalab_masked: string }>('/super/data-api/config'),
+  dataApiSaveConfig: (token: string, serperKey = '', serpapiKey = '', dlClientId = '', dlSecret = '') =>
+    request<{ enabled: boolean; token_masked: string; serper_enabled: boolean; serper_masked: string; serpapi_enabled: boolean; serpapi_masked: string; datalab_enabled: boolean; datalab_masked: string }>('/super/data-api/config', { method: 'POST', body: JSON.stringify({ token, serper_key: serperKey, serpapi_key: serpapiKey, datalab_client_id: dlClientId, datalab_client_secret: dlSecret }) }),
 
   // 帮助文档（使用教程）：客户端只读 + SaaS 后台管理
   helpTree: () =>

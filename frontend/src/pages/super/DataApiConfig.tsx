@@ -77,51 +77,12 @@ export default function DataApiConfig() {
               autoComplete="new-password"
             />
           </Form.Item>
-          <Divider />
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Google SERP（国际搜索优化）</div>
-          <Alert
-            type="info"
-            style={{ marginBottom: 16 }}
-            content="Google 关键词分析数据源。注册地址：https://serper.dev（2500 次免费额度，超出约 $0.30/千次）"
-          />
-          <Form.Item label="Serper 当前状态">
-            {config?.serper_enabled ? (
-              <Tag color="green">已配置（{config?.serper_masked}）</Tag>
-            ) : (
-              <Tag color="orange">未配置（Google 关键词分析不可用）</Tag>
-            )}
-          </Form.Item>
-          <Form.Item label="Serper API Key" extra="留空表示不修改已保存的 Key">
-            <Input.Password
-              value={serperKey}
-              onChange={setSerperKey}
-              placeholder="粘贴 Serper.dev 的 API Key"
-              autoComplete="new-password"
-            />
-          </Form.Item>
-          <Divider />
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Naver SERP（韩国市场）</div>
-          <Alert
-            type="info"
-            style={{ marginBottom: 16 }}
-            content="Naver 关键词分析数据源。注册地址：https://serpapi.com（engine=naver，$50/月套餐或按次计费）"
-          />
-          <Form.Item label="SerpAPI 当前状态">
-            {config?.serpapi_enabled ? (
-              <Tag color="green">已配置（{config?.serpapi_masked}）</Tag>
-            ) : (
-              <Tag color="orange">未配置（Naver 关键词分析不可用）</Tag>
-            )}
-          </Form.Item>
-          <Form.Item label="SerpAPI Key" extra="留空表示不修改已保存的 Key">
-            <Input.Password
-              value={serpapiKey}
-              onChange={setSerpapiKey}
-              placeholder="粘贴 SerpAPI 的 API Key"
-              autoComplete="new-password"
-            />
-          </Form.Item>
           <Button type="primary" loading={loading} onClick={save}>保存 Token</Button>
+          <Alert
+            type="info"
+            style={{ marginTop: 16 }}
+            content="Serper（Google）/ SerpAPI（Naver + Trends）/ Naver Datalab 三个国际数据源已移至「系统设置 → 国际数据源」页配置。"
+          />
         </Form>
       </Card>
     </div>

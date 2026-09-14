@@ -266,6 +266,7 @@ export default function Settings() {
   if (role === 'super') {
     tabList.push({ key: 'aliyun-sms', title: '短信设置' });
     tabList.push({ key: 'aliyun-oss', title: 'OSS 设置' });
+    tabList.push({ key: 'intl-data', title: '国际数据源' });
     tabList.push({ key: 'wechat-pay', title: '微信设置' });
     tabList.push({ key: 'alipay-pay', title: '支付宝设置' });
     tabList.push({ key: 'pay-pricing', title: '充值定价' });
@@ -282,6 +283,129 @@ export default function Settings() {
     if (activeTab === 'changelog' && !changelog && !changelogLoading) loadChangelog();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // 国际数据源（Serper / SerpAPI / Naver Datalab）——老板 2026-09-14 拍板：放在系统设置
+  const [intlCfg, setIntlCfg] = useState<any>(null);
+  const [intlSerper, setIntlSerper] = useState('');
+  const [intlSerpapi, setIntlSerpapi] = useState('');
+  const [intlDLId, setIntlDLId] = useState('');
+  const [intlDLSecret, setIntlDLSecret] = useState('');
+  const [intlSaving, setIntlSaving] = useState(false);
+
+  const loadIntlCfg = async () => {
+    try {
+      const c = await api.dataApiConfig();
+      setIntlCfg(c || null);
+    } catch { /* 忽略 */ }
+  };
+  useEffect(() => {
+    if (role === 'super') loadIntlCfg();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
+
+  const saveIntlCfg = async () => {
+    const anySet = intlSerper.trim() || intlSerpapi.trim() || intlDLId.trim() || intlDLSecret.trim();
+    if (!anySet) { Message.warning('请至少填写一个数据源 Key'); return; }
+    if ((intlDLId.trim() && !intlDLSecret.trim()) || (!intlDLId.trim() && intlDLSecret.trim())) {
+      Message.warning('Datalab Client ID 与 Secret 需成对填写'); return;
+    }
+    setIntlSaving(true);
+    try {
+      const res = await api.dataApiSaveConfig('', intlSerper.trim(), intlSerpapi.trim(), intlDLId.trim(), intlDLSecret.trim());
+      setIntlSerper(''); setIntlSerpapi(''); setIntlDLId(''); setIntlDLSecret('');
+      setIntlCfg(res as any);
+      Message.success('国际数据源已保存');
+    } catch (e: any) {
+      Message.error(e?.message || '保存失败');
+    } finally {
+      setIntlSaving(false);
+    }
+  };
+
+  const renderIntlDataTab = () => (
+    <div style={sectionStyle}>
+      <Card title="Google SERP（Serper.dev）" style={cardStyle} bordered={false}>
+        <Alert
+          type="info"
+          style={{ marginBottom: 16 }}
+          content="Google 关键词分析 / 收录查询数据源。注册地址：https://serper.dev（2500 次免费额度，超出约 $0.30/千次）"
+        />
+        <Form layout="vertical" style={{ maxWidth: 560 }}>
+          <Form.Item label="当前状态">
+            {intlCfg?.serper_enabled ? (
+              <Tag color="green">已配置（{intlCfg?.serper_masked}）</Tag>
+            ) : (
+              <Tag color="orange">未配置（Google 关键词分析 / 收录查询不可用）</Tag>
+            )}
+          </Form.Item>
+          <Form.Item label="Serper API Key" extra="留空表示不修改已保存的 Key">
+            <Input.Password
+              value={intlSerper}
+              onChange={setIntlSerper}
+              placeholder="粘贴 Serper.dev 的 API Key"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <Card title="Naver SERP + Google Trends（SerpAPI）" style={{ ...cardStyle, marginTop: 16 }} bordered={false}>
+        <Alert
+          type="info"
+          style={{ marginBottom: 16 }}
+          content="Naver 关键词分析（engine=naver）与 Google Trends 数据源。注册地址：https://serpapi.com"
+        />
+        <Form layout="vertical" style={{ maxWidth: 560 }}>
+          <Form.Item label="当前状态">
+            {intlCfg?.serpapi_enabled ? (
+              <Tag color="green">已配置（{intlCfg?.serpapi_masked}）</Tag>
+            ) : (
+              <Tag color="orange">未配置（Naver 关键词分析 / Google Trends 不可用）</Tag>
+            )}
+          </Form.Item>
+          <Form.Item label="SerpAPI Key" extra="留空表示不修改已保存的 Key">
+            <Input.Password
+              value={intlSerpapi}
+              onChange={setIntlSerpapi}
+              placeholder="粘贴 SerpAPI 的 API Key"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <Card title="Naver 行业排行（Datalab 官方）" style={{ ...cardStyle, marginTop: 16 }} bordered={false}>
+        <Alert
+          type="info"
+          style={{ marginBottom: 16 }}
+          content="Naver 搜索词趋势官方数据源（免费、每日 1000 次、无需企业资质）。注册：https://developers.naver.com（应用注册时勾选「데이터랩(검색어트렌드)」）"
+        />
+        <Form layout="vertical" style={{ maxWidth: 560 }}>
+          <Form.Item label="当前状态">
+            {intlCfg?.datalab_enabled ? (
+              <Tag color="green">已配置（{intlCfg?.datalab_masked}）</Tag>
+            ) : (
+              <Tag color="orange">未配置（Naver 行业排行不可用）</Tag>
+            )}
+          </Form.Item>
+          <Form.Item label="Client ID" extra="留空表示不修改已保存的值">
+            <Input value={intlDLId} onChange={setIntlDLId} placeholder="粘贴 Naver Datalab Client ID" autoComplete="off" />
+          </Form.Item>
+          <Form.Item label="Client Secret" extra="留空表示不修改已保存的值">
+            <Input.Password
+              value={intlDLSecret}
+              onChange={setIntlDLSecret}
+              placeholder="粘贴 Naver Datalab Client Secret"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+          <Button type="primary" icon={<IconSave />} loading={intlSaving} onClick={saveIntlCfg} style={saveBtnStyle}>
+            保存国际数据源
+          </Button>
+        </Form>
+      </Card>
+    </div>
+  );
 
   const renderSystemTab = () => (
     <Card title="系统信息" style={cardStyle} bordered={false}>
@@ -755,6 +879,7 @@ export default function Settings() {
             {t.key === 'pay-pricing' && <PayConfig groups={['common']} title="充值定价设置" />}
             {t.key === 'pay-notify' && <PayConfig groups={['notify']} title="告警通知设置" />}
             {t.key === 'doubao-image' && renderDoubaoImageTab()}
+            {t.key === 'intl-data' && renderIntlDataTab()}
             {t.key === 'login-logs' && renderLoginLogsTab()}
             {t.key === 'changelog' && renderChangelogTab()}
           </TabPane>
