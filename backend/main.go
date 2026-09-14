@@ -43,6 +43,10 @@ func main() {
 	cfg := config.Load()
 	database.Init(cfg)
 
+	// sqlmap REST API 守护：SQL 注入检测依赖容器内 sqlmapapi.py（127.0.0.1:8775）。
+	// 未运行时自动拉起（python3 + /usr/share/sqlmap/sqlmapapi.py），容器重启后自愈。
+	go ensureSqlmapAPI()
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -220,6 +224,13 @@ func main() {
 		api.POST("/baidu/site-audit", handlers.SiteAuditDetail)
 		// 站点体检 · Nmap 端口扫描（老板 2026-09-14 需求）
 		api.POST("/baidu/site-audit/portscan", handlers.SitePortScan)
+		// SQL 注入检测（sqlmap 图形界面）
+		api.POST("/baidu/site-audit/sqlmap/start", handlers.SQLMapStart)
+		api.GET("/baidu/site-audit/sqlmap/status", handlers.SQLMapStatus)
+		api.GET("/baidu/site-audit/sqlmap/data", handlers.SQLMapData)
+		api.GET("/baidu/site-audit/sqlmap/log", handlers.SQLMapLog)
+		api.DELETE("/baidu/site-audit/sqlmap/task", handlers.SQLMapDelete)
+		api.GET("/baidu/site-audit/sqlmap/options", handlers.SQLMapOptions)
 		api.GET("/baidu/gap-diagnose", handlers.GapDiagnose)
 		// 百度指数行业排行（各行业 TOP 品牌指数）
 		api.GET("/baidu/industry-rank", handlers.IndustryRank)
@@ -686,5 +697,20 @@ func runAutoCheck() {
 	log.Printf("[cron] 开始自动巡检：%d 个启用分站（北京时间 %d 点）", len(tenants), hour)
 	for _, t := range tenants {
 		geo.RunTenantTask(t.ID, "auto")
+	}
+}
+
+// ensureSqlmapAPI 守护 sqlmap REST API（未运行则拉起，供 SQL 注入检测使用）
+func ensureSqlmapAPI() {
+	for {
+		time.Sleep(15 * time.Second)
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:8775", 2*time.Second)
+		if err == nil {
+			conn.Close()
+			continue
+		}
+		// 尝试拉起（仅在有 python3+sqlmap 的环境；失败静默，接口会报明确错误）
+		cmd := exec.Command("python3", "/usr/share/sqlmap/sqlmapapi.py", "-s", "-H", "127.0.0.1", "-p", "8775")
+		cmd.Start()
 	}
 }

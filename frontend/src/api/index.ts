@@ -370,6 +370,13 @@ export const api = {
     request('/baidu/site-audit', { method: 'POST', body: JSON.stringify(body) }),
   sitePortScan: (body: { url: string }) =>
     request('/baidu/site-audit/portscan', { method: 'POST', body: JSON.stringify(body) }),
+  sqlmapStart: (body: { url: string; options?: any }) =>
+    request('/baidu/site-audit/sqlmap/start', { method: 'POST', body: JSON.stringify(body) }),
+  sqlmapStatus: (task: string) => request(`/baidu/site-audit/sqlmap/status?task=${task}`),
+  sqlmapData: (task: string) => request(`/baidu/site-audit/sqlmap/data?task=${task}`),
+  sqlmapLog: (task: string) => request(`/baidu/site-audit/sqlmap/log?task=${task}`),
+  sqlmapDelete: (task: string) => request(`/baidu/site-audit/sqlmap/task?task=${task}`, { method: 'DELETE' }),
+  sqlmapOptions: () => request('/baidu/site-audit/sqlmap/options'),
   __siteAuditDup: (body: { url: string }) =>
     request<{ url: string; host: string; score: number; level: string; layers: any[]; grade_dist: Record<string, number>; overall_note: string }>('/baidu/site-audit', { method: 'POST', body: JSON.stringify(body) }),
   gapDiagnose: () =>

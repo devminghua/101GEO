@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, Button, Input, Message, Spin, Space, Tag, Alert, Typography, Grid, Progress, Table } from '@arco-design/web-react';
 import { IconLaunch, IconRefresh, IconBug } from '@arco-design/web-react/icon';
 import { api } from '../api';
+import SqlmapCard from '../components/SqlmapCard';
 
 const { Title, Text } = Typography;
 const { Row: GridRow, Col: GridCol } = Grid;
@@ -88,10 +89,13 @@ export default function SiteAudit() {
         </div>
       </Card>
 
+      {/* 端口扫描 + SQL 注入检测：左右并排 */}
+      <GridRow gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <GridCol xs={24} xl={12}>
       {/* Nmap 端口扫描（独立能力卡） */}
       <Card
         title={<span><IconBug style={{ marginRight: 6, color: '#FF7D00' }} />端口扫描（Nmap）</span>}
-        style={{ borderRadius: 12, marginBottom: 16 }}
+        style={{ borderRadius: 12 }}
       >
         <Space style={{ width: '100%' }}>
           <Input
@@ -138,6 +142,11 @@ export default function SiteAudit() {
           </div>
         )}
       </Card>
+        </GridCol>
+        <GridCol xs={24} xl={12}>
+          <SqlmapCard defaultTarget={url} />
+        </GridCol>
+      </GridRow>
 
       {loading && <div style={{ textAlign: 'center', padding: 60 }}><Spin size={24} tip="正在抓取站点并逐层体检…" /></div>}
 

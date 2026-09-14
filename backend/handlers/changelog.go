@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.74", Date: "2026-09-14", Title: "站点体检集成 SQL 注入检测（sqlmap 图形界面）",
+		Items: items(
+			"feat", "**SQL 注入检测图形界面**：Nmap 端口扫描右侧并排新增 sqlmap 卡片——注入技术（布尔/报错/联合/堆叠/时间/内联）、检测等级/风险/线程、表单参数、八项枚举（Banner/用户/库/表/字段/权限/主机名）、高级参数自由传参，实时日志流 + 注入点结果表",
+			"security", "**合规与安全**：强制勾选授权声明、目标仅限域名（禁内网防 SSRF）、选项白名单过滤（文件读写/shell 等高危项禁用）、每日 3 次独立配额、任务租户隔离、sqlmapapi 进程守护自愈",
+		),
+	},
+	{
 		Version: "1.0.73", Date: "2026-09-14", Title: "站点体检集成 Nmap 端口扫描",
 		Items: items(
 			"feat", "**站点体检新增 Nmap 端口扫描**：对站点域名做常用端口快扫+服务版本探测，结果展示端口/协议/状态/服务/版本与开放端口数",
