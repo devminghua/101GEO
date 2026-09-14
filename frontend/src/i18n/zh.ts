@@ -1,5 +1,22 @@
 /* 中文语言包（基准） */
 export default {
+  intlDs: {
+        title: '国际数据源设置',
+    sub: '配置 Google / Naver 数据源 Key（平台级配置，全部分站共用）',
+    status: '当前状态',
+    configured: '已配置',
+    notConfigured: '未配置',
+    keepEmpty: '留空表示不修改已保存的值',
+    serperHint: 'Google 关键词分析 / 收录查询数据源。注册地址：https://serper.dev（2500 次免费额度）',
+    serpapiHint: 'Naver 关键词分析与 Google Trends 数据源。注册地址：https://serpapi.com',
+    datalabHint: 'Naver 搜索词趋势官方数据源（免费、每日 1000 次、无需企业资质）。注册：https://developers.naver.com',
+    saveAll: '保存全部数据源',
+    empty: '请至少填写一个数据源 Key',
+    pairRequired: 'Datalab Client ID 与 Secret 需成对填写',
+    saved: '国际数据源已保存',
+    saveFailed: '保存失败',
+    readonlyHint: '数据源 Key 为平台级配置，仅平台管理员可修改；以下为当前配置状态',
+  },
   intlRank: {
         title: '国际行业排行',
     sub: '关键词搜索热度趋势对比（Naver 官方 Datalab / Google Trends）',
@@ -231,6 +248,7 @@ export default {
     baidu: '百度优化',
     intl: '国际搜索优化',
     intlGoogleKeywords: 'Google 关键词分析',
+    intlDataSource: '数据源设置',
     baiduKeywords: '关键词分析',
     rankMonitor: '排名监控',
     indexCount: '收录查询',

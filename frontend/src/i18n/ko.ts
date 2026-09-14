@@ -1,5 +1,22 @@
 /* 한국어 언어팩 */
 export default {
+  intlDs: {
+        title: '국제 데이터 소스 설정',
+    sub: 'Google / Naver 데이터 소스 Key 설정 (플랫폼 공용)',
+    status: '현재 상태',
+    configured: '설정됨',
+    notConfigured: '미설정',
+    keepEmpty: '비워두면 저장된 값 유지',
+    serperHint: 'Google 키워드 분석 / 수록 조회 데이터 소스. 가입: https://serper.dev (2500회 무료)',
+    serpapiHint: 'Naver 키워드 분석과 Google Trends 데이터 소스. 가입: https://serpapi.com',
+    datalabHint: 'Naver 공식 검색어 트렌드 API (무료, 일 1000회, 사업자 등록 불필요). 가입: https://developers.naver.com',
+    saveAll: '전체 저장',
+    empty: 'Key를 하나 이상 입력하세요',
+    pairRequired: 'Datalab Client ID와 Secret은 함께 입력해야 합니다',
+    saved: '저장되었습니다',
+    saveFailed: '저장 실패',
+    readonlyHint: '데이터 소스 Key는 플랫폼 공용 설정으로 관리자만 수정할 수 있습니다. 아래는 현재 상태입니다',
+  },
   intlRank: {
         title: '국제 업계 순위',
     sub: '키워드 검색 인기 트렌드 비교 (Naver 공식 Datalab / Google Trends)',
@@ -230,6 +247,7 @@ export default {
     baidu: '바이두 SEO',
     intl: '국제 SEO',
     intlGoogleKeywords: 'Google 키워드 분석',
+    intlDataSource: '데이터 소스 설정',
     baiduKeywords: '키워드 분석',
     rankMonitor: '순위 모니터',
     indexCount: '수록 현황',

@@ -67,6 +67,7 @@ import IntlKeywords from './pages/IntlKeywords';
 import IntlIndex from './pages/IntlIndex';
 import IntlRank from './pages/IntlRank';
 import IntlGap from './pages/IntlGap';
+import IntlDataSource from './pages/IntlDataSource';
 import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
@@ -419,6 +420,8 @@ export default function App() {
             { key: '/intl-google-gap', label: t('menu.gapDiagnose') },
             { key: '/intl-google-industry', label: t('menu.industryRank') },
           ]},
+          // 数据源设置：国际搜索优化最底部入口（老板 2026-09-14 拍板）
+          { key: '/intl-data-source', label: t('menu.intlDataSource') },
         ]},
         { key: '/baidu', label: t('menu.baidu'), icon: <IconSearch />, feature: 'baidu', children: [
           { key: '/baidu-keywords', label: t('menu.baiduKeywords') },
@@ -982,6 +985,7 @@ export default function App() {
                 <Route path="/intl-google-audit" element={<SiteAudit />} />
                 <Route path="/intl-google-gap" element={<IntlGap />} />
                 <Route path="/intl-google-industry" element={<IntlRank />} />
+                <Route path="/intl-data-source" element={<IntlDataSource />} />
                 <Route
                   path="/geo-intel"
                   element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="智能中心" />}

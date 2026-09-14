@@ -266,7 +266,6 @@ export default function Settings() {
   if (role === 'super') {
     tabList.push({ key: 'aliyun-sms', title: '短信设置' });
     tabList.push({ key: 'aliyun-oss', title: 'OSS 设置' });
-    tabList.push({ key: 'intl-data', title: '国际数据源' });
     tabList.push({ key: 'wechat-pay', title: '微信设置' });
     tabList.push({ key: 'alipay-pay', title: '支付宝设置' });
     tabList.push({ key: 'pay-pricing', title: '充值定价' });
@@ -879,7 +878,6 @@ export default function Settings() {
             {t.key === 'pay-pricing' && <PayConfig groups={['common']} title="充值定价设置" />}
             {t.key === 'pay-notify' && <PayConfig groups={['notify']} title="告警通知设置" />}
             {t.key === 'doubao-image' && renderDoubaoImageTab()}
-            {t.key === 'intl-data' && renderIntlDataTab()}
             {t.key === 'login-logs' && renderLoginLogsTab()}
             {t.key === 'changelog' && renderChangelogTab()}
           </TabPane>

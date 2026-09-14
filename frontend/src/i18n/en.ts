@@ -1,5 +1,22 @@
 /* English language pack */
 export default {
+  intlDs: {
+        title: 'Intl Data Sources',
+    sub: 'Configure Google / Naver data source keys (platform-wide, shared by all tenants)',
+    status: 'Status',
+    configured: 'Configured',
+    notConfigured: 'Not configured',
+    keepEmpty: 'Leave empty to keep the saved value',
+    serperHint: 'Data source for Google keyword analysis / index status. Sign up: https://serper.dev (2500 free queries)',
+    serpapiHint: 'Data source for Naver keyword analysis and Google Trends. Sign up: https://serpapi.com',
+    datalabHint: 'Official Naver search trend API (free, 1000/day, no business license required). Sign up: https://developers.naver.com',
+    saveAll: 'Save All',
+    empty: 'Please enter at least one key',
+    pairRequired: 'Datalab Client ID and Secret must be filled in pairs',
+    saved: 'Saved',
+    saveFailed: 'Save failed',
+    readonlyHint: 'Data source keys are platform-wide and only editable by the platform admin. Current status below',
+  },
   intlRank: {
         title: 'Intl Industry Ranking',
     sub: 'Search interest trend comparison (Naver official Datalab / Google Trends)',
@@ -230,6 +247,7 @@ export default {
     baidu: 'Baidu SEO',
     intl: 'Intl SEO',
     intlGoogleKeywords: 'Google Keyword Analysis',
+    intlDataSource: 'Data Sources',
     baiduKeywords: 'Keyword Analysis',
     rankMonitor: 'Rank Monitor',
     indexCount: 'Index Status',

@@ -262,3 +262,15 @@ func IntlTrends(c *gin.Context) {
 	}
 	dyOK(c, gin.H{"engine": "google", "series": series, "source": "google_trends"})
 }
+
+// IntlDataSourceStatus GET /api/intl/data-source-status —— 分站可读的数据源配置状态（不含任何密钥）
+func IntlDataSourceStatus(c *gin.Context) {
+	dyOK(c, gin.H{
+		"serper_enabled":  SerperKey() != "",
+		"serper_masked":   maskToken(SerperKey()),
+		"serpapi_enabled": SerpAPIKey() != "",
+		"serpapi_masked":  maskToken(SerpAPIKey()),
+		"datalab_enabled": DatalabClientID() != "" && DatalabClientSecret() != "",
+		"datalab_masked":  maskToken(DatalabClientID()),
+	})
+}
