@@ -10,6 +10,7 @@ import {
   IconSearch,
   IconPlayArrow,
   IconBook,
+  IconTrophy,
   IconCommon,
   IconBulb,
   IconLock,
@@ -59,6 +60,8 @@ import SmsConfig from './pages/super/SmsConfig';
 import DataApiConfig from './pages/super/DataApiConfig';
 import HelpDocConfig from './pages/super/HelpDocConfig';
 import HelpDoc from './pages/HelpDoc';
+import Cases from './pages/Cases';
+import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
 import UserMenu from './components/UserMenu';
 import NotificationPopover from './components/NotificationPopover';
@@ -378,6 +381,8 @@ export default function App() {
         { key: '/super/data-api', label: '数据 API', icon: <IconCommon /> },
         // 帮助文档：客户端「使用指南」内容编辑
         { key: '/super/help-doc', label: '帮助文档', icon: <IconBook /> },
+        // 成功案例：SaaS 端上传，客户端「成功案例」页展示
+        { key: '/super/cases', label: '成功案例', icon: <IconTrophy /> },
         // 价格套餐：充值中心「选择套餐」的套餐配置
         { key: '/super/plans', label: '套餐设置', icon: <IconGift /> },
         // 系统设置：品牌名称/Logo/版权 + 账号与安全 + 登录日志
@@ -412,6 +417,8 @@ export default function App() {
         ] },
         { key: '/creation', label: '智能创作中心', icon: <IconCommon />, feature: 'creation' },
         // Token 用量已集成到充值中心页签（v1.0.57），不再独立挂菜单
+        // 成功案例：SaaS 端上传，客户端展示（v1.0.61）
+        { key: '/cases', label: '成功案例', icon: <IconTrophy /> },
         // 使用指南：SaaS 后台编辑的帮助文档（图文 + B 站视频），下拉「分类 → 文档」
         { key: '/help', label: '使用指南', icon: <IconBook />, children: helpTree.length > 0 ? helpTree.map((c: any) => ({
           key: `/help?cat=${c.id}`, label: c.name,
@@ -859,6 +866,7 @@ export default function App() {
                 <Route path="/super/sms" element={<SmsConfig />} />
                 <Route path="/super/data-api" element={<DataApiConfig />} />
                 <Route path="/super/help-doc" element={<HelpDocConfig />} />
+                <Route path="/super/cases" element={<CasesAdmin />} />
                 <Route path="/super/plans" element={<Plans />} />
                 {/* 系统设置：品牌/版权/客服 + 短信 + OSS + 登录日志（super 复用 Settings 页） */}
                 <Route path="/settings" element={<Settings />} />
@@ -946,6 +954,7 @@ export default function App() {
                   element={hasFeature(user.features, 'creation') ? <CreationCenter /> : <NoAccess feature="智能创作中心" />}
                 />
                 <Route path="/help" element={<HelpDoc />} />
+                <Route path="/cases" element={<Cases />} />
                 <Route
                   path="/geo-intel"
                   element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="智能中心" />}
@@ -1038,6 +1047,8 @@ function menuTitle(key: string): string {
     '/super/data-api': '数据 API',
     '/super/help-doc': '帮助文档',
     '/help': '使用指南',
+    '/super/cases': '成功案例',
+    '/cases': '成功案例',
     '/super/plans': '套餐设置',
     '/super/customers': '客户管理',
     '/super/tenants': '分站管理',

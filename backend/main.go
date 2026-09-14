@@ -202,6 +202,9 @@ func main() {
 		// 帮助文档（使用教程）：客户端只读（目录树 + 详情）
 		api.GET("/help/tree", handlers.HelpTree)
 		api.GET("/help/doc/:id", handlers.HelpDocDetail)
+		// 成功案例（SaaS 端上传，客户端展示）
+		api.GET("/cases", handlers.CaseList)
+		api.GET("/cases/:id", handlers.CaseDetail)
 
 		// 百度关键词分析
 		api.POST("/baidu/analyze", handlers.AnalyzeBaiduKeyword)
@@ -519,6 +522,11 @@ func main() {
 			super.GET("/help/doc/:id", handlers.HelpDocDetailSuper)
 			super.POST("/help/docs", handlers.HelpSaveDoc)
 			super.DELETE("/help/docs/:id", handlers.HelpDeleteDoc)
+			// 成功案例管理（SaaS 端上传）
+			super.GET("/cases", handlers.SuperCaseList)
+			super.POST("/cases", handlers.SuperCaseSave)
+			super.PUT("/cases/:id", handlers.SuperCaseUpdate)
+			super.DELETE("/cases/:id", handlers.SuperCaseDelete)
 			// 价格套餐：总后台设置充值套餐
 			super.GET("/plans", handlers.ListAllPlans)
 			super.POST("/plans", handlers.CreatePlan)

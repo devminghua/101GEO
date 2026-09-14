@@ -471,6 +471,14 @@ export const api = {
   // 9) 动作日志
   xhsListLogs: (params = '') => request(`/xhs/logs?${params}`),
 
+  // ===== 成功案例 =====
+  caseList: () => request('/cases'),
+  caseDetail: (id: number) => request(`/cases/${id}`),
+  superCases: () => request('/super/cases'),
+  superCaseSave: (body: any) => request('/super/cases', { method: 'POST', body: JSON.stringify(body) }),
+  superCaseUpdate: (id: number, body: any) => request(`/super/cases/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  superCaseDelete: (id: number) => request(`/super/cases/${id}`, { method: 'DELETE' }),
+
   // ===== 快手获客（ks）=====
   ksListAccounts: () => request('/ks/accounts'),
   ksCreateAccount: (body: any) => request('/ks/accounts', { method: 'POST', body: JSON.stringify(body) }),

@@ -232,6 +232,8 @@ func migrate() {
 		&models.KsLead{},
 		&models.KsSlogan{},
 		&models.KsActionLog{},
+		// 成功案例（SaaS 端上传，客户端展示）
+		&models.CaseStudy{},
 		// 智能创作中心模块
 		&models.CreativeRole{},
 		&models.ChatSession{},
