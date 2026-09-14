@@ -38,6 +38,12 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.63", Date: "2026-09-14", Title: "成功案例客户端富文本完美显示",
+		Items: items(
+			"fix", "**成功案例正文完美显示**：客户端案例详情此前把富文本当纯文本渲染（HTML 标签、插图无法显示），现在与「使用指南」同款富文本渲染——标题层级、段落、插图、列表、表格完整呈现，图片自适应宽度；同时经 DOMPurify 安全清洗，杜绝脚本注入",
+		),
+	},
+	{
 		Version: "1.0.62", Date: "2026-09-14", Title: "成功案例编辑器支持上传图片",
 		Items: items(
 			"fix", "**成功案例编辑器支持上传图片**：正文富文本可直接插入本地图片，封面图支持「本地上传」按钮（也保留 URL 填写），上传后即时预览",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, Empty, Spin, Tag, Message, Modal, Typography } from '@arco-design/web-react';
 import { IconRight, IconTrophy } from '@arco-design/web-react/icon';
+import DOMPurify from 'dompurify';
 import { api } from '../api';
 
 interface CaseItem {
@@ -206,9 +207,14 @@ export default function Cases() {
                 ))}
               </div>
             )}
-            <div style={{ fontSize: 14, lineHeight: 1.9, color: 'var(--geo-text)', whiteSpace: 'pre-wrap' }}>
-              {detail?.content || '（暂无正文）'}
-            </div>
+            <div
+              className="help-doc-content"
+              style={{ fontSize: 14, lineHeight: 1.9, color: 'var(--geo-text)' }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detail?.content || '') }}
+            />
+            {!detail?.content && (
+              <div style={{ fontSize: 14, color: '#86909c' }}>（暂无正文）</div>
+            )}
           </div>
         )}
       </Modal>
