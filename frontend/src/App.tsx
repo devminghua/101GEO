@@ -410,17 +410,15 @@ export default function App() {
           { key: '/content', label: t('menu.content'), feature: 'content' },
           { key: '/report', label: t('menu.report'), feature: 'report' },
         ] },
-        // 国际搜索优化：Google/Naver（P1：Google 关键词分析，feature 同 baidu）
+        // 国际搜索优化：功能直接平铺（去掉「Google」中间层，老板 2026-09-14 拍板）
         { key: '/intl', label: t('menu.intl'), icon: <IconPublic />, feature: 'baidu', children: [
-          { key: '/intl-google', label: 'Google', children: [
-            { key: '/intl-google-keywords', label: t('menu.intlGoogleKeywords') },
-            { key: '/intl-google-rank', label: t('menu.rankMonitor') },
-            { key: '/intl-google-index', label: t('menu.indexCount') },
-            { key: '/intl-google-audit', label: t('menu.siteAudit') },
-            { key: '/intl-google-gap', label: t('menu.gapDiagnose') },
-            { key: '/intl-google-industry', label: t('menu.industryRank') },
-          ]},
-          // 数据源设置：国际搜索优化最底部入口（老板 2026-09-14 拍板）
+          { key: '/intl-google-keywords', label: t('menu.intlGoogleKeywords') },
+          { key: '/intl-google-rank', label: t('menu.rankMonitor') },
+          { key: '/intl-google-index', label: t('menu.indexCount') },
+          { key: '/intl-google-audit', label: t('menu.siteAudit') },
+          { key: '/intl-google-gap', label: t('menu.gapDiagnose') },
+          { key: '/intl-google-industry', label: t('menu.industryRank') },
+          // 数据源设置：国际搜索优化最底部入口
           { key: '/intl-data-source', label: t('menu.intlDataSource') },
         ]},
         { key: '/baidu', label: t('menu.baidu'), icon: <IconSearch />, feature: 'baidu', children: [
