@@ -728,7 +728,7 @@ export default function App() {
               return (
                 <SubMenu key={m.key} title={<span>{m.icon} {m.label}</span>}>
                   {visible.map((c: any) => c.children ? (
-                    <SubMenu key={c.key} title={<span className="geo-menu-icon-ph" aria-hidden />}>
+                    <SubMenu key={c.key} title={<span><span className="geo-menu-icon-ph" aria-hidden />{c.label}</span>}>
                       {c.children.map((s: any) => (
                         <MenuItem key={s.key}><span className="geo-menu-icon-ph" aria-hidden />{s.label}</MenuItem>
                       ))}
