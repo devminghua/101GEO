@@ -358,6 +358,10 @@ export const api = {
     request('/intl/index-count', { method: 'POST', body: JSON.stringify(body) }),
   intlTrends: (body: { engine: string; keywords: string[]; range: string }) =>
     request('/intl/trends', { method: 'POST', body: JSON.stringify(body) }),
+  miniprogramConfig: () => request('/miniprogram/config'),
+  miniprogramSave: (body: { appid: string; appsecret: string; enabled: boolean }) =>
+    request('/miniprogram/config', { method: 'POST', body: JSON.stringify(body) }),
+  miniprogramRotateKey: () => request('/miniprogram/rotate-key', { method: 'POST', body: JSON.stringify({}) }),
   intlDataSourceStatus: () =>
     request('/intl/data-source-status'),
   intlDataSourceGet: () =>

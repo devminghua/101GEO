@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.77", Date: "2026-09-15", Title: "小程序对接配置（客户端「小程序设置」）",
+		Items: items(
+			"feat", "**小程序设置页上线**：客户端「系统中心 → 小程序设置」配置 AppID/AppSecret/启用开关，展示对接参数（API 域名、对接密钥、request 合法域名白名单）与四步对接说明",
+			"security", "对接密钥服务端生成（32 位随机）、仅脱敏展示、支持一键轮换；配置租户级隔离",
+		),
+	},
+	{
 		Version: "1.0.76", Date: "2026-09-15", Title: "安全检测移入总后台（客户端不再显示）",
 		Items: items(
 			"improve", "**端口扫描与 SQL 注入检测移入总后台专属**：总后台侧栏新增「安全检测」页（Nmap 端口扫描 + sqlmap 注入检测并排），客户端站点体检页不再显示这两项",

@@ -216,6 +216,10 @@ func main() {
 		api.POST("/intl/analyze", handlers.AnalyzeIntlKeyword)
 		api.POST("/intl/index-count", handlers.IntlIndexCount)
 		api.POST("/intl/trends", handlers.IntlTrends)
+		// 小程序对接配置（分站客户端）
+		api.GET("/miniprogram/config", handlers.MiniProgramConfig)
+		api.POST("/miniprogram/config", handlers.MiniProgramSave)
+		api.POST("/miniprogram/rotate-key", handlers.MiniProgramRotateKey)
 		api.GET("/intl/data-source-status", handlers.IntlDataSourceStatus)
 		api.GET("/intl/data-source", handlers.IntlDataSourceGet)
 		api.POST("/intl/data-source", handlers.IntlDataSourceSave)

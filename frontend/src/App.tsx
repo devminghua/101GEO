@@ -69,6 +69,7 @@ import IntlRank from './pages/IntlRank';
 import IntlGap from './pages/IntlGap';
 import IntlDataSource from './pages/IntlDataSource';
 import SuperSecurity from './pages/super/Security';
+import Miniprogram from './pages/Miniprogram';
 import IntlRankMonitor from './pages/IntlRankMonitor';
 import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
@@ -450,6 +451,7 @@ export default function App() {
         // 系统中心：固定最后（2026-09-13 老板拍板：系统中心/充值中心/消息中心收纳且置底）
         { key: '/system-center', label: t('menu.systemCenter'), icon: <IconSettings />, feature: 'settings', children: [
           { key: '/settings', label: t('menu.superSettings') },
+          { key: '/miniprogram', label: t('menu.miniprogram') },
           { key: '/points', label: t('menu.points') },
           { key: '/notifications', label: t('menu.notifications') },
         ] },
@@ -988,6 +990,7 @@ export default function App() {
                 <Route path="/intl-google-gap" element={<IntlGap />} />
                 <Route path="/intl-google-industry" element={<IntlRank />} />
                 <Route path="/intl-data-source" element={<IntlDataSource />} />
+                <Route path="/miniprogram" element={<Miniprogram />} />
                 <Route
                   path="/geo-intel"
                   element={hasFeature(user.features, 'geo_intel') ? <GeoIntel /> : <NoAccess feature="智能中心" />}
