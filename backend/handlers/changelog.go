@@ -38,6 +38,13 @@ func items(pairs ...string) []ChangelogItem {
 
 var changelogEntries = []ChangelogEntry{
 	{
+		Version: "1.0.76", Date: "2026-09-15", Title: "安全检测移入总后台（客户端不再显示）",
+		Items: items(
+			"improve", "**端口扫描与 SQL 注入检测移入总后台专属**：总后台侧栏新增「安全检测」页（Nmap 端口扫描 + sqlmap 注入检测并排），客户端站点体检页不再显示这两项",
+			"security", "接口同步迁移至 super 权限组（/super/security/*），客户端 token 访问一律 403",
+		),
+	},
+	{
 		Version: "1.0.75", Date: "2026-09-14", Title: "SQL 注入检测结果中文化 + AI 分析",
 		Items: items(
 			"feat", "**检测结果中文化**：注入类型（布尔盲注/报错注入/联合查询/堆叠注入/时间盲注/内联查询）中文标签展示",

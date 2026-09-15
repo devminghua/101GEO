@@ -369,16 +369,16 @@ export const api = {
   siteAudit: (body: { url: string }) =>
     request('/baidu/site-audit', { method: 'POST', body: JSON.stringify(body) }),
   sitePortScan: (body: { url: string }) =>
-    request('/baidu/site-audit/portscan', { method: 'POST', body: JSON.stringify(body) }),
+    request('/super/security/portscan', { method: 'POST', body: JSON.stringify(body) }),
   sqlmapStart: (body: { url: string; options?: any }) =>
-    request('/baidu/site-audit/sqlmap/start', { method: 'POST', body: JSON.stringify(body) }),
-  sqlmapStatus: (task: string) => request(`/baidu/site-audit/sqlmap/status?task=${task}`),
-  sqlmapData: (task: string) => request(`/baidu/site-audit/sqlmap/data?task=${task}`),
-  sqlmapLog: (task: string) => request(`/baidu/site-audit/sqlmap/log?task=${task}`),
-  sqlmapDelete: (task: string) => request(`/baidu/site-audit/sqlmap/task?task=${task}`, { method: 'DELETE' }),
-  sqlmapOptions: () => request('/baidu/site-audit/sqlmap/options'),
+    request('/super/security/sqlmap/start', { method: 'POST', body: JSON.stringify(body) }),
+  sqlmapStatus: (task: string) => request(`/super/security/sqlmap/status?task=${task}`),
+  sqlmapData: (task: string) => request(`/super/security/sqlmap/data?task=${task}`),
+  sqlmapLog: (task: string) => request(`/super/security/sqlmap/log?task=${task}`),
+  sqlmapDelete: (task: string) => request(`/super/security/sqlmap/task?task=${task}`, { method: 'DELETE' }),
+  sqlmapOptions: () => request('/super/security/sqlmap/options'),
   sqlmapAnalyze: (task: string) =>
-    request('/baidu/site-audit/sqlmap/analyze', { method: 'POST', body: JSON.stringify({ task }) }),
+    request('/super/security/sqlmap/analyze', { method: 'POST', body: JSON.stringify({ task }) }),
   __siteAuditDup: (body: { url: string }) =>
     request<{ url: string; host: string; score: number; level: string; layers: any[]; grade_dist: Record<string, number>; overall_note: string }>('/baidu/site-audit', { method: 'POST', body: JSON.stringify(body) }),
   gapDiagnose: () =>

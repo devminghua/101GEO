@@ -68,6 +68,7 @@ import IntlIndex from './pages/IntlIndex';
 import IntlRank from './pages/IntlRank';
 import IntlGap from './pages/IntlGap';
 import IntlDataSource from './pages/IntlDataSource';
+import SuperSecurity from './pages/super/Security';
 import IntlRankMonitor from './pages/IntlRankMonitor';
 import CasesAdmin from './pages/super/CasesAdmin';
 import Plans from './pages/super/Plans';
@@ -374,6 +375,7 @@ export default function App() {
     : isSuper
     ? [
         { key: '/super/overview', label: t('menu.superOverview'), icon: <IconStorage /> },
+        { key: '/super/security', label: '安全检测', icon: <IconSafe /> },
         // 分站（客户）与账号管理融合为一个入口
         { key: '/super/customers', label: t('menu.channelCustomers'), icon: <IconApps /> },
         // 渠道管理：渠道商自建分站 + 品牌/客服
@@ -873,6 +875,7 @@ export default function App() {
             {isSuper ? (
               <>
                 <Route path="/super/overview" element={<SuperOverview />} />
+                <Route path="/super/security" element={<SuperSecurity />} />
                 {/* 分站+账号融合页 */}
                 <Route path="/super/customers" element={<SuperCustomers />} />
                 {/* 兼容旧入口：分站管理 / 账号管理 重定向到融合页 */}

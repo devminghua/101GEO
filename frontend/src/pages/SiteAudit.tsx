@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Card, Button, Input, Message, Spin, Space, Tag, Alert, Typography, Grid, Progress, Table } from '@arco-design/web-react';
 import { IconLaunch, IconRefresh, IconBug } from '@arco-design/web-react/icon';
 import { api } from '../api';
-import SqlmapCard from '../components/SqlmapCard';
 
 const { Title, Text } = Typography;
 const { Row: GridRow, Col: GridCol } = Grid;
@@ -89,65 +88,7 @@ export default function SiteAudit() {
         </div>
       </Card>
 
-      {/* 端口扫描 + SQL 注入检测：左右并排 */}
-      <GridRow gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <GridCol xs={24} xl={12}>
-      {/* Nmap 端口扫描（独立能力卡） */}
-      <Card
-        title={<span><IconBug style={{ marginRight: 6, color: '#FF7D00' }} />端口扫描（Nmap）</span>}
-        style={{ borderRadius: 12 }}
-      >
-        <Space style={{ width: '100%' }}>
-          <Input
-            value={scanTarget}
-            onChange={setScanTarget}
-            onPressEnter={runScan}
-            placeholder="默认使用上方站点域名，也可单独填写"
-            style={{ width: 420 }}
-          />
-          <Button type="outline" icon={<IconLaunch />} loading={scanLoading} onClick={runScan}>开始扫描</Button>
-        </Space>
-        <div style={{ marginTop: 8, fontSize: 13, color: '#86909C' }}>
-          对站点域名做常用端口与服务识别（Nmap 快扫 + 版本探测，约 10-60 秒）。仅允许扫描您自己的域名，每日 5 次。
-        </div>
-
-        {scanLoading && <div style={{ textAlign: 'center', padding: 30 }}><Spin size={20} tip="Nmap 扫描中，约需 10-60 秒…" /></div>}
-        {scanErr && <Alert type="error" style={{ marginTop: 12 }} content={scanErr} />}
-        {scanResult && (
-          <div style={{ marginTop: 12 }}>
-            <Space size="large" style={{ marginBottom: 12 }}>
-              <Tag color="arcoblue" size="large">{scanResult.host} → {scanResult.ip}</Tag>
-              <Tag color={scanResult.open_count > 0 ? 'orange' : 'green'} size="large">
-                开放端口 {scanResult.open_count} 个
-              </Tag>
-              <Text type="secondary" style={{ fontSize: 12 }}>耗时 {scanResult.elapsed}</Text>
-            </Space>
-            {scanResult.ports.length > 0 ? (
-              <Table
-                rowKey={(r: any) => `${r.port}-${r.protocol}`}
-                data={scanResult.ports}
-                pagination={false}
-                size="small"
-                columns={[
-                  { title: '端口', dataIndex: 'port', width: 80 },
-                  { title: '协议', dataIndex: 'protocol', width: 70 },
-                  { title: '状态', dataIndex: 'state', width: 90, render: (v) => <Tag color={v === 'open' ? 'green' : 'gray'} size="small">{v === 'open' ? '开放' : v}</Tag> },
-                  { title: '服务', dataIndex: 'service', width: 120 },
-                  { title: '版本', dataIndex: 'version', ellipsis: true },
-                ]}
-              />
-            ) : (
-              <Alert type="success" style={{ marginTop: 8 }} content="未发现开放端口（全部关闭或被防火墙过滤），站点暴露面小，安全性良好。" />
-            )}
-          </div>
-        )}
-      </Card>
-        </GridCol>
-        <GridCol xs={24} xl={12}>
-          <SqlmapCard defaultTarget={url} />
-        </GridCol>
-      </GridRow>
-
+      
       {loading && <div style={{ textAlign: 'center', padding: 60 }}><Spin size={24} tip="正在抓取站点并逐层体检…" /></div>}
 
       {data && (

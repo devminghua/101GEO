@@ -222,16 +222,7 @@ func main() {
 		api.POST("/baidu/suggest", handlers.KeywordSuggest)
 		// 站点体检（四层）+ 差距诊断（三缺口）
 		api.POST("/baidu/site-audit", handlers.SiteAuditDetail)
-		// 站点体检 · Nmap 端口扫描（老板 2026-09-14 需求）
-		api.POST("/baidu/site-audit/portscan", handlers.SitePortScan)
-		// SQL 注入检测（sqlmap 图形界面）
-		api.POST("/baidu/site-audit/sqlmap/start", handlers.SQLMapStart)
-		api.GET("/baidu/site-audit/sqlmap/status", handlers.SQLMapStatus)
-		api.GET("/baidu/site-audit/sqlmap/data", handlers.SQLMapData)
-		api.GET("/baidu/site-audit/sqlmap/log", handlers.SQLMapLog)
-		api.DELETE("/baidu/site-audit/sqlmap/task", handlers.SQLMapDelete)
-		api.GET("/baidu/site-audit/sqlmap/options", handlers.SQLMapOptions)
-		api.POST("/baidu/site-audit/sqlmap/analyze", handlers.SQLMapAnalyze)
+		// 安全检测（Nmap 端口扫描 + sqlmap）：总后台专属，客户端不提供（老板 2026-09-15 拍板）
 		api.GET("/baidu/gap-diagnose", handlers.GapDiagnose)
 		// 百度指数行业排行（各行业 TOP 品牌指数）
 		api.GET("/baidu/industry-rank", handlers.IndustryRank)
@@ -532,7 +523,16 @@ func main() {
 			super.GET("/sms/config", handlers.GetSmsConfig)
 			super.POST("/sms/config", handlers.SaveSmsConfig)
 			// 第三方数据 API（Just One API）token 配置：抖音/小红书稳定数据抓取
-			super.GET("/data-api/config", handlers.DataAPIConfig)
+			// 安全检测：端口扫描 + SQL 注入检测（总后台专属）
+		super.POST("/security/portscan", handlers.SitePortScan)
+		super.POST("/security/sqlmap/start", handlers.SQLMapStart)
+		super.GET("/security/sqlmap/status", handlers.SQLMapStatus)
+		super.GET("/security/sqlmap/data", handlers.SQLMapData)
+		super.GET("/security/sqlmap/log", handlers.SQLMapLog)
+		super.DELETE("/security/sqlmap/task", handlers.SQLMapDelete)
+		super.GET("/security/sqlmap/options", handlers.SQLMapOptions)
+		super.POST("/security/sqlmap/analyze", handlers.SQLMapAnalyze)
+		super.GET("/data-api/config", handlers.DataAPIConfig)
 			super.POST("/data-api/config", handlers.SaveDataAPIConfig)
 			// 帮助文档（使用教程）：分类 + 文档管理
 			super.GET("/help/categories", handlers.HelpCategories)
